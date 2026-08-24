@@ -366,8 +366,10 @@ export const mockWallets: MemberWallet[] = [
 
 // ============ 配置 ============
 export const mockLevelConfigs: LevelBenefitConfig[] = [
-  { id: 1, level: MemberLevel.Silver, levelName: '银卡代理商', entryAmount: 5800, shopDiscount: 90, monthlyCredit: 580, creditMonths: 10, resellFeeRate: 20, status: ProductStatus.OnSale },
-  { id: 2, level: MemberLevel.Gold, levelName: '金卡代理商', entryAmount: 9800, shopDiscount: 80, monthlyCredit: 980, creditMonths: 10, resellFeeRate: 20, status: ProductStatus.OnSale },
+  { id: 1, level: 1, levelName: '银卡代理商', levelSort: 1, entryAmount: 5800, shopDiscount: 90, monthlyCredit: 580, creditMonths: 10, resellFeeRate: 20, status: ProductStatus.OnSale },
+  { id: 2, level: 2, levelName: '金卡代理商', levelSort: 2, entryAmount: 9800, shopDiscount: 80, monthlyCredit: 980, creditMonths: 10, resellFeeRate: 20, status: ProductStatus.OnSale },
+  { id: 3, level: 3, levelName: '铂金代理商', levelSort: 3, entryAmount: 19800, shopDiscount: 70, monthlyCredit: 1980, creditMonths: 12, resellFeeRate: 18, status: ProductStatus.OnSale },
+  { id: 4, level: 4, levelName: '钻石代理商', levelSort: 4, entryAmount: 39800, shopDiscount: 60, monthlyCredit: 3980, creditMonths: 12, resellFeeRate: 15, status: ProductStatus.OnSale },
 ]
 
 export const mockCommissionConfigs: CommissionRuleConfig[] = [

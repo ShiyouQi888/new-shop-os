@@ -167,7 +167,7 @@ export interface GiftPackage {
   name: string
   spuId: number
   price: number
-  level: MemberLevel.Silver | MemberLevel.Gold
+  level: number // 关联的代理商等级标识（对应 LevelBenefitConfig.level）
   status: ProductStatus
   items: GiftPackageItem[]
 }
@@ -364,8 +364,9 @@ export interface MemberWallet {
 
 export interface LevelBenefitConfig {
   id: number
-  level: MemberLevel.Silver | MemberLevel.Gold
-  levelName: string
+  level: number // 等级标识（自增档位 1/2/3...，可扩展任意多级）
+  levelName: string // 等级身份名称（可自定义，如：银卡代理商/钻石代理商）
+  levelSort: number // 展示排序，越小越靠前
   entryAmount: number
   shopDiscount: number // 90 = 9折
   monthlyCredit: number

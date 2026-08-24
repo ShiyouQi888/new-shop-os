@@ -360,6 +360,17 @@ export const apiConfig = {
     if (idx >= 0) Object.assign(mockLevelConfigs[idx], config)
     return delay({ success: true })
   },
+  createLevelConfig: (config: Omit<LevelBenefitConfig, 'id'>) => {
+    const id = Math.max(0, ...mockLevelConfigs.map(c => c.id)) + 1
+    const item: LevelBenefitConfig = { ...config, id }
+    mockLevelConfigs.push(item)
+    return delay(item)
+  },
+  removeLevelConfig: (id: number) => {
+    const idx = mockLevelConfigs.findIndex(c => c.id === id)
+    if (idx >= 0) mockLevelConfigs.splice(idx, 1)
+    return delay({ success: true })
+  },
   getCommissionConfigs: () => delay([...mockCommissionConfigs]),
   saveCommissionConfig: (config: CommissionRuleConfig) => {
     const idx = mockCommissionConfigs.findIndex(c => c.id === config.id)

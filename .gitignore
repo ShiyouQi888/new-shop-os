@@ -12,5 +12,6 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 *.tsbuildinfo
+*.timestamp-*.mjs
 .env
 .env.local

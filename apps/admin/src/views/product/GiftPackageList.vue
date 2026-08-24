@@ -9,9 +9,9 @@
               <SfPriceTag :value="row.price" size="large" />
             </template>
           </el-table-column>
-          <el-table-column label="关联等级" min-width="120">
+          <el-table-column label="关联等级" min-width="130">
             <template #default="{ row }">
-              <SfLevelTag :level="row.level" />
+              <SfLevelTag :level="row.level" :name="levelName(row.level)" />
             </template>
           </el-table-column>
           <el-table-column label="礼包内容" min-width="320">
@@ -58,8 +58,7 @@
         </el-form-item>
         <el-form-item label="关联等级">
           <el-select v-model="editForm.level" style="width: 200px">
-            <el-option label="银卡代理商" :value="1" />
-            <el-option label="金卡代理商" :value="2" />
+            <el-option v-for="l in levelOptions" :key="l.level" :label="l.levelName" :value="l.level" />
           </el-select>
         </el-form-item>
         <el-form-item label="礼包内容">
@@ -114,8 +113,8 @@
 import { ref, reactive, onMounted } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { apiGiftPackage, apiProduct } from '@/api'
-import { type GiftPackage, type GiftPackageItem, type ProductSPU, type ProductSKU, MemberLevel } from '@shop-os/shared'
+import { apiGiftPackage, apiProduct, apiConfig } from '@/api'
+import { type GiftPackage, type GiftPackageItem, type ProductSPU, type ProductSKU, type LevelBenefitConfig } from '@shop-os/shared'
 import SfPageContainer from '@/components/SfPageContainer.vue'
 import SfPriceTag from '@/components/SfPriceTag.vue'
 import SfLevelTag from '@/components/SfLevelTag.vue'
@@ -125,9 +124,12 @@ const saving = ref(false)
 const list = ref<GiftPackage[]>([])
 const products = ref<ProductSPU[]>([])
 const skus = ref<ProductSKU[]>([])
+const levelOptions = ref<LevelBenefitConfig[]>([])
+
+const levelName = (level: number) => levelOptions.value.find(l => l.level === level)?.levelName || `Lv.${level}`
 
 const editVisible = ref(false)
-const editForm = reactive<Partial<GiftPackage>>({ name: '', price: 0, level: MemberLevel.Silver, status: 1, items: [] })
+const editForm = reactive<Partial<GiftPackage>>({ name: '', price: 0, level: 1, status: 1, items: [] })
 const picker = reactive({ spuId: undefined as number | undefined, skuId: undefined as number | undefined, quantity: 1 })
 
 const calcTotal = (pkg: { items?: GiftPackageItem[] }) => {
@@ -139,8 +141,12 @@ const load = async () => {
   loading.value = true
   try {
     list.value = await apiGiftPackage.getList()
-    const res = await apiProduct.getList({ page: 1, pageSize: 100 })
+    const [res, levels] = await Promise.all([
+      apiProduct.getList({ page: 1, pageSize: 100 }),
+      apiConfig.getLevelConfigs(),
+    ])
     products.value = res.list
+    levelOptions.value = [...levels].sort((a, b) => a.levelSort - b.levelSort)
   } finally {
     loading.value = false
   }
