@@ -1,0 +1,196 @@
+@use './variables' as *;
+@use 'sass:color';
+
+// ===== 全局样式 =====
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  color: $text-primary;
+  background-color: $bg-page;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+// ===== 滚动条美化 =====
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: #c0c4cc;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #909399;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+// ===== 通用工具类 =====
+.sf-page {
+  padding: $spacing-lg;
+  
+  @media (max-width: 768px) {
+    padding: $spacing-md;
+  }
+}
+
+.sf-card {
+  background: $bg-card;
+  border-radius: $radius-md;
+  box-shadow: $shadow-sm;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-lg;
+}
+
+.sf-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: $text-primary;
+  margin-bottom: $spacing-lg;
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.sf-flex {
+  display: flex;
+  align-items: center;
+}
+
+.sf-flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sf-flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sf-text-primary { color: $text-primary; }
+.sf-text-regular { color: $text-regular; }
+.sf-text-secondary { color: $text-secondary; }
+.sf-text-danger { color: $color-danger; }
+.sf-text-success { color: $color-success; }
+.sf-text-warning { color: $color-warning; }
+.sf-text-gold { color: $color-gold; }
+.sf-text-silver { color: $color-silver; }
+
+.sf-font-bold { font-weight: 600; }
+.sf-font-large { font-size: 16px; }
+.sf-font-small { font-size: 12px; }
+
+.sf-mt-sm { margin-top: $spacing-sm; }
+.sf-mt-md { margin-top: $spacing-md; }
+.sf-mt-lg { margin-top: $spacing-lg; }
+.sf-mt-xl { margin-top: $spacing-xl; }
+.sf-mb-sm { margin-bottom: $spacing-sm; }
+.sf-mb-md { margin-bottom: $spacing-md; }
+.sf-mb-lg { margin-bottom: $spacing-lg; }
+
+.sf-price {
+  color: $color-danger;
+  font-weight: 600;
+  white-space: nowrap;
+  word-break: keep-all;
+
+  &::before {
+    content: '¥';
+    font-size: 0.85em;
+    margin-right: 2px;
+  }
+}
+
+.sf-price-large {
+  color: $color-danger;
+  font-size: 22px;
+  font-weight: 700;
+  white-space: nowrap;
+  word-break: keep-all;
+
+  &::before {
+    content: '¥';
+    font-size: 14px;
+    margin-right: 2px;
+  }
+}
+
+// 价格统一不换行（用于非 SfPriceTag 直接写 ¥{{ ... }} 的场景）
+.price-nowrap {
+  white-space: nowrap;
+  word-break: keep-all;
+}
+
+// ===== 搜索栏 =====
+.sf-search-bar {
+  background: $bg-card;
+  border-radius: $radius-md;
+  box-shadow: $shadow-sm;
+  padding: $spacing-lg $spacing-lg $spacing-sm;
+  margin-bottom: $spacing-lg;
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-md $spacing-lg;
+  align-items: flex-end;
+}
+
+.sf-search-item {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+  
+  .sf-search-label {
+    font-size: 12px;
+    color: $text-secondary;
+  }
+}
+
+// ===== 表格操作栏 =====
+.sf-table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-md;
+}
+
+.sf-pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: $spacing-lg;
+}
+
+// ===== Element Plus 主题覆盖 =====
+.el-button--primary {
+  --el-button-bg-color: #{$color-primary};
+  --el-button-border-color: #{$color-primary};
+  --el-button-hover-bg-color: #{$color-primary-hover};
+  --el-button-hover-border-color: #{$color-primary-hover};
+  --el-button-active-bg-color: #{$color-primary-active};
+  --el-button-active-border-color: #{$color-primary-active};
+}
+
+.el-tag--primary {
+  --el-tag-bg-color: #{$color-primary-light};
+  --el-tag-text-color: #{$color-primary};
+  --el-tag-border-color: #{color.adjust($color-primary-light, $lightness: 2%)};
+}
+
+.el-pagination.is-background .el-pager li.is-active {
+  background-color: $color-primary;
+}

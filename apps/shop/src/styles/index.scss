@@ -1,0 +1,155 @@
+@use './variables' as *;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  color: $text-primary;
+  background:
+    radial-gradient(circle at 16% 0%, rgba(184, 138, 68, 0.12), transparent 28%),
+    linear-gradient(180deg, #f7f8fa 0%, $bg-page 52%, #eef1f5 100%);
+  -webkit-font-smoothing: antialiased;
+}
+
+a { text-decoration: none; color: inherit; }
+img { display: block; max-width: 100%; }
+button, input { font: inherit; }
+
+// 滚动条隐藏
+::-webkit-scrollbar { display: none; }
+
+// 价格
+.price {
+  color: $color-primary;
+  font-weight: 600;
+}
+.price-lg {
+  color: $color-primary;
+  font-size: 20px;
+  font-weight: 700;
+}
+.price-old {
+  color: $text-placeholder;
+  text-decoration: line-through;
+  font-size: 12px;
+}
+
+// 卡片
+.mall-card {
+  background: $bg-card;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+  border: 1px solid rgba(226, 232, 240, 0.72);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+// 标题
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: $text-primary;
+  padding: 12px 16px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+// flex 工具
+.flex { display: flex; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; }
+.text-danger { color: $color-danger; }
+.text-success { color: $color-success; }
+.text-warning { color: $color-warning; }
+.text-gold { color: $color-gold; }
+.text-secondary { color: $text-secondary; }
+.text-sm { font-size: 12px; }
+.text-lg { font-size: 16px; }
+.font-bold { font-weight: 600; }
+
+// Vant 主题覆盖
+:root {
+  --van-primary-color: #{$color-primary};
+  --van-danger-color: #{$color-danger};
+  --van-warning-color: #{$color-gold};
+  --van-tabbar-item-active-color: #{$color-primary};
+  --van-tabs-bottom-bar-color: #{$color-primary};
+  --van-button-primary-background: #{$color-primary};
+  --van-button-primary-border-color: #{$color-primary};
+  --van-nav-bar-background: rgba(255, 255, 255, 0.92);
+  --van-nav-bar-title-text-color: #{$text-primary};
+  --van-nav-bar-arrow-icon-text-color: #{$text-primary};
+  --van-nav-bar-icon-color: #{$text-primary};
+  --van-nav-bar-text-color: #{$text-primary};
+  --van-border-color: #{$border-color};
+  --van-background: #{$bg-page};
+  --van-background-2: #{$bg-card};
+  --van-radius-md: #{$radius-md};
+  --van-radius-lg: #{$radius-lg};
+  --van-submit-bar-button-width: 128px;
+  --van-toast-text-color: #fff;
+  --van-toast-background: rgba(23, 32, 42, 0.92);
+  --van-toast-icon-size: 30px;
+}
+
+.van-toast {
+  color: #fff !important;
+  background:
+    linear-gradient(135deg, rgba(23, 32, 42, 0.96), rgba(45, 52, 65, 0.92)) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 18px 44px rgba(17, 24, 39, 0.26);
+  backdrop-filter: blur(10px);
+}
+
+.van-toast__text,
+.van-toast__icon,
+.van-toast .van-icon,
+.van-toast .van-loading {
+  color: #fff !important;
+}
+
+.van-toast .van-loading__spinner {
+  color: #fff !important;
+}
+
+.page-shell {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(31, 41, 51, 0.07), transparent 32%),
+    linear-gradient(180deg, #f8fafc 0%, $bg-page 46%, #eef1f5 100%);
+}
+
+.premium-card {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(226, 232, 240, 0.86);
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+}
+
+.premium-section-title {
+  color: $text-primary;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.premium-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: $radius-round;
+  color: $color-gold;
+  background: $color-gold-light;
+  border: 1px solid rgba(184, 138, 68, 0.18);
+  font-size: 11px;
+  font-weight: 600;
+}

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Shop-OS 精品商城</string>
+    <string name="title_activity_main">Shop-OS 精品商城</string>
+    <string name="package_name">com.shopos.mall</string>
+    <string name="custom_url_scheme">com.shopos.mall</string>
+</resources>

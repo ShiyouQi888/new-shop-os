@@ -1,0 +1,16 @@
+node_modules
+.pnpm-store
+.workbuddy
+.shop-git-backup
+dist
+dist-ssr
+*.local
+.DS_Store
+.idea
+*.log
+.tmp-*.py
+.vscode/*
+!.vscode/extensions.json
+*.tsbuildinfo
+.env
+.env.local

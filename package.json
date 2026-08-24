@@ -1,0 +1,19 @@
+{
+  "name": "shop-os",
+  "version": "1.0.0",
+  "private": true,
+  "description": "电商代理商系统 - 零售商城 + 大礼包入会 + 月度领货权益 + 站内转卖 + 三级分销佣金",
+  "scripts": {
+    "dev:admin": "pnpm --filter @shop-os/admin dev",
+    "dev:shop": "pnpm --filter @shop-os/shop dev",
+    "dev": "pnpm run dev:admin & pnpm run dev:shop",
+    "build:admin": "pnpm --filter @shop-os/admin build",
+    "build:shop": "pnpm --filter @shop-os/shop build",
+    "build:all": "pnpm --filter @shop-os/admin build && pnpm --filter @shop-os/shop build",
+    "lint": "pnpm -r --parallel lint"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

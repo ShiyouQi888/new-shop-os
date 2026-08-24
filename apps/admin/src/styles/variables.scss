@@ -1,0 +1,59 @@
+// ===== 设计令牌 SCSS 变量 =====
+// 品牌色
+$color-primary: #e54d42;
+$color-primary-hover: #ed6f5a;
+$color-primary-active: #c9362f;
+$color-primary-light: #fef0ef;
+$color-secondary: #f37b1d;
+
+// 等级色
+$color-gold: #d4a851;
+$color-gold-light: #fbf3e0;
+$color-silver: #9a9a9a;
+$color-silver-light: #f2f2f2;
+
+// 功能色
+$color-success: #39b54a;
+$color-warning: #fbbd08;
+$color-danger: #e54d42;
+$color-info: #909399;
+
+// 文字色
+$text-primary: #303133;
+$text-regular: #606266;
+$text-secondary: #909399;
+$text-placeholder: #c0c4cc;
+
+// 边框色
+$border-base: #dcdfe6;
+$border-light: #e4e7ed;
+$border-lighter: #ebeef5;
+
+// 背景色
+$bg-page: #f0f2f5;
+$bg-card: #ffffff;
+
+// 间距
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 12px;
+$spacing-base: 16px;
+$spacing-lg: 20px;
+$spacing-xl: 24px;
+$spacing-xxl: 32px;
+
+// 圆角
+$radius-sm: 4px;
+$radius-base: 6px;
+$radius-md: 8px;
+$radius-lg: 12px;
+$radius-round: 999px;
+
+// 阴影
+$shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.06);
+$shadow-base: 0 2px 8px rgba(0, 0, 0, 0.08);
+$shadow-md: 0 4px 12px rgba(0, 0, 0, 0.10);
+$shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+// Element Plus 主题覆盖
+$--color-primary: $color-primary;
