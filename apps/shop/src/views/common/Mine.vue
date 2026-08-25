@@ -78,6 +78,7 @@
         <van-cell title="我的收藏" icon="star-o" is-link @click="router.push('/mine/favorites')" />
         <van-cell title="浏览历史" icon="clock-o" is-link @click="router.push('/mine/history')" />
         <van-cell title="消息通知" icon="bell" is-link :value="unreadCount > 0 ? String(unreadCount) : ''" @click="router.push('/mine/notifications')" />
+        <van-cell title="我的工单" icon="records-o" is-link @click="router.push('/mine/work-orders')" />
         <van-cell title="客服与帮助" icon="service-o" is-link @click="router.push('/mine/help')" />
         <van-cell title="规则中心" icon="description" is-link @click="router.push('/mine/rules')" />
       </van-cell-group>

@@ -14,7 +14,7 @@
         />
       </van-cell-group>
       <van-empty v-else description="暂无帮助内容" />
-      <van-button block round type="primary" class="primary-action" icon="service-o" @click="contactService">联系在线客服</van-button>
+      <van-button block round type="primary" class="primary-action" icon="service-o" @click="contactService">提交客服工单</van-button>
     </main>
 
     <!-- 帮助详情弹层 -->
@@ -61,7 +61,8 @@ const openHelp = async (item: { id: number; title: string }) => {
 }
 
 const contactService = () => {
-  showToast('在线客服已接入，请稍后查看消息通知')
+  showToast('请尽量描述清楚问题，客服会在后台处理')
+  router.push('/mine/work-orders')
 }
 
 onMounted(async () => {

@@ -38,6 +38,12 @@ ensureColumn('commission', 'settlement_due_time', 'settlement_due_time TEXT DEFA
 ensureColumn('commission', 'settle_time', 'settle_time TEXT DEFAULT NULL')
 ensureColumn('resell_order', 'settle_time', 'settle_time TEXT DEFAULT NULL')
 ensureColumn('resell_order', 'credit_id', 'credit_id INTEGER REFERENCES credit_record(id)')
+ensureColumn('work_order', 'images', "images TEXT NOT NULL DEFAULT '[]'")
+ensureColumn('work_order', 'priority', 'priority INTEGER NOT NULL DEFAULT 1')
+ensureColumn('work_order', 'reply_content', "reply_content TEXT NOT NULL DEFAULT ''")
+ensureColumn('work_order', 'handler', "handler TEXT NOT NULL DEFAULT ''")
+ensureColumn('work_order', 'handle_time', 'handle_time TEXT DEFAULT NULL')
+ensureColumn('work_order', 'close_time', 'close_time TEXT DEFAULT NULL')
 // 推广海报：二维码在海报上的排版布局（百分比，老库迁移补列）
 ensureColumn('promote_poster', 'qr_x', 'qr_x REAL NOT NULL DEFAULT 38')
 ensureColumn('promote_poster', 'qr_y', 'qr_y REAL NOT NULL DEFAULT 72')

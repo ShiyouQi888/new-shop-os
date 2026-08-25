@@ -174,6 +174,19 @@ export const adminRoutes: RouteRecordRaw[] = [
     ],
   },
   {
+    path: '/service',
+    component: Layout,
+    meta: { title: '客服中心', icon: 'Service' },
+    children: [
+      {
+        path: 'work-orders',
+        name: 'WorkOrderList',
+        component: () => import('@/views/service/WorkOrderList.vue'),
+        meta: { title: '客服工单', icon: 'Tickets', permission: 'workorder:view' },
+      },
+    ],
+  },
+  {
     path: '/finance',
     component: Layout,
     meta: { title: '财务管理', icon: 'Coin' },

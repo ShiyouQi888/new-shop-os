@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { all, get, run } from '../db/index.js'
 import { ok, badRequest, notFound, conflict } from '../utils/response.js'
-import { now, int, genNo, monthOf } from '../utils/index.js'
+import { now, int, genNo, monthOf, parseJson } from '../utils/index.js'
 import { requireMember, signMemberToken } from '../middlewares/auth.js'
 import { config } from '../config.js'
 
@@ -522,6 +522,56 @@ router.post('/notifications/read-all', requireMember, (req, res, next) => {
   try {
     run('UPDATE member_notification SET is_read = 1 WHERE member_id = ?', req.member!.mid)
     ok(res, null, '已全部标记为已读')
+  } catch (e) { next(e) }
+})
+
+// ===== 客服工单 =====
+/** GET /shop/member/work-orders 我的工单 */
+router.get('/work-orders', requireMember, (req, res, next) => {
+  try {
+    const list = all<Record<string, unknown>>(
+      `SELECT id, ticket_no AS ticketNo, type, title, content, images, priority, status,
+              reply_content AS replyContent, handler, handle_time AS handleTime,
+              close_time AS closeTime, create_time AS createTime, update_time AS updateTime
+       FROM work_order WHERE member_id = ? ORDER BY id DESC LIMIT 100`,
+      req.member!.mid,
+    ).map(row => ({ ...row, images: parseJson(row.images, []) }))
+    ok(res, list)
+  } catch (e) { next(e) }
+})
+
+/** POST /shop/member/work-orders 提交工单 */
+router.post('/work-orders', requireMember, (req, res, next) => {
+  try {
+    const mid = req.member!.mid
+    const body = z.object({
+      type: z.enum(['consult', 'order', 'after_sale', 'commission', 'withdraw', 'other']),
+      title: z.string().min(2).max(60),
+      content: z.string().min(5).max(1000),
+      images: z.array(z.string().max(300)).max(6).optional(),
+      priority: z.number().int().min(1).max(3).optional(),
+    }).parse(req.body)
+    const member = get<{ nickname: string; phone: string }>('SELECT nickname, phone FROM member WHERE id = ?', mid)
+    if (!member) throw notFound('会员不存在')
+    const r = run(
+      `INSERT INTO work_order (ticket_no, member_id, member_name, phone, type, title, content, images, priority, status, create_time, update_time)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+      genNo('WO'), mid, member.nickname, member.phone, body.type, body.title, body.content,
+      JSON.stringify(body.images || []), body.priority ?? 1, now(), now(),
+    )
+    ok(res, { id: Number(r.lastInsertRowid) }, '工单已提交，客服会尽快处理', 201)
+  } catch (e) { next(e) }
+})
+
+/** PATCH /shop/member/work-orders/:id/close 会员关闭自己的工单 */
+router.patch('/work-orders/:id/close', requireMember, (req, res, next) => {
+  try {
+    const id = Number(req.params.id)
+    const row = get<Record<string, unknown>>('SELECT * FROM work_order WHERE id = ? AND member_id = ?', id, req.member!.mid)
+    if (!row) throw notFound('工单不存在')
+    if (Number(row.status) === 3) throw badRequest('工单已关闭')
+    run('UPDATE work_order SET status = 3, close_time = ?, update_time = ? WHERE id = ?', now(), now(), id)
+    ok(res, null, '工单已关闭')
   } catch (e) { next(e) }
 })
 

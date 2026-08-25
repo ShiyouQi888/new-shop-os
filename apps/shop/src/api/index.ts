@@ -229,6 +229,27 @@ export const api = {
   getNotifications: () => http.get<{ list: Array<{ id: number; type: string; title: string; content: string; isRead: number; createTime: string }>; unread: number }>('/shop/member/notifications'),
   readAllNotifications: () => http.post('/shop/member/notifications/read-all'),
 
+  // ===== 客服工单 =====
+  getWorkOrders: () => http.get<Array<{
+    id: number
+    ticketNo: string
+    type: string
+    title: string
+    content: string
+    images: string[]
+    priority: number
+    status: number
+    replyContent: string
+    handler: string
+    handleTime: string | null
+    closeTime: string | null
+    createTime: string
+    updateTime: string
+  }>>('/shop/member/work-orders'),
+  createWorkOrder: (payload: { type: string; title: string; content: string; images?: string[]; priority?: number }) =>
+    http.post<{ id: number }>('/shop/member/work-orders', payload),
+  closeWorkOrder: (id: number) => http.patch(`/shop/member/work-orders/${id}/close`),
+
   // ===== 提现账号 / 提现申请 =====
   getPayoutAccount: () => http.get<{
     memberId: number; bankName: string; bankCard: string; bankHolder: string; alipayName: string; alipayAccount: string; updateTime: string

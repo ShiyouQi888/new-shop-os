@@ -390,6 +390,29 @@ CREATE TABLE IF NOT EXISTS member_notification (
 );
 CREATE INDEX IF NOT EXISTS idx_mnotif_member ON member_notification(member_id);
 
+-- 客服工单（前台提交，后台处理）
+CREATE TABLE IF NOT EXISTS work_order (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  ticket_no     TEXT    NOT NULL UNIQUE,
+  member_id     INTEGER NOT NULL REFERENCES member(id),
+  member_name   TEXT    NOT NULL DEFAULT '',
+  phone         TEXT    NOT NULL DEFAULT '',
+  type          TEXT    NOT NULL DEFAULT 'consult',
+  title         TEXT    NOT NULL DEFAULT '',
+  content       TEXT    NOT NULL DEFAULT '',
+  images        TEXT    NOT NULL DEFAULT '[]',
+  priority      INTEGER NOT NULL DEFAULT 1,
+  status        INTEGER NOT NULL DEFAULT 0, -- 0 待处理 1 处理中 2 已回复 3 已关闭
+  reply_content TEXT    NOT NULL DEFAULT '',
+  handler       TEXT    NOT NULL DEFAULT '',
+  handle_time   TEXT    DEFAULT NULL,
+  close_time    TEXT    DEFAULT NULL,
+  create_time   TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
+  update_time   TEXT    NOT NULL DEFAULT (datetime('now', 'localtime'))
+);
+CREATE INDEX IF NOT EXISTS idx_work_order_member ON work_order(member_id);
+CREATE INDEX IF NOT EXISTS idx_work_order_status ON work_order(status);
+
 -- 浏览历史（前台 /mine/history）
 CREATE TABLE IF NOT EXISTS member_browse (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,

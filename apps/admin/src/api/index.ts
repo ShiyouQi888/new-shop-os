@@ -445,6 +445,35 @@ export const apiHelp = {
   remove: (id: number) => http.delete(`/help/${id}`),
 }
 
+// ============ 客服工单 ============
+export interface WorkOrder {
+  id: number
+  ticketNo: string
+  memberId: number
+  memberName: string
+  phone: string
+  type: string
+  title: string
+  content: string
+  images: string
+  priority: number
+  status: number
+  replyContent: string
+  handler: string
+  handleTime: string | null
+  closeTime: string | null
+  createTime: string
+  updateTime: string
+}
+
+export const apiWorkOrder = {
+  getList: (params: { page: number; pageSize: number; status?: number | ''; type?: string; keyword?: string }) =>
+    http.get<{ list: WorkOrder[]; total: number }>('/work-orders', params as unknown as Record<string, unknown>),
+  getById: (id: number) => http.get<WorkOrder>(`/work-orders/${id}`),
+  reply: (id: number, replyContent: string, status?: number) => http.post(`/work-orders/${id}/reply`, { replyContent, status }),
+  updateStatus: (id: number, status: number) => http.patch(`/work-orders/${id}/status`, { status }),
+}
+
 // ============ 文件资产 ============
 export const apiFileGroup = {
   getList: () => http.get<(FileAssetGroup & { assetCount: number })[]>('/file-groups'),

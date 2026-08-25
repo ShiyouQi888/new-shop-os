@@ -105,6 +105,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '客服与帮助', requiresAuth: true },
   },
   {
+    path: '/mine/work-orders',
+    name: 'MineWorkOrders',
+    component: () => import('@/views/common/WorkOrderCenter.vue'),
+    meta: { title: '我的工单', requiresAuth: true },
+  },
+  {
     path: '/mine/rules',
     name: 'MineRules',
     component: () => import('@/views/common/RulesCenter.vue'),

@@ -25,6 +25,7 @@ import helpRoutes from './routes/help.js'
 import logRoutes, { logLogin } from './routes/log.js'
 import roleRoutes from './routes/roles.js'
 import posterRoutes from './routes/posters.js'
+import workOrderRoutes from './routes/work-order.js'
 
 export function createApp() {
   const app = express()
@@ -61,6 +62,7 @@ export function createApp() {
   api.use('/logs', logRoutes)
   api.use('/roles', roleRoutes)
   api.use('/posters', posterRoutes)
+  api.use('/work-orders', workOrderRoutes)
 
   app.use('/api/v1', api)
 
