@@ -34,7 +34,25 @@
           <el-table-column label="等级" min-width="110">
             <template #default="{ row }"><SfLevelTag :level="row.level" /></template>
           </el-table-column>
-          <el-table-column label="入会时间" prop="becomeAgentTime" min-width="160" />
+          <el-table-column label="入会时间" min-width="160">
+            <template #default="{ row }">
+              <span v-if="row.becomeAgentTime">{{ row.becomeAgentTime }}</span>
+              <span v-else class="agent-empty">-</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="提现账号" min-width="180">
+            <template #default="{ row }">
+              <div v-if="(row as AgentRow).bankCard || (row as AgentRow).alipayAccount" class="payout-cell">
+                <div v-if="(row as AgentRow).bankCard" class="payout-line">
+                  <span>{{ (row as AgentRow).bankName || '银行卡' }} {{ maskCard((row as AgentRow).bankCard || '') }}</span>
+                </div>
+                <div v-if="(row as AgentRow).alipayAccount" class="payout-line payout-alipay">
+                  <span>支付宝 {{ maskPhone((row as AgentRow).alipayAccount || '') }}</span>
+                </div>
+              </div>
+              <span v-else class="agent-empty">未绑定</span>
+            </template>
+          </el-table-column>
           <el-table-column label="邀请码" prop="inviteCode" min-width="100" />
           <el-table-column label="直推会员" min-width="90" align="center">
             <template #default="{ row }">{{ directCount(row.id) }}</template>
@@ -62,8 +80,24 @@
           <el-avatar :size="56" :src="currentAgent.avatar" />
           <div>
             <div class="agent-title">{{ currentAgent.nickname }}（{{ currentAgent.inviteCode }}）</div>
-            <div class="agent-sub">{{ currentAgent.phone }} · 入会 {{ currentAgent.becomeAgentTime }}</div>
+            <div class="agent-sub">{{ currentAgent.phone }} · 入会 {{ currentAgent.becomeAgentTime || '-' }}</div>
           </div>
+        </div>
+
+        <div class="detail-block" v-if="currentAgent?.bankCard || currentAgent?.alipayAccount">
+          <div class="section-title">提现账号</div>
+          <div class="detail-row" v-if="currentAgent?.bankCard">
+            <span class="detail-label">银行卡</span>
+            <span class="detail-value">{{ currentAgent.bankHolder || '-' }} · {{ currentAgent.bankName || '' }} {{ maskCard(currentAgent.bankCard) }}</span>
+          </div>
+          <div class="detail-row" v-if="currentAgent?.alipayAccount">
+            <span class="detail-label">支付宝</span>
+            <span class="detail-value">{{ currentAgent.alipayName || '-' }} · {{ maskPhone(currentAgent.alipayAccount) }}</span>
+          </div>
+        </div>
+        <div class="detail-block" v-else>
+          <div class="section-title">提现账号</div>
+          <div class="detail-row"><span class="detail-value agent-empty">该代理商尚未绑定提现账号</span></div>
         </div>
 
         <div class="stat-grid">
@@ -153,13 +187,21 @@ import SfPriceTag from '@/components/SfPriceTag.vue'
 
 const loading = ref(false)
 const filters = reactive({ level: '' as MemberLevel | '', keyword: '' })
-const list = ref<Member[]>([])
+/** 代理商行（含后端联查的提现账号字段） */
+type AgentRow = Member & {
+  bankName?: string
+  bankCard?: string
+  bankHolder?: string
+  alipayName?: string
+  alipayAccount?: string
+}
+const list = ref<AgentRow[]>([])
 const allMembers = ref<Member[]>([])
 
 const performanceVisible = ref(false)
 const commissionVisible = ref(false)
 const commissionLoading = ref(false)
-const currentAgent = ref<Member | null>(null)
+const currentAgent = ref<AgentRow | null>(null)
 const stats = reactive({ orderCount: 0, orderTotal: 0, commissionCount: 0, commissionTotal: 0, wallet: null as MemberWallet | null })
 const teamStats = reactive({ direct: 0, team: 0 })
 const wallet = ref<MemberWallet | null>(null)
@@ -167,6 +209,23 @@ const memberOrders = ref<Order[]>([])
 const memberCommissions = ref<Commission[]>([])
 
 const directCount = (memberId: number) => allMembers.value.filter(m => m.inviterId === memberId).length
+
+/** 银行卡号脱敏：6225881234567890 → 6225 **** **** 7890 */
+const maskCard = (card: string) => {
+  const digits = card.replace(/\s/g, '')
+  if (digits.length <= 8) return digits
+  return `${digits.slice(0, 4)} **** **** ${digits.slice(-4)}`
+}
+
+/** 手机号/支付宝账号脱敏：138****1234 */
+const maskPhone = (account: string) => {
+  if (account.includes('@')) {
+    const [name, domain] = account.split('@')
+    return `${name.slice(0, 1)}***@${domain}`
+  }
+  if (account.length <= 7) return account
+  return `${account.slice(0, 3)}****${account.slice(-4)}`
+}
 
 const teamCount = (memberId: number) => {
   const direct = allMembers.value.filter(m => m.inviterId === memberId)
@@ -195,7 +254,7 @@ const load = async () => {
 const search = () => load()
 const resetSearch = () => { filters.level = ''; filters.keyword = ''; load() }
 
-const openPerformance = async (row: Member) => {
+const openPerformance = async (row: AgentRow) => {
   currentAgent.value = row
   performanceVisible.value = true
   teamStats.direct = directCount(row.id)
@@ -236,7 +295,7 @@ onMounted(load)
 }
 .agent-phone {
   font-size: 12px;
-  color: #909399;
+  color: #626A73;
 }
 .agent-header {
   display: flex;
@@ -250,7 +309,7 @@ onMounted(load)
 }
 .agent-sub {
   font-size: 13px;
-  color: #909399;
+  color: #626A73;
   margin-top: 4px;
 }
 .stat-grid {
@@ -259,26 +318,57 @@ onMounted(load)
   gap: 12px;
 }
 .stat-cell {
-  background: #f9fafc;
+  background: #F8F9FB;
   border-radius: 8px;
   padding: 14px 8px;
   text-align: center;
-  border: 1px solid #f0f0f0;
+  border: 1px solid #E7E9ED;
 }
 .stat-num {
   font-size: 18px;
   font-weight: 700;
-  color: #303133;
+  color: #171A1F;
 }
 .stat-label {
   font-size: 12px;
-  color: #909399;
+  color: #626A73;
   margin-top: 4px;
+}
+.agent-empty {
+  color: #9AA1AA;
+  font-size: 12px;
+}
+.payout-cell {
+  line-height: 1.7;
+}
+.payout-line {
+  font-size: 12px;
+  color: #626A73;
+}
+.payout-alipay {
+  color: #FF6B35;
+}
+.detail-block {
+  margin-bottom: 4px;
+}
+.detail-row {
+  display: flex;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 13px;
+}
+.detail-label {
+  color: #626A73;
+  width: 56px;
+  flex-shrink: 0;
+}
+.detail-value {
+  color: #171A1F;
 }
 .section-title {
   font-size: 15px;
   font-weight: 600;
-  color: #303133;
+  color: #171A1F;
   margin: 20px 0 12px;
 }
 </style>

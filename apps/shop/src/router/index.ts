@@ -18,6 +18,13 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '注册' },
   },
   {
+    // 推广邀请链接：/r/{邀请码} → 注册页并自动带出邀请码
+    path: '/r/:inviteCode',
+    name: 'RegisterByInvite',
+    redirect: (to) => ({ path: '/register', query: { invite: to.params.inviteCode as string } }),
+    meta: { title: '注册' },
+  },
+  {
     path: '/',
     component: TabLayout,
     redirect: '/home',
@@ -114,7 +121,7 @@ const routes: RouteRecordRaw[] = [
     path: '/agent',
     name: 'AgentHome',
     component: () => import('@/views/agent/AgentHome.vue'),
-    meta: { title: '代理商工作台', requiresAuth: true, requiresAgent: true },
+    meta: { title: '会员工作台', requiresAuth: true, requiresAgent: true },
   },
   {
     path: '/agent/credit',

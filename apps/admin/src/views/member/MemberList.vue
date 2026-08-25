@@ -1,6 +1,9 @@
 <template>
   <div class="sf-page">
     <SfPageContainer title="会员列表" description="管理所有注册会员，按等级、状态筛选">
+      <template #header>
+        <el-button type="primary" :icon="Plus" @click="openCreate">新增会员</el-button>
+      </template>
       <div class="sf-card">
         <div class="sf-search-bar">
           <div class="sf-search-item">
@@ -60,6 +63,36 @@
         </div>
       </div>
     </SfPageContainer>
+
+    <!-- 新增会员弹窗 -->
+    <el-dialog v-model="createVisible" title="新增会员" width="480px" destroy-on-close>
+      <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="90px">
+        <el-form-item label="昵称" prop="nickname">
+          <el-input v-model="createForm.nickname" placeholder="会员昵称" maxlength="20" />
+        </el-form-item>
+        <el-form-item label="手机号" prop="phone">
+          <el-input v-model="createForm.phone" placeholder="用于登录与联系" maxlength="20" />
+        </el-form-item>
+        <el-form-item label="会员等级" prop="level">
+          <el-select v-model="createForm.level" style="width: 100%">
+            <el-option label="普通会员" :value="0" />
+            <el-option v-for="lv in levelOptions" :key="lv.level" :label="lv.levelName" :value="lv.level" />
+          </el-select>
+          <div class="create-tip">选择代理商等级将自动发放当月领货额度</div>
+        </el-form-item>
+        <el-form-item label="真实姓名">
+          <el-input v-model="createForm.realName" placeholder="选填" maxlength="20" />
+        </el-form-item>
+        <el-form-item label="登录密码">
+          <el-input v-model="createForm.password" type="password" show-password placeholder="留空默认 123456" maxlength="50" />
+          <div class="create-tip">设置后会员可用「手机号 + 密码」登录商城；留空则默认 123456</div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="createVisible = false">取消</el-button>
+        <el-button type="primary" :loading="creating" @click="createMember">创建</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 会员详情抽屉 -->
     <el-drawer v-model="detailVisible" title="会员详情" size="640px">
@@ -176,17 +209,19 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { Search, RefreshLeft } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
-import { apiMember, apiWallet } from '@/api'
+import { Search, RefreshLeft, Plus } from '@element-plus/icons-vue'
+import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { apiMember, apiWallet, apiConfig } from '@/api'
 import {
   type Member, type MemberWallet, type Order, type Commission,
+  type LevelBenefitConfig,
   MemberLevel, OrderType, OrderStatus, CommissionStatus,
   OrderTypeLabels, OrderStatusLabels, CommissionStatusLabels,
 } from '@shop-os/shared'
 import SfPageContainer from '@/components/SfPageContainer.vue'
 import SfLevelTag from '@/components/SfLevelTag.vue'
 import SfPriceTag from '@/components/SfPriceTag.vue'
+import { loadLevelMap } from '@/utils/level'
 
 const loading = ref(false)
 const list = ref<Member[]>([])
@@ -194,6 +229,47 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
 const filters = reactive({ keyword: '', level: '' as MemberLevel | '' })
+
+// ===== 新增会员 =====
+const createVisible = ref(false)
+const creating = ref(false)
+const createFormRef = ref<FormInstance>()
+const levelOptions = ref<LevelBenefitConfig[]>([])
+const createForm = reactive({ nickname: '', phone: '', level: 0, realName: '', password: '' })
+const createRules: FormRules = {
+  nickname: [{ required: true, message: '请输入昵称', trigger: 'blur' }],
+  phone: [
+    { required: true, message: '请输入手机号', trigger: 'blur' },
+    { pattern: /^1\d{10}$/, message: '手机号格式不正确', trigger: 'blur' },
+  ],
+  level: [{ required: true, message: '请选择等级', trigger: 'change' }],
+}
+
+const openCreate = async () => {
+  Object.assign(createForm, { nickname: '', phone: '', level: 0, realName: '', password: '' })
+  if (!levelOptions.value.length) {
+    levelOptions.value = await apiConfig.getLevelConfigs()
+  }
+  createVisible.value = true
+}
+const createMember = async () => {
+  await createFormRef.value?.validate()
+  creating.value = true
+  try {
+    await apiMember.create({
+      nickname: createForm.nickname.trim(),
+      phone: createForm.phone.trim(),
+      level: createForm.level,
+      realName: createForm.realName.trim(),
+      password: createForm.password || undefined,
+    })
+    ElMessage.success('会员创建成功')
+    createVisible.value = false
+    load()
+  } finally {
+    creating.value = false
+  }
+}
 
 const detailVisible = ref(false)
 const detailTab = ref('info')
@@ -246,7 +322,10 @@ const toggleStatus = async (row: Member, status: number) => {
   load()
 }
 
-onMounted(load)
+onMounted(() => {
+  loadLevelMap()
+  load()
+})
 </script>
 
 <style scoped>
@@ -275,20 +354,26 @@ onMounted(load)
   margin-top: 20px;
 }
 .stat-cell {
-  background: #f9fafc;
+  background: #F8F9FB;
   border-radius: 8px;
   padding: 14px 8px;
   text-align: center;
-  border: 1px solid #f0f0f0;
+  border: 1px solid #E7E9ED;
 }
 .stat-num {
   font-size: 18px;
   font-weight: 700;
-  color: #303133;
+  color: #171A1F;
 }
 .stat-label {
   font-size: 12px;
-  color: #909399;
+  color: #626A73;
   margin-top: 4px;
+}
+.create-tip {
+  font-size: 12px;
+  color: #626A73;
+  line-height: 1.6;
+  width: 100%;
 }
 </style>

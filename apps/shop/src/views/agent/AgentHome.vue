@@ -1,6 +1,6 @@
 <template>
   <div class="agent-home page-shell" v-if="stats">
-    <van-nav-bar title="代理商工作台" left-arrow @click-left="router.back()" fixed safe-area-inset-top />
+    <van-nav-bar title="会员工作台" left-arrow @click-left="router.back()" fixed safe-area-inset-top />
 
     <main class="agent-body">
       <section class="identity-card">
@@ -63,7 +63,7 @@
             <span class="section-kicker">PAYOUT ACCOUNT</span>
             <h2>提现账号</h2>
           </div>
-          <van-icon name="arrow" color="#8f6f3f" />
+          <van-icon name="arrow" color="#E85222" />
         </div>
         <div class="account-preview">
           <div class="account-chip primary">
@@ -102,11 +102,11 @@
           </div>
         </div>
         <div class="todo-item">
-          <van-icon name="clock-o" color="#b7791f" />
+          <van-icon name="clock-o" color="#F5A623" />
           <span>本月领货权益将在 {{ expireDate }} 到期，请及时领取</span>
         </div>
         <div class="todo-item">
-          <van-icon name="balance-o" color="#177245" />
+          <van-icon name="balance-o" color="#18A66A" />
           <span>佣金 ¥{{ stats.commission.available.toFixed(0) }} 可提现，提现前请确认账号</span>
         </div>
       </section>
@@ -219,12 +219,12 @@ onMounted(async () => {
 .agent-home .withdraw-action {
   min-width: 88px;
   border: 1px solid rgba(255, 255, 255, 0.72) !important;
-  color: #17202a !important;
+  color: #171A1F !important;
   font-weight: 800;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
 }
 .agent-home .withdraw-action .van-button__text {
-  color: #17202a !important;
+  color: #171A1F !important;
 }
 .agent-home .rights-row {
   gap: 8px;
@@ -250,19 +250,19 @@ onMounted(async () => {
 }
 .agent-home .metric-card {
   padding: 15px 14px;
-  border: 1px solid rgba(226, 232, 240, 0.86);
+  border: 1px solid rgba(231, 233, 237, 0.86);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 8px 24px rgba(17, 24, 39, 0.06);
   text-align: left;
 }
 .agent-home .metric-card span {
-  color: #7b8794;
+  color: #626A73;
 }
 .agent-home .metric-card strong {
   display: block;
   margin-top: 7px;
-  color: #17202a;
+  color: #171A1F;
   font-size: 22px;
   line-height: 1;
 }
@@ -273,13 +273,13 @@ onMounted(async () => {
   padding: 16px;
 }
 .agent-home .section-kicker {
-  color: #8f6f3f;
+  color: #E85222;
   font-size: 10px;
   font-weight: 800;
 }
 .agent-home h2 {
   margin-top: 3px;
-  color: #17202a;
+  color: #171A1F;
   font-size: 17px;
   line-height: 1.2;
 }
@@ -295,14 +295,14 @@ onMounted(async () => {
   min-height: 40px;
   padding: 0 12px;
   border-radius: 12px;
-  background: #f3f5f7;
-  color: #637083;
+  background: #F8F9FB;
+  color: #626A73;
   font-size: 13px;
   font-weight: 650;
 }
 .agent-home .account-chip.primary {
-  color: #8f6f3f;
-  background: #f7efe2;
+  color: #E85222;
+  background: #FFF1EB;
 }
 .agent-home .quick-grid {
   display: grid;
@@ -312,10 +312,10 @@ onMounted(async () => {
 }
 .agent-home .quick-cell {
   min-height: 82px;
-  border: 1px solid rgba(226, 232, 240, 0.78);
+  border: 1px solid rgba(231, 233, 237, 0.78);
   border-radius: 14px;
   background: #fff;
-  color: #4d5967;
+  color: #626A73;
   font-size: 12px;
   font-weight: 700;
 }
@@ -327,12 +327,12 @@ onMounted(async () => {
   margin: 0 auto 8px;
   border-radius: 12px;
 }
-.agent-home .tone-gold { color: #b88a44; background: #f7efe2; }
-.agent-home .tone-blue { color: #315f8f; background: #eaf2fb; }
-.agent-home .tone-green { color: #177245; background: #e8f4ee; }
-.agent-home .tone-ink { color: #17202a; background: #edf1f5; }
-.agent-home .tone-amber { color: #b7791f; background: #fff4df; }
-.agent-home .tone-slate { color: #637083; background: #f1f4f8; }
+.agent-home .tone-gold { color: #FF6B35; background: #FFF1EB; }
+.agent-home .tone-blue { color: #626A73; background: #F8F9FB; }
+.agent-home .tone-green { color: #18A66A; background: #EAF8F2; }
+.agent-home .tone-ink { color: #171A1F; background: #F8F9FB; }
+.agent-home .tone-amber { color: #F5A623; background: #FFF1EB; }
+.agent-home .tone-slate { color: #626A73; background: #F8F9FB; }
 .agent-home .todo-card {
   margin-bottom: 8px;
 }
@@ -341,7 +341,7 @@ onMounted(async () => {
   align-items: flex-start;
   gap: 8px;
   padding-top: 12px;
-  color: #4d5967;
+  color: #626A73;
   font-size: 13px;
   line-height: 1.5;
 }

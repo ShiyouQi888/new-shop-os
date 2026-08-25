@@ -1,6 +1,49 @@
 <template>
   <div class="sf-page">
-    <SfPageContainer title="分销关系" description="查看会员三级推荐关系链">
+    <SfPageContainer title="分销关系" description="分销开关配置与会员推荐关系链">
+      <!-- 分销开关配置 -->
+      <div class="sf-card">
+        <div class="sf-card-title"><el-icon><Switch /></el-icon> 分销开关</div>
+        <div class="dist-switch-bar" v-loading="configLoading">
+          <div class="switch-item">
+            <div class="switch-info">
+              <span class="switch-name">分销总开关</span>
+              <span class="switch-desc">关闭后前台隐藏推广/团队/佣金入口，关系链不再产生新佣金</span>
+            </div>
+            <el-switch v-model="distConfig.enabled" @change="(v: string|number|boolean) => saveConfig('distribution.enabled', Boolean(v))" />
+          </div>
+          <div class="switch-divider" />
+          <div class="switch-item" :class="{ disabled: !distConfig.enabled }">
+            <div class="switch-info">
+              <span class="switch-name">一级分销</span>
+              <span class="switch-desc">开启后直推（一级）关系生效，产生一级佣金</span>
+            </div>
+            <el-switch v-model="distConfig.level1" :disabled="!distConfig.enabled"
+              @change="(v: string|number|boolean) => saveConfig('distribution.level_1', Boolean(v))" />
+          </div>
+          <div class="switch-item" :class="{ disabled: !distConfig.enabled }">
+            <div class="switch-info">
+              <span class="switch-name">二级分销</span>
+              <span class="switch-desc">开启后间推（二级）关系生效，产生二级佣金</span>
+            </div>
+            <el-switch v-model="distConfig.level2" :disabled="!distConfig.enabled"
+              @change="(v: string|number|boolean) => saveConfig('distribution.level_2', Boolean(v))" />
+          </div>
+          <div class="switch-item" :class="{ disabled: !distConfig.enabled }">
+            <div class="switch-info">
+              <span class="switch-name">三级分销</span>
+              <span class="switch-desc">开启后三级关系生效，产生三级佣金</span>
+            </div>
+            <el-switch v-model="distConfig.level3" :disabled="!distConfig.enabled"
+              @change="(v: string|number|boolean) => saveConfig('distribution.level_3', Boolean(v))" />
+          </div>
+        </div>
+        <div class="dist-hint" v-if="!distConfig.enabled">
+          <el-icon><Warning /></el-icon>
+          <span>分销已整体关闭：前台「推广中心 / 我的团队 / 佣金明细」将提示暂停，且不会产生新佣金。</span>
+        </div>
+      </div>
+
       <div class="sf-card">
         <div class="sf-search-bar">
           <div class="sf-search-item">
@@ -65,20 +108,78 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { Search, Share, User } from '@element-plus/icons-vue'
-import { mockMembers, type Member, MemberLevel } from '@shop-os/shared'
+import { ref, reactive, onMounted, computed } from 'vue'
+import { Search, Share, User, Switch, Warning } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { type Member, type SystemConfig } from '@shop-os/shared'
+import { apiMember, apiConfig } from '@/api'
 import SfPageContainer from '@/components/SfPageContainer.vue'
+import { loadLevelMap } from '@/utils/level'
 import SfLevelTag from '@/components/SfLevelTag.vue'
 
 const keyword = ref('')
 const currentMember = ref<Member | null>(null)
 const activeTab = ref('1')
+/** 全量会员缓存（后端 /members 加载，用于本地关系检索） */
+const members = ref<Member[]>([])
+
+// ===== 分销开关 =====
+const configLoading = ref(false)
+const distConfig = reactive({ enabled: true, level1: true, level2: true, level3: true })
+
+const loadDistConfig = async () => {
+  configLoading.value = true
+  try {
+    const configs = await apiConfig.getSystemConfigs('distribution')
+    const val = (k: string, def = '1') => {
+      const c = configs.find((x: SystemConfig) => x.configKey === k)
+      return c ? c.configValue : def
+    }
+    distConfig.enabled = val('distribution.enabled') === '1'
+    distConfig.level1 = val('distribution.level_1') === '1'
+    distConfig.level2 = val('distribution.level_2') === '1'
+    distConfig.level3 = val('distribution.level_3') === '1'
+  } catch {
+    ElMessage.warning('分销开关配置加载失败')
+  } finally {
+    configLoading.value = false
+  }
+}
+
+const saveConfig = async (key: string, value: boolean) => {
+  try {
+    const configs = await apiConfig.getSystemConfigs('distribution')
+    const target = configs.find((x: SystemConfig) => x.configKey === key)
+    if (!target) {
+      ElMessage.warning('配置项不存在')
+      return
+    }
+    await apiConfig.saveSystemConfig({ ...target, configValue: value ? '1' : '0' })
+    ElMessage.success(value ? '已开启' : '已关闭')
+    if (key === 'distribution.enabled' && !value) {
+      // 关总开关时前端禁用分级开关视觉
+      distConfig.level1 = false
+      distConfig.level2 = false
+      distConfig.level3 = false
+    }
+  } catch {
+    ElMessage.error('保存失败')
+  }
+}
+
+const loadMembers = async () => {
+  try {
+    const res = await apiMember.getList({ page: 1, pageSize: 100 })
+    members.value = res.list
+  } catch {
+    ElMessage.warning('会员数据加载失败')
+  }
+}
 
 const search = () => {
   const kw = keyword.value.trim()
   if (!kw) return
-  const found = mockMembers.find(m => m.id.toString() === kw || m.phone.includes(kw))
+  const found = members.value.find(m => m.id.toString() === kw || m.phone.includes(kw))
   currentMember.value = found || null
 }
 
@@ -86,21 +187,68 @@ const getInviter = (level: 1 | 2 | 3): Member | null => {
   if (!currentMember.value) return null
   const id = level === 1 ? currentMember.value.inviterId : level === 2 ? currentMember.value.secondInviterId : currentMember.value.thirdInviterId
   if (!id) return null
-  return mockMembers.find(m => m.id === id) || null
+  return members.value.find(m => m.id === id) || null
 }
 
 const teamData = computed(() => {
   if (!currentMember.value) return []
-  return mockMembers.filter(m => m.inviterId === currentMember.value!.id)
+  return members.value.filter(m => m.inviterId === currentMember.value!.id)
 })
 
-onMounted(() => {
+onMounted(async () => {
+  loadLevelMap()
+  await Promise.all([loadDistConfig(), loadMembers()])
   keyword.value = '1'
   search()
 })
 </script>
 
 <style scoped>
+.dist-switch-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 32px;
+  padding: 4px 0;
+}
+.switch-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 240px;
+}
+.switch-item.disabled {
+  opacity: 0.45;
+}
+.switch-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.switch-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #171A1F;
+}
+.switch-desc {
+  font-size: 12px;
+  color: #626A73;
+}
+.switch-divider {
+  width: 1px;
+  height: 40px;
+  background: #E7E9ED;
+}
+.dist-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: #FFF1EB;
+  border-radius: 6px;
+  color: #F5A623;
+  font-size: 12px;
+}
 .relation-chain {
   display: flex;
   gap: 16px;
@@ -120,15 +268,15 @@ onMounted(() => {
   text-align: center;
   width: fit-content;
 }
-.level-1 { background: #fef0ef; color: #e54d42; }
-.level-2 { background: #fdf6ec; color: #f37b1d; }
-.level-3 { background: #f4f4f5; color: #909399; }
+.level-1 { background: #FFF1EB; color: #FF6B35; }
+.level-2 { background: #FFF1EB; color: #E85222; }
+.level-3 { background: #F8F9FB; color: #626A73; }
 .level-content {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 16px;
-  background: #f9fafc;
+  background: #F8F9FB;
   border-radius: 8px;
 }
 .level-info {
@@ -141,13 +289,13 @@ onMounted(() => {
 }
 .level-meta {
   font-size: 12px;
-  color: #909399;
+  color: #626A73;
 }
 .level-empty {
   padding: 24px;
   text-align: center;
-  color: #c0c4cc;
-  background: #f9fafc;
+  color: #9AA1AA;
+  background: #F8F9FB;
   border-radius: 8px;
 }
 .team-cell {

@@ -87,14 +87,14 @@ export const mockProducts: ProductSPU[] = [
   {
     id: 1, name: '金卡尊享大礼包', categoryId: 5, brand: '平台自营', mainImage: `${imgBase}/gift1/400/400`,
     images: [`${imgBase}/gift1/400/400`, `${imgBase}/gift1b/400/400`, `${imgBase}/gift1c/400/400`],
-    description: '购买即成为金卡代理商，享8折商城购物、月度领货980元/月（10个月）、三级分销佣金15%等专属权益。',
+    description: '购买即成为金卡代理商，享8折商城购物、月度领货980元/月（10个月）、分享佣金15%等专属权益。',
     isGiftPackage: true, isMonthlyProduct: false, excludeDiscount: true, status: ProductStatus.OnSale, sort: 1,
     createTime: '2026-01-01 00:00:00',
   },
   {
     id: 2, name: '银卡优选大礼包', categoryId: 5, brand: '平台自营', mainImage: `${imgBase}/gift2/400/400`,
     images: [`${imgBase}/gift2/400/400`, `${imgBase}/gift2b/400/400`],
-    description: '购买即成为银卡代理商，享9折商城购物、月度领货580元/月（10个月）、三级分销佣金10%等专属权益。',
+    description: '购买即成为银卡代理商，享9折商城购物、月度领货580元/月（10个月）、分享佣金10%等专属权益。',
     isGiftPackage: true, isMonthlyProduct: false, excludeDiscount: true, status: ProductStatus.OnSale, sort: 2,
     createTime: '2026-01-01 00:00:00',
   },
@@ -346,13 +346,15 @@ export const mockCommissions: Commission[] = [
 export const mockWithdraws: Withdraw[] = [
   {
     id: 1, withdrawNo: 'WD20260120100001', memberId: 1, amount: 500, fee: 0, actualAmount: 500,
-    payType: 1, bankName: '招商银行', bankCard: '6225****1234', status: WithdrawStatus.Paid,
+    payType: 0, bankName: '招商银行', bankCard: '6225****1234', bankHolder: '张伟',
+    alipayName: '', alipayAccount: '', status: WithdrawStatus.Paid,
     auditTime: '2026-01-21 10:00:00', auditOperator: '财务-王', auditRemark: null,
     payTime: '2026-01-22 15:00:00', payTransactionNo: 'T20260122150001', createTime: '2026-01-20 10:00:00',
   },
   {
     id: 2, withdrawNo: 'WD20260824140002', memberId: 1, amount: 1470, fee: 0, actualAmount: 1470,
-    payType: 1, bankName: '招商银行', bankCard: '6225****1234', status: WithdrawStatus.PendingAudit,
+    payType: 0, bankName: '招商银行', bankCard: '6225****1234', bankHolder: '张伟',
+    alipayName: '', alipayAccount: '', status: WithdrawStatus.PendingAudit,
     auditTime: null, auditOperator: null, auditRemark: null,
     payTime: null, payTransactionNo: null, createTime: '2026-08-24 14:30:00',
   },

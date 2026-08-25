@@ -43,7 +43,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { Check } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { apiConfig, apiProduct } from '@/api'
-import { mockProducts, type ProductSPU } from '@shop-os/shared'
+import { type ProductSPU } from '@shop-os/shared'
 import SfPageContainer from '@/components/SfPageContainer.vue'
 
 const products = ref<ProductSPU[]>([])

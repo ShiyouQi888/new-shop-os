@@ -255,7 +255,7 @@ onMounted(async () => {
 .level-tip-desc {
   font-size: 13px;
   line-height: 1.8;
-  color: #5b7c99;
+  color: #626A73;
   margin-top: 2px;
 }
 
@@ -263,14 +263,14 @@ onMounted(async () => {
   margin-bottom: 20px;
   border-left-width: 4px;
 }
-.tone-1 { border-left-color: #9a9a9a; }
-.tone-2 { border-left-color: #d4a851; }
-.tone-3 { border-left-color: #b0743a; }
-.tone-4 { border-left-color: #2e7ea8; }
-.tone-5 { border-left-color: #178a7e; }
-.tone-6 { border-left-color: #7c5cbf; }
-.tone-7 { border-left-color: #c0392b; }
-.tone-8 { border-left-color: #8e44ad; }
+.tone-1 { border-left-color: #9AA1AA; }
+.tone-2 { border-left-color: #FF6B35; }
+.tone-3 { border-left-color: #E85222; }
+.tone-4 { border-left-color: #626A73; }
+.tone-5 { border-left-color: #18A66A; }
+.tone-6 { border-left-color: #626A73; }
+.tone-7 { border-left-color: #E5484D; }
+.tone-8 { border-left-color: #626A73; }
 
 .level-header {
   display: flex;
@@ -285,7 +285,7 @@ onMounted(async () => {
 }
 .level-tag-level {
   font-size: 12px;
-  color: #c0c4cc;
+  color: #9AA1AA;
   font-weight: 600;
 }
 .level-delete {
@@ -293,7 +293,7 @@ onMounted(async () => {
 }
 .form-tip {
   font-size: 12px;
-  color: #909399;
+  color: #626A73;
   line-height: 1.6;
   margin-top: 2px;
   width: 100%;

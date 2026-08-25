@@ -3,31 +3,31 @@
     <!-- 统计卡片 -->
     <el-row :gutter="16" class="stat-row">
       <el-col :xs="12" :sm="6">
-        <SfStatCard :value="stats.totalMembers" label="总会员数" icon="User" color="#409eff" />
+        <SfStatCard :value="stats.totalMembers" label="总会员数" icon="User" color="#FF6B35" />
       </el-col>
       <el-col :xs="12" :sm="6">
-        <SfStatCard :value="stats.totalAgents" label="代理商数" icon="Avatar" color="#d4a851" />
+        <SfStatCard :value="stats.totalAgents" label="代理商数" icon="Avatar" color="#FF6B35" />
       </el-col>
       <el-col :xs="12" :sm="6">
-        <SfStatCard :value="stats.todayOrders" label="今日订单" icon="Document" color="#39b54a" />
+        <SfStatCard :value="stats.todayOrders" label="今日订单" icon="Document" color="#18A66A" />
       </el-col>
       <el-col :xs="12" :sm="6">
-        <SfStatCard :value="stats.todayRevenue" label="今日营收" icon="Coin" color="#e54d42" prefix="¥" />
+        <SfStatCard :value="stats.todayRevenue" label="今日营收" icon="Coin" color="#FF6B35" prefix="¥" />
       </el-col>
     </el-row>
 
     <el-row :gutter="16" class="stat-row">
       <el-col :xs="12" :sm="6">
-        <SfStatCard :value="stats.totalCommission" label="累计佣金" icon="Money" color="#f37b1d" prefix="¥" />
+        <SfStatCard :value="stats.totalCommission" label="累计佣金" icon="Money" color="#E85222" prefix="¥" />
       </el-col>
       <el-col :xs="12" :sm="6">
-        <SfStatCard :value="stats.pendingWithdraw" label="待审核提现" icon="Wallet" color="#fbbd08" />
+        <SfStatCard :value="stats.pendingWithdraw" label="待审核提现" icon="Wallet" color="#F5A623" />
       </el-col>
       <el-col :xs="12" :sm="6">
-        <SfStatCard :value="stats.activeResellOrders" label="转卖中" icon="RefreshRight" color="#909399" />
+        <SfStatCard :value="stats.activeResellOrders" label="转卖中" icon="RefreshRight" color="#626A73" />
       </el-col>
       <el-col :xs="12" :sm="6">
-        <SfStatCard :value="stats.monthlyCreditUsage" label="本月领货使用率" icon="Calendar" color="#39b54a" suffix="%" />
+        <SfStatCard :value="stats.monthlyCreditUsage" label="本月领货使用率" icon="Calendar" color="#18A66A" suffix="%" />
       </el-col>
     </el-row>
 
@@ -78,13 +78,13 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import * as echarts from 'echarts'
 import { apiDashboard } from '@/api'
-import { mockMembers, MemberLevel } from '@shop-os/shared'
 import SfStatCard from '@/components/SfStatCard.vue'
 
 const router = useRouter()
 const stats = ref({
   totalMembers: 0, totalAgents: 0, todayOrders: 0, todayRevenue: 0,
   totalCommission: 0, pendingWithdraw: 0, activeResellOrders: 0, monthlyCreditUsage: 0,
+  levelDist: [] as { level: number; count: number }[],
 })
 
 const revenueChartRef = ref<HTMLElement>()
@@ -93,19 +93,22 @@ let revenueChart: echarts.ECharts | null = null
 let memberChart: echarts.ECharts | null = null
 
 const quickActions = [
-  { label: '商品管理', path: '/product/list', icon: 'Goods', color: '#409eff' },
-  { label: '订单管理', path: '/order/list', icon: 'Document', color: '#39b54a' },
-  { label: '会员管理', path: '/member/list', icon: 'User', color: '#d4a851' },
-  { label: '佣金配置', path: '/distribution/commission-rule', icon: 'Setting', color: '#e54d42' },
-  { label: '权益配置', path: '/benefit/level', icon: 'Medal', color: '#f37b1d' },
-  { label: '提现审核', path: '/distribution/withdraw', icon: 'Wallet', color: '#fbbd08' },
-  { label: '领货管理', path: '/credit/list', icon: 'Calendar', color: '#909399' },
-  { label: '转卖管理', path: '/resell/list', icon: 'RefreshRight', color: '#409eff' },
+  { label: '商品管理', path: '/product/list', icon: 'Goods', color: '#FF6B35' },
+  { label: '订单管理', path: '/order/list', icon: 'Document', color: '#18A66A' },
+  { label: '会员管理', path: '/member/list', icon: 'User', color: '#FF6B35' },
+  { label: '佣金配置', path: '/distribution/commission-rule', icon: 'Setting', color: '#FF6B35' },
+  { label: '权益配置', path: '/benefit/level', icon: 'Medal', color: '#E85222' },
+  { label: '提现审核', path: '/distribution/withdraw', icon: 'Wallet', color: '#F5A623' },
+  { label: '领货管理', path: '/credit/list', icon: 'Calendar', color: '#626A73' },
+  { label: '转卖管理', path: '/resell/list', icon: 'RefreshRight', color: '#FF6B35' },
 ]
 
 onMounted(async () => {
-  const data = await apiDashboard.getStats()
-  stats.value = data
+  const data = await apiDashboard.getStats() as (typeof stats.value)
+  stats.value = {
+    ...data,
+    levelDist: (data as unknown as { levelDist?: { level: number; count: number }[] }).levelDist ?? [],
+  }
 
   await nextTick()
   initRevenueChart()
@@ -143,15 +146,15 @@ function initRevenueChart() {
           type: 'line',
           smooth: true,
           data: data.map(d => d.revenue),
-          itemStyle: { color: '#e54d42' },
-          areaStyle: { color: 'rgba(229, 77, 66, 0.1)' },
+          itemStyle: { color: '#FF6B35' },
+          areaStyle: { color: 'rgba(255, 107, 53, 0.1)' },
         },
         {
           name: '订单数',
           type: 'bar',
           yAxisIndex: 1,
           data: data.map(d => d.orders),
-          itemStyle: { color: '#409eff', borderRadius: [4, 4, 0, 0] },
+          itemStyle: { color: '#FF6B35', borderRadius: [4, 4, 0, 0] },
         },
       ],
     })
@@ -162,9 +165,17 @@ function initRevenueChart() {
 function initMemberChart() {
   if (!memberChartRef.value) return
   memberChart = echarts.init(memberChartRef.value)
-  const goldCount = mockMembers.filter(m => m.level === MemberLevel.Gold).length
-  const silverCount = mockMembers.filter(m => m.level === MemberLevel.Silver).length
-  const normalCount = mockMembers.filter(m => m.level === MemberLevel.Normal).length
+  // 等级分布来自后端 summary.levelDist（多等级动态）
+  const dist = stats.value.levelDist || []
+  const countOf = (level: number) => dist.find(d => d.level === level)?.count ?? 0
+  const normalCount = stats.value.totalMembers - countOf(1) - countOf(2) - countOf(3) - countOf(4)
+  const data = [
+    { value: countOf(2), name: '金卡代理商', itemStyle: { color: '#FF6B35' } },
+    { value: countOf(1), name: '银卡代理商', itemStyle: { color: '#9AA1AA' } },
+    { value: countOf(3), name: '铂金代理商', itemStyle: { color: '#E85222' } },
+    { value: countOf(4), name: '钻石代理商', itemStyle: { color: '#626A73' } },
+    { value: Math.max(0, normalCount), name: '普通会员', itemStyle: { color: '#FF6B35' } },
+  ].filter(d => d.value > 0)
   memberChart.setOption({
     tooltip: { trigger: 'item' },
     legend: { bottom: 0 },
@@ -173,11 +184,7 @@ function initMemberChart() {
       radius: ['40%', '70%'],
       avoidLabelOverlap: false,
       label: { show: true, formatter: '{b}: {c}人' },
-      data: [
-        { value: goldCount, name: '金卡代理商', itemStyle: { color: '#d4a851' } },
-        { value: silverCount, name: '银卡代理商', itemStyle: { color: '#9a9a9a' } },
-        { value: normalCount, name: '普通会员', itemStyle: { color: '#409eff' } },
-      ],
+      data,
     }],
   })
 }
@@ -204,14 +211,14 @@ function initMemberChart() {
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
-  background: #f9fafc;
+  background: #F8F9FB;
 }
 .quick-item:hover {
-  background: #fef0ef;
+  background: #FFF1EB;
   transform: translateY(-2px);
 }
 .quick-item span {
   font-size: 13px;
-  color: #606266;
+  color: #626A73;
 }
 </style>

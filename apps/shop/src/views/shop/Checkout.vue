@@ -10,7 +10,7 @@
       </section>
 
       <section class="address-card premium-card" @click="showAddressList = true">
-        <van-icon name="location-o" size="20" color="#8f6f3f" />
+        <van-icon name="location-o" size="20" color="#E85222" />
         <div class="address-info" v-if="selectedAddress">
           <div class="addr-name">{{ selectedAddress.name }} {{ selectedAddress.phone }}</div>
           <div class="addr-detail">{{ selectedAddress.province }}{{ selectedAddress.city }}{{ selectedAddress.district }}{{ selectedAddress.detail }}</div>
@@ -51,7 +51,7 @@
       </section>
     </main>
 
-    <van-submit-bar class="checkout-submit-bar" :price="payAmount * 100" button-text="提交并支付" :button-color="'#17202a'" @submit="onSubmit" />
+    <van-submit-bar class="checkout-submit-bar" :price="payAmount * 100" button-text="提交并支付" :button-color="'#FF6B35'" @submit="onSubmit" />
 
     <van-popup v-model:show="showAddressList" position="bottom" round>
       <div class="address-popup">
@@ -81,14 +81,14 @@
             <p>模拟支付环境，不会产生真实扣款。</p>
           </div>
         </div>
-        <van-button block round color="#17202a" :loading="isPaying" loading-text="支付中..." @click="confirmPay">确认支付</van-button>
+        <van-button block round color="#FF6B35" :loading="isPaying" loading-text="支付中..." @click="confirmPay">确认支付</van-button>
       </div>
     </van-popup>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showSuccessToast, showToast } from 'vant'
 import { formatMoney, MemberLevelLabels, type Order } from '@shop-os/shared'
@@ -96,6 +96,7 @@ import { useCartStore } from '@/stores/cart'
 import { useUserStore } from '@/stores/user'
 import { useOrderStore } from '@/stores/orders'
 import { useAddressStore } from '@/stores/address'
+import { api } from '@/api'
 
 const router = useRouter()
 const cartStore = useCartStore()
@@ -108,6 +109,11 @@ const showPayment = ref(false)
 const isPaying = ref(false)
 const pendingOrder = ref<Order | null>(null)
 const payType = ref<'wechat' | 'alipay'>('wechat')
+
+onMounted(async () => {
+  await addressStore.load()
+  if (!selectedAddressId.value && addressStore.defaultAddress) selectedAddressId.value = addressStore.defaultAddress.id
+})
 
 const levelLabel = computed(() => MemberLevelLabels[userStore.level])
 const shippingFee = computed(() => cartStore.memberTotalPrice >= 99 ? 0 : 10)
@@ -123,7 +129,7 @@ const selectAddress = (id: number) => {
   showSuccessToast('收货地址已更新')
 }
 
-const onSubmit = () => {
+const onSubmit = async () => {
   if (!selectedAddress.value) {
     showToast('请选择收货地址')
     return
@@ -134,7 +140,7 @@ const onSubmit = () => {
     return
   }
 
-  pendingOrder.value = orderStore.createRetailOrder({
+  pendingOrder.value = await orderStore.createRetailOrder({
     items: cartStore.selectedItems.map(item => ({ ...item })),
     totalAmount: Number(cartStore.totalPrice.toFixed(2)),
     discountAmount: Number(cartStore.discountAmount.toFixed(2)),
@@ -147,62 +153,67 @@ const onSubmit = () => {
   showSuccessToast('订单已创建，等待支付')
 }
 
-const confirmPay = () => {
+/** 创建支付单：mock 模式自动模拟成功；real 模式等待真实收银台/网关回调 */
+const confirmPay = async () => {
   if (!pendingOrder.value) return
   isPaying.value = true
-  setTimeout(() => {
-    const paid = orderStore.payOrder(pendingOrder.value!.id, payType.value)
-    isPaying.value = false
-    showPayment.value = false
-    if (!paid) {
-      showToast('订单状态已变化，请刷新订单列表')
+  try {
+    const payment = await api.createPayment({ orderId: pendingOrder.value.id, payType: payType.value })
+    if (!payment.mock) {
+      showToast(String(payment.credential?.message || '支付单已创建，请在收银台完成支付'))
       return
     }
-    cartStore.clearSelected()
+    await api.simulatePayment(payment.paymentNo)
+    showPayment.value = false
+    await cartStore.clearSelected()
     showSuccessToast('支付成功，商家将尽快发货')
     setTimeout(() => router.replace('/orders'), 800)
-  }, 700)
+  } catch {
+    showToast('支付失败，请稍后重试')
+  } finally {
+    isPaying.value = false
+  }
 }
 </script>
 
 <style scoped>
 .checkout-page { min-height: 100vh; padding-top: 46px; padding-bottom: 82px; }
 .checkout-body { padding: 12px 14px 24px; }
-.checkout-hero { padding: 20px 18px; border-radius: 20px; color: #fff; background: linear-gradient(135deg, #17202a, #343d49); box-shadow: 0 18px 44px rgba(23,32,42,.16); margin-bottom: 12px; }
-.checkout-hero span { color: #d8b06a; font-size: 11px; font-weight: 800; }
+.checkout-hero { padding: 20px 18px; border-radius: 20px; color: #fff; background: linear-gradient(135deg, #171A1F, #171A1F); box-shadow: 0 18px 44px rgba(23,32,42,.16); margin-bottom: 12px; }
+.checkout-hero span { color: #FF6B35; font-size: 11px; font-weight: 800; }
 .checkout-hero h1 { margin-top: 8px; font-size: 24px; }
 .checkout-hero p { margin-top: 8px; color: rgba(255,255,255,.72); line-height: 1.55; }
 .address-card { display: flex; align-items: center; gap: 10px; padding: 16px; margin-bottom: 12px; }
 .address-info { flex: 1; }
-.addr-name { color: #17202a; font-size: 15px; font-weight: 800; }
-.addr-detail { margin-top: 5px; color: #637083; font-size: 13px; line-height: 1.45; }
-.address-empty { flex: 1; color: #7b8794; }
+.addr-name { color: #171A1F; font-size: 15px; font-weight: 800; }
+.addr-detail { margin-top: 5px; color: #626A73; font-size: 13px; line-height: 1.45; }
+.address-empty { flex: 1; color: #626A73; }
 .goods-card, .discount-card, .pay-card { padding: 16px; margin-bottom: 12px; }
-.card-title { color: #17202a; font-size: 16px; font-weight: 800; margin-bottom: 12px; }
+.card-title { color: #171A1F; font-size: 16px; font-weight: 800; margin-bottom: 12px; }
 .goods-item { display: flex; gap: 10px; padding: 9px 0; }
 .goods-img { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; }
 .goods-info { flex: 1; min-width: 0; }
-.goods-name { color: #17202a; font-size: 13px; font-weight: 700; line-height: 1.4; }
+.goods-name { color: #171A1F; font-size: 13px; font-weight: 700; line-height: 1.4; }
 .goods-price-row { display: flex; align-items: baseline; gap: 6px; margin-top: 6px; }
-.price-old { font-size: 12px; color: #a8b1bc; text-decoration: line-through; }
-.goods-qty { margin-left: auto; color: #7b8794; font-size: 13px; }
-.discount-row { display: flex; justify-content: space-between; padding: 7px 0; color: #4d5967; font-size: 14px; }
-.discount-row.discount span:last-child { color: #177245; font-weight: 800; }
+.price-old { font-size: 12px; color: #9AA1AA; text-decoration: line-through; }
+.goods-qty { margin-left: auto; color: #626A73; font-size: 13px; }
+.discount-row { display: flex; justify-content: space-between; padding: 7px 0; color: #626A73; font-size: 14px; }
+.discount-row.discount span:last-child { color: #18A66A; font-weight: 800; }
 .address-popup { padding: 16px; }
 .popup-title { font-size: 16px; font-weight: 800; margin-bottom: 12px; text-align: center; }
-.addr-list-item { padding: 12px 0; border-bottom: 1px solid #e2e8f0; }
+.addr-list-item { padding: 12px 0; border-bottom: 1px solid #E7E9ED; }
 .addr-list-item .addr-name { display: flex; align-items: center; gap: 8px; }
-.addr-list-item em { padding: 2px 7px; border-radius: 999px; background: #f7efe2; color: #8f6f3f; font-style: normal; font-size: 11px; font-weight: 700; }
-.manage-address { width: 100%; height: 40px; margin-top: 12px; border: 1px solid rgba(23,32,42,.14); border-radius: 999px; background: #fff; color: #17202a; font-weight: 800; }
+.addr-list-item em { padding: 2px 7px; border-radius: 999px; background: #FFF1EB; color: #E85222; font-style: normal; font-size: 11px; font-weight: 700; }
+.manage-address { width: 100%; height: 40px; margin-top: 12px; border: 1px solid rgba(23,32,42,.14); border-radius: 999px; background: #fff; color: #171A1F; font-weight: 800; }
 .pay-popup { padding: 20px 16px 18px; }
-.pay-summary { display: flex; align-items: center; justify-content: space-between; padding: 14px; margin-bottom: 12px; border-radius: 14px; background: #f3f5f7; color: #637083; }
-.pay-summary strong { color: #17202a; font-size: 24px; }
-.pay-method { display: flex; align-items: center; gap: 10px; padding: 14px; margin-bottom: 16px; border: 1px solid rgba(226,232,240,.9); border-radius: 14px; color: #17202a; font-weight: 800; }
-.pay-method p { margin-top: 3px; color: #7b8794; font-size: 12px; font-weight: 400; }
+.pay-summary { display: flex; align-items: center; justify-content: space-between; padding: 14px; margin-bottom: 12px; border-radius: 14px; background: #F8F9FB; color: #626A73; }
+.pay-summary strong { color: #171A1F; font-size: 24px; }
+.pay-method { display: flex; align-items: center; gap: 10px; padding: 14px; margin-bottom: 16px; border: 1px solid rgba(231, 233, 237,.9); border-radius: 14px; color: #171A1F; font-weight: 800; }
+.pay-method p { margin-top: 3px; color: #626A73; font-size: 12px; font-weight: 400; }
 </style>
 
 <style>
-.checkout-submit-bar { left: 12px; right: 12px; bottom: calc(74px + env(safe-area-inset-bottom)); width: auto; border: 1px solid rgba(226,232,240,.9); border-radius: 16px; overflow: hidden; box-shadow: 0 14px 34px rgba(17,24,39,.13); }
+.checkout-submit-bar { left: 12px; right: 12px; bottom: calc(74px + env(safe-area-inset-bottom)); width: auto; border: 1px solid rgba(231, 233, 237,.9); border-radius: 16px; overflow: hidden; box-shadow: 0 14px 34px rgba(17,24,39,.13); }
 .checkout-submit-bar::after { display: none; }
 .checkout-submit-bar .van-submit-bar__bar { height: 54px; padding: 0 10px 0 14px; }
 .checkout-submit-bar .van-submit-bar__button { height: 38px; border-radius: 999px; font-weight: 800; }

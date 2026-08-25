@@ -3,12 +3,12 @@
     <van-nav-bar title="Shop-OS 精品商城" fixed safe-area-inset-top />
 
     <main class="home-body">
-      <van-swipe class="banner-swipe hero-swipe" :autoplay="3600" indicator-color="#b88a44">
+      <van-swipe class="banner-swipe hero-swipe" :autoplay="3600" indicator-color="#FF6B35">
         <van-swipe-item>
           <section class="hero-panel">
             <div class="hero-copy">
               <div class="premium-pill">MEMBER CURATED</div>
-              <h1>精选商品与代理权益的一体化商城</h1>
+              <h1>精选商品与分享权益的一体化商城</h1>
               <p>会员价、月度领货、入会礼包与三级佣金路径统一管理。</p>
             </div>
             <button class="hero-cta" type="button" @click="router.push('/gift-zone')">
@@ -44,7 +44,7 @@
           <div class="gift-title">购买大礼包，开启专属权益</div>
           <div class="gift-desc">月度领货额度、会员购物折扣、团队佣金统一生效。</div>
         </div>
-        <van-icon name="gem-o" size="28" color="#b88a44" />
+        <van-icon name="gem-o" size="28" color="#FF6B35" />
       </section>
 
       <section class="section" v-if="data">
@@ -99,31 +99,33 @@ onMounted(async () => {
   padding-top: 46px;
 }
 .home-body {
-  padding: 12px 14px 24px;
+  padding: 10px 12px 18px;
 }
 .hero-panel {
-  height: 222px;
-  padding: 22px 18px;
+  height: 194px;
+  padding: 18px 16px 16px;
   color: #fff;
   background:
     linear-gradient(135deg, rgba(23, 32, 42, 0.9), rgba(48, 56, 66, 0.76)),
     url('https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=900&q=80') center/cover;
-  box-shadow: 0 22px 54px rgba(23, 32, 42, 0.2);
+  box-shadow: 0 16px 38px rgba(23, 32, 42, 0.18);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
 }
 .hero-copy h1 {
-  margin-top: 14px;
-  max-width: 290px;
-  font-size: 27px;
-  line-height: 1.18;
+  margin-top: 10px;
+  max-width: 286px;
+  font-size: 24px;
+  line-height: 1.16;
+  letter-spacing: 0;
 }
 .hero-copy p {
-  margin-top: 10px;
+  margin-top: 8px;
   max-width: 300px;
   color: rgba(255, 255, 255, 0.76);
-  line-height: 1.55;
+  font-size: 13px;
+  line-height: 1.45;
 }
 .hero-cta {
   align-self: flex-end;
@@ -131,13 +133,13 @@ onMounted(async () => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 34px;
-  margin-top: 18px;
+  height: 32px;
+  margin-top: 12px;
   padding: 0 13px;
   border: 0;
   border-radius: 999px;
   background: #fff;
-  color: #17202a;
+  color: #171A1F;
   font-weight: 700;
   font-size: 12px;
 }
@@ -146,23 +148,23 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 42px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  min-height: 40px;
+  border: 1px solid rgba(231, 233, 237, 0.9);
   background: rgba(255, 255, 255, 0.96);
   border-radius: 999px;
   padding: 0 16px;
-  margin: 14px 0;
-  color: #7b8794;
-  box-shadow: 0 8px 22px rgba(17, 24, 39, 0.05);
+  margin: 10px 0;
+  color: #626A73;
+  box-shadow: 0 8px 20px rgba(17, 24, 39, 0.045);
 }
 .banner-swipe {
-  border-radius: 18px;
+  border-radius: 16px;
   overflow: hidden;
   margin-bottom: 0;
-  box-shadow: 0 18px 46px rgba(23, 32, 42, 0.14);
+  box-shadow: 0 16px 40px rgba(23, 32, 42, 0.13);
 }
 .hero-swipe {
-  height: 222px;
+  height: 194px;
 }
 .hero-swipe :deep(.van-swipe__track),
 .hero-swipe :deep(.van-swipe-item) {
@@ -173,36 +175,36 @@ onMounted(async () => {
 }
 .banner-img {
   width: 100%;
-  height: 222px;
+  height: 194px;
   object-fit: cover;
   display: block;
 }
 .category-nav {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 6px;
-  padding: 14px 8px 12px;
-  margin-bottom: 12px;
+  gap: 4px;
+  padding: 11px 6px 10px;
+  margin-bottom: 10px;
 }
 .category-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   min-width: 0;
   border: 0;
   background: transparent;
-  color: #4d5967;
+  color: #626A73;
 }
 .cat-icon {
   position: relative;
-  width: 46px;
-  height: 46px;
+  width: 42px;
+  height: 42px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(226, 232, 240, 0.82);
-  border-radius: 14px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78), 0 8px 18px rgba(17, 24, 39, 0.06);
+  border: 1px solid rgba(231, 233, 237, 0.82);
+  border-radius: 13px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78), 0 7px 15px rgba(17, 24, 39, 0.05);
 }
 .cat-icon::after {
   content: '';
@@ -216,28 +218,28 @@ onMounted(async () => {
   opacity: 0.28;
 }
 .tone-beauty {
-  color: #b35c7d;
-  background: linear-gradient(145deg, #fff4f8, #f4e7ee);
+  color: #E85222;
+  background: linear-gradient(145deg, #FFFFFF, #FFF1EB);
 }
 .tone-health {
-  color: #38745a;
-  background: linear-gradient(145deg, #f1fbf5, #e2f0e8);
+  color: #18A66A;
+  background: linear-gradient(145deg, #FFFFFF, #EAF8F2);
 }
 .tone-home {
-  color: #8f6f3f;
-  background: linear-gradient(145deg, #fff8ea, #f1e6d4);
+  color: #E85222;
+  background: linear-gradient(145deg, #FFFFFF, #FFF1EB);
 }
 .tone-digital {
-  color: #315f8f;
-  background: linear-gradient(145deg, #f0f7ff, #e4edf7);
+  color: #626A73;
+  background: linear-gradient(145deg, #FFFFFF, #F8F9FB);
 }
 .tone-gift {
-  color: #b88a44;
-  background: linear-gradient(145deg, #fff7e8, #f3e5ca);
+  color: #FF6B35;
+  background: linear-gradient(145deg, #FFFFFF, #FFF1EB);
 }
 .tone-default {
-  color: #4d5967;
-  background: linear-gradient(145deg, #f8fafc, #edf1f5);
+  color: #626A73;
+  background: linear-gradient(145deg, #FFFFFF, #F8F9FB);
 }
 .cat-name {
   font-size: 11px;
@@ -249,48 +251,48 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px;
-  margin-bottom: 14px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #fffaf1 0%, #f7efe2 100%);
-  border: 1px solid rgba(184, 138, 68, 0.2);
+  padding: 13px 14px;
+  margin-bottom: 10px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #FFFFFF 0%, #FFF1EB 100%);
+  border: 1px solid rgba(255, 107, 53, 0.2);
 }
 .gift-kicker {
-  color: #8f6f3f;
+  color: #E85222;
   font-size: 11px;
   font-weight: 800;
 }
 .gift-title {
   margin-top: 4px;
-  color: #17202a;
-  font-size: 16px;
+  color: #171A1F;
+  font-size: 15px;
   font-weight: 750;
 }
 .gift-desc {
-  margin-top: 5px;
-  color: #7b8794;
+  margin-top: 4px;
+  color: #626A73;
   font-size: 12px;
   line-height: 1.45;
 }
 .section {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 .section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 2px 10px;
+  padding: 10px 2px 8px;
 }
 .section-more {
   border: 0;
   background: transparent;
-  color: #8f6f3f;
+  color: #E85222;
   font-size: 12px;
   font-weight: 700;
 }
 .product-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 </style>

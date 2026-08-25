@@ -26,30 +26,50 @@ const cartBadge = computed(() => cartStore.totalCount > 0 ? cartStore.totalCount
   position: fixed;
   left: 50% !important;
   right: auto !important;
-  bottom: calc(10px + env(safe-area-inset-bottom)) !important;
+  bottom: calc(8px + env(safe-area-inset-bottom)) !important;
   z-index: 1000;
-  width: min(390px, calc(100vw - 28px));
-  height: 54px;
+  width: min(398px, calc(100vw - 24px)) !important;
+  height: 58px;
   transform: translateX(-50%);
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  border-radius: 16px;
+  border: 1px solid rgba(231, 233, 237, 0.82);
+  border-radius: 18px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 14px 34px rgba(17, 24, 39, 0.13);
-  backdrop-filter: blur(14px);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 42px rgba(17, 24, 39, 0.16);
+  backdrop-filter: blur(18px);
 }
 
 .premium-tabbar::after {
   display: none;
 }
 
+.premium-tabbar .van-tabbar-item {
+  color: #626A73;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.premium-tabbar .van-tabbar-item__icon {
+  margin-bottom: 3px;
+  font-size: 21px;
+}
+
+.premium-tabbar .van-tabbar-item--active {
+  color: #FF6B35;
+  background: transparent;
+}
+
+.premium-tabbar .van-tabbar-item--active .van-tabbar-item__icon {
+  transform: translateY(-1px);
+}
+
 .page-shell {
-  padding-bottom: calc(92px + env(safe-area-inset-bottom)) !important;
+  padding-bottom: calc(84px + env(safe-area-inset-bottom)) !important;
 }
 
 .detail-page,
 .checkout-page,
 .cart-page {
-  padding-bottom: calc(154px + env(safe-area-inset-bottom)) !important;
+  padding-bottom: calc(146px + env(safe-area-inset-bottom)) !important;
 }
 </style>

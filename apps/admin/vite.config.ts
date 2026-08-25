@@ -11,11 +11,11 @@ export default defineConfig({
     AutoImport({
       resolvers: [ElementPlusResolver()],
       imports: ['vue', 'vue-router', 'pinia'],
-      dts: 'src/auto-imports.d.ts',
+      dts: false,
     }),
     Components({
       resolvers: [ElementPlusResolver()],
-      dts: 'src/components.d.ts',
+      dts: false,
     }),
   ],
   resolve: {
@@ -26,8 +26,9 @@ export default defineConfig({
       // element-plus 内部还会 import dayjs/plugin/*（CJS）。把 dayjs 及其插件统一指向 ESM 构建，
       // 使其以原生 ESM 直接供浏览器运行，既不依赖预构建，也规避 Vite 对 node_modules 内
       // 子路径 import 不重写导致的 SyntaxError。
-      { find: /^dayjs$/, replacement: 'dayjs/esm/index.js' },
-      { find: /^dayjs\/plugin\/(.+?)(?:\.js)?$/, replacement: 'dayjs/esm/plugin/$1/index.js' },
+      // 注意：replacement 必须为绝对路径 —— 相对路径会被相对 importee 所在目录解析导致 dev 报错
+      { find: /^dayjs$/, replacement: resolve(__dirname, 'node_modules/dayjs/esm/index.js') },
+      { find: /^dayjs\/plugin\/(.+?)(?:\.js)?$/, replacement: resolve(__dirname, 'node_modules/dayjs/esm/plugin/$1/index.js') },
     ],
   },
   server: {

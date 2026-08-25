@@ -1,37 +1,37 @@
-// ===== 设计令牌 SCSS 变量 =====
-// 品牌色
-$color-primary: #e54d42;
-$color-primary-hover: #ed6f5a;
-$color-primary-active: #c9362f;
-$color-primary-light: #fef0ef;
-$color-secondary: #f37b1d;
+// ===== Admin modern warm-orange design tokens =====
+$color-primary: #FF6B35;
+$color-primary-hover: #E85222;
+$color-primary-active: #D9471A;
+$color-primary-light: #FFF1EB;
+$color-primary-border: #FFD5C5;
+$color-secondary: #E85222;
 
 // 等级色
-$color-gold: #d4a851;
-$color-gold-light: #fbf3e0;
-$color-silver: #9a9a9a;
-$color-silver-light: #f2f2f2;
+$color-gold: #FF6B35;
+$color-gold-light: #FFF1EB;
+$color-silver: #9AA1AA;
+$color-silver-light: #F8F9FB;
 
 // 功能色
-$color-success: #39b54a;
-$color-warning: #fbbd08;
-$color-danger: #e54d42;
-$color-info: #909399;
+$color-success: #18A66A;
+$color-warning: #F5A623;
+$color-danger: #E5484D;
+$color-info: #626A73;
 
 // 文字色
-$text-primary: #303133;
-$text-regular: #606266;
-$text-secondary: #909399;
-$text-placeholder: #c0c4cc;
+$text-primary: #171A1F;
+$text-regular: #626A73;
+$text-secondary: #626A73;
+$text-placeholder: #9AA1AA;
 
 // 边框色
-$border-base: #dcdfe6;
-$border-light: #e4e7ed;
-$border-lighter: #ebeef5;
+$border-base: #E7E9ED;
+$border-light: #E7E9ED;
+$border-lighter: #E7E9ED;
 
 // 背景色
-$bg-page: #f0f2f5;
-$bg-card: #ffffff;
+$bg-page: #F8F9FB;
+$bg-card: #FFFFFF;
 
 // 间距
 $spacing-xs: 4px;
@@ -50,10 +50,10 @@ $radius-lg: 12px;
 $radius-round: 999px;
 
 // 阴影
-$shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.06);
-$shadow-base: 0 2px 8px rgba(0, 0, 0, 0.08);
-$shadow-md: 0 4px 12px rgba(0, 0, 0, 0.10);
-$shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+$shadow-sm: 0 6px 18px rgba(17, 24, 39, 0.06);
+$shadow-base: 0 10px 28px rgba(17, 24, 39, 0.08);
+$shadow-md: 0 16px 40px rgba(17, 24, 39, 0.10);
+$shadow-lg: 0 24px 64px rgba(17, 24, 39, 0.12);
 
 // Element Plus 主题覆盖
 $--color-primary: $color-primary;

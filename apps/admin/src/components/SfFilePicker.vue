@@ -73,9 +73,10 @@
             :class="{ active: tempSelected.includes(item.url), disabled: isDisabled(item) }"
             @click="toggleItem(item)"
           >
-            <el-image v-if="item.type === FileAssetType.Image" :src="item.thumbUrl" fit="cover" class="picker-thumb" />
+            <el-image v-if="item.type === FileAssetType.Image" :src="item.thumbUrl || item.url" fit="cover" class="picker-thumb" />
             <div v-else class="picker-video">
-              <video :src="item.url" />
+              <img v-if="item.thumbUrl" :src="item.thumbUrl" alt="" />
+              <video v-else :src="item.url" preload="metadata" muted />
               <div class="picker-video-mask"><el-icon><VideoPlay /></el-icon></div>
             </div>
             <div class="picker-check" v-if="tempSelected.includes(item.url)">
@@ -237,7 +238,7 @@ onMounted(() => {
   height: 80px;
   border-radius: 6px;
   overflow: hidden;
-  border: 1px solid #ebeef5;
+  border: 1px solid #E7E9ED;
 }
 .selected-img {
   width: 100%;
@@ -260,19 +261,19 @@ onMounted(() => {
 .picker-trigger {
   width: 80px;
   height: 80px;
-  border: 1px dashed #dcdfe6;
+  border: 1px dashed #E7E9ED;
   border-radius: 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #909399;
+  color: #626A73;
   cursor: pointer;
   transition: all 0.2s;
 }
 .picker-trigger:hover {
-  border-color: #e54d42;
-  color: #e54d42;
+  border-color: #FF6B35;
+  color: #FF6B35;
 }
 .trigger-text {
   font-size: 12px;
@@ -290,23 +291,23 @@ onMounted(() => {
   flex-wrap: wrap;
   margin-bottom: 14px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #f0f1f4;
+  border-bottom: 1px solid #E7E9ED;
 }
 .pg-item {
   padding: 4px 12px;
   border-radius: 999px;
   font-size: 13px;
-  color: #606266;
-  background: #f5f7fa;
+  color: #626A73;
+  background: #F8F9FB;
   cursor: pointer;
   transition: all 0.15s;
 }
 .pg-item:hover {
-  color: #e54d42;
+  color: #FF6B35;
 }
 .pg-item.active {
-  background: #fef0ef;
-  color: #e54d42;
+  background: #FFF1EB;
+  color: #FF6B35;
   font-weight: 500;
 }
 .picker-grid {
@@ -321,13 +322,13 @@ onMounted(() => {
   border: 2px solid transparent;
   cursor: pointer;
   transition: all 0.2s;
-  background: #f5f7fa;
+  background: #F8F9FB;
 }
 .picker-item:hover {
-  border-color: #e54d42;
+  border-color: #FF6B35;
 }
 .picker-item.active {
-  border-color: #e54d42;
+  border-color: #FF6B35;
 }
 .picker-item.disabled {
   opacity: 0.5;
@@ -348,6 +349,12 @@ onMounted(() => {
   height: 100%;
   object-fit: cover;
 }
+.picker-video img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
 .picker-video-mask {
   position: absolute;
   inset: 0;
@@ -365,7 +372,7 @@ onMounted(() => {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #e54d42;
+  background: #FF6B35;
   color: #fff;
   display: flex;
   align-items: center;
@@ -375,7 +382,7 @@ onMounted(() => {
 .picker-name {
   padding: 6px 8px;
   font-size: 12px;
-  color: #606266;
+  color: #626A73;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -387,10 +394,10 @@ onMounted(() => {
   justify-content: space-between;
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid #E7E9ED;
 }
 .picker-tip {
   font-size: 13px;
-  color: #909399;
+  color: #626A73;
 }
 </style>

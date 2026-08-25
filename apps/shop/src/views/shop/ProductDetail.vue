@@ -4,7 +4,7 @@
 
     <main class="detail-body">
       <section class="gallery-section">
-        <van-swipe class="detail-swipe" indicator-color="#b88a44">
+        <van-swipe class="detail-swipe" indicator-color="#FF6B35">
           <van-swipe-item v-for="(img, idx) in data.spu.images" :key="idx">
             <img :src="img" class="detail-img" :alt="`${data.spu.name} 图片 ${idx + 1}`" />
           </van-swipe-item>
@@ -51,7 +51,7 @@
           </div>
           <div class="benefit-item">
             <van-icon name="cluster-o" />
-            <span>开通三级分销佣金推广资格</span>
+            <span>开通分享佣金推广资格</span>
           </div>
         </div>
       </section>
@@ -98,13 +98,13 @@
 
     <van-action-bar class="detail-action-bar">
       <van-action-bar-icon icon="chat-o" text="客服" @click="contactService" />
-      <van-action-bar-icon icon="star-o" text="收藏" @click="toggleFavorite" />
+      <van-action-bar-icon :icon="isFavorited ? 'star' : 'star-o'" :color="isFavorited ? '#FF6B35' : ''" :text="isFavorited ? '已收藏' : '收藏'" @click="toggleFavorite" />
       <template v-if="data.spu.isGiftPackage">
-        <van-action-bar-button class="buy-action" color="#17202a" text="立即购买" @click="buyGiftPackage" />
+        <van-action-bar-button class="buy-action" color="#FF6B35" text="立即购买" @click="buyGiftPackage" />
       </template>
       <template v-else>
-        <van-action-bar-button class="cart-action" color="#f7efe2" text="加入购物车" @click="addToCart" />
-        <van-action-bar-button class="buy-action" color="#17202a" text="立即购买" @click="buyNow" />
+        <van-action-bar-button class="cart-action" color="#FFF1EB" text="加入购物车" @click="addToCart" />
+        <van-action-bar-button class="buy-action" color="#FF6B35" text="立即购买" @click="buyNow" />
       </template>
     </van-action-bar>
   </div>
@@ -152,16 +152,26 @@ const monthlyCredit = computed(() => {
 
 const levelLabel = computed(() => MemberLevelLabels[userStore.level])
 
-const addToCart = () => {
+const addToCart = async () => {
   if (!currentSku.value || !data.value) return
-  cartStore.addItem(currentSku.value, data.value.spu.name, data.value.spu.mainImage, quantity.value)
+  if (!userStore.member) {
+    showToast('请先登录')
+    router.push('/login')
+    return
+  }
+  await cartStore.addItem(currentSku.value, data.value.spu.name, data.value.spu.mainImage, quantity.value)
   showSuccessToast(`已加入购物车 ×${quantity.value}`)
 }
 
-const buyNow = () => {
+const buyNow = async () => {
   if (!currentSku.value || !data.value) return
-  cartStore.addItem(currentSku.value, data.value.spu.name, data.value.spu.mainImage, quantity.value)
-  cartStore.selectOnly(currentSku.value.id)
+  if (!userStore.member) {
+    showToast('请先登录')
+    router.push('/login')
+    return
+  }
+  await cartStore.addItem(currentSku.value, data.value.spu.name, data.value.spu.mainImage, quantity.value)
+  await cartStore.selectOnly(currentSku.value.id)
   router.push('/checkout')
 }
 
@@ -173,8 +183,27 @@ const contactService = () => {
   showToast('专属客服已接入，请稍后查看消息通知')
 }
 
-const toggleFavorite = () => {
-  showSuccessToast('已收藏，可在「我的收藏」查看')
+const isFavorited = ref(false)
+
+const toggleFavorite = async () => {
+  if (!userStore.member) {
+    showToast('请先登录')
+    router.push('/login')
+    return
+  }
+  try {
+    if (isFavorited.value) {
+      await api.removeFavorite(Number(route.params.id))
+      isFavorited.value = false
+      showSuccessToast('已取消收藏')
+    } else {
+      await api.addFavorite(Number(route.params.id))
+      isFavorited.value = true
+      showSuccessToast('已收藏，可在「我的收藏」查看')
+    }
+  } catch {
+    showToast('操作失败，请稍后重试')
+  }
 }
 
 onMounted(async () => {
@@ -182,6 +211,14 @@ onMounted(async () => {
   data.value = await api.getProduct(id)
   if (data.value && data.value.skus.length > 0) {
     selectedSkuId.value = data.value.skus[0].id
+  }
+  // 记录浏览历史（登录时）
+  if (userStore.member) {
+    api.addHistory(id).catch(() => {})
+    try {
+      const favs = await api.getFavorites()
+      isFavorited.value = favs.some(f => f.spuId === id)
+    } catch { /* ignore */ }
   }
 })
 
@@ -244,13 +281,13 @@ watch(selectedSkuId, () => { quantity.value = 1 })
 }
 .brand-row {
   justify-content: space-between;
-  color: #8f6f3f;
+  color: #E85222;
   font-size: 12px;
   font-weight: 800;
 }
 h1 {
   margin-top: 9px;
-  color: #17202a;
+  color: #171A1F;
   font-size: 22px;
   line-height: 1.28;
 }
@@ -259,7 +296,7 @@ h1 {
   margin-top: 12px;
 }
 .price-old {
-  color: #a8b1bc;
+  color: #9AA1AA;
   text-decoration: line-through;
 }
 .member-price-tag {
@@ -268,8 +305,8 @@ h1 {
   margin-top: 10px;
   padding: 6px 10px;
   border-radius: 999px;
-  background: #f7efe2;
-  color: #8f6f3f;
+  background: #FFF1EB;
+  color: #E85222;
   font-size: 12px;
   font-weight: 700;
 }
@@ -277,21 +314,21 @@ h1 {
   padding: 16px;
   margin-bottom: 12px;
   border-radius: 16px;
-  background: linear-gradient(135deg, #fffaf1 0%, #f7efe2 100%);
-  border: 1px solid rgba(184, 138, 68, 0.2);
+  background: linear-gradient(135deg, #FFFFFF 0%, #FFF1EB 100%);
+  border: 1px solid rgba(255, 107, 53, 0.2);
 }
 .section-heading {
   justify-content: space-between;
   margin-bottom: 12px;
 }
 .section-kicker {
-  color: #8f6f3f;
+  color: #E85222;
   font-size: 10px;
   font-weight: 800;
 }
 h2 {
   margin-top: 3px;
-  color: #17202a;
+  color: #171A1F;
   font-size: 17px;
   line-height: 1.2;
 }
@@ -301,12 +338,12 @@ h2 {
 }
 .benefit-item {
   gap: 8px;
-  color: #4d5967;
+  color: #626A73;
   font-size: 13px;
   line-height: 1.45;
 }
 .benefit-item .van-icon {
-  color: #b88a44;
+  color: #FF6B35;
   flex-shrink: 0;
 }
 .sku-list {
@@ -317,23 +354,23 @@ h2 {
 .sku-item {
   min-height: 36px;
   padding: 0 14px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #E7E9ED;
   border-radius: 999px;
   background: #fff;
-  color: #4d5967;
+  color: #626A73;
   font-size: 13px;
   font-weight: 700;
 }
 .sku-item.active {
-  border-color: #17202a;
-  background: #17202a;
+  border-color: #FF6B35;
+  background: #FF6B35;
   color: #fff;
 }
 .qty-section {
   justify-content: space-between;
 }
 .desc-section p {
-  color: #4d5967;
+  color: #626A73;
   font-size: 14px;
   line-height: 1.7;
 }
@@ -348,8 +385,8 @@ h2 {
   gap: 5px;
   min-height: 34px;
   border-radius: 10px;
-  background: #f3f5f7;
-  color: #637083;
+  background: #F8F9FB;
+  color: #626A73;
   font-size: 11px;
   font-weight: 700;
 }
@@ -367,7 +404,7 @@ h2 {
   right: 12px;
   bottom: calc(74px + env(safe-area-inset-bottom));
   width: auto;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid rgba(231, 233, 237, 0.9);
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 14px 34px rgba(17, 24, 39, 0.13);
@@ -379,10 +416,10 @@ h2 {
   font-weight: 800;
 }
 .detail-action-bar .cart-action {
-  color: #8f6f3f !important;
+  color: #E85222 !important;
 }
 .detail-action-bar .cart-action .van-button__text {
-  color: #8f6f3f !important;
+  color: #E85222 !important;
 }
 .detail-action-bar .buy-action,
 .detail-action-bar .buy-action .van-button__text {

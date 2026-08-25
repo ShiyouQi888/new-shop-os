@@ -6,15 +6,15 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { MemberLevel, MemberLevelLabels } from '@shop-os/shared'
+import { getLevelName } from '@/utils/level'
 
 const props = defineProps<{
   level: number
-  /** 自定义等级名称（多等级场景优先展示） */
+  /** 自定义等级名称（优先展示；未传时自动从等级配置映射） */
   name?: string
 }>()
 
-const label = computed(() => props.name || MemberLevelLabels[props.level as MemberLevel] || `Lv.${props.level}`)
+const label = computed(() => props.name || getLevelName(props.level) || `Lv.${props.level}`)
 
 // 多档等级色带：按 level 序号取模循环
 const TONES = ['sf-level-gold', 'sf-level-silver', 'sf-level-bronze', 'sf-level-platinum', 'sf-level-diamond', 'sf-level-cyan']
@@ -32,41 +32,42 @@ const levelClass = computed(() => {
   padding: 2px 10px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 700;
   white-space: nowrap;
 }
 .sf-level-gold {
-  background: #fbf3e0;
-  color: #d4a851;
-  border: 1px solid #e8d4a0;
+  background: #FFF1EB;
+  color: #FF6B35;
+  border: 1px solid #FFD5C5;
 }
 .sf-level-silver {
-  background: #f2f2f2;
-  color: #6a6a6a;
-  border: 1px solid #d0d0d0;
+  background: #F8F9FB;
+  color: #626A73;
+  border: 1px solid #E7E9ED;
 }
 .sf-level-bronze {
-  background: #f6ece2;
-  color: #b0743a;
-  border: 1px solid #e2c9ab;
+  background: #FFF1EB;
+  color: #E85222;
+  border: 1px solid #FFD5C5;
 }
 .sf-level-platinum {
-  background: #eef3f8;
-  color: #5b7c99;
-  border: 1px solid #c3d3e2;
+  background: #F8F9FB;
+  color: #626A73;
+  border: 1px solid #E7E9ED;
 }
 .sf-level-diamond {
-  background: #ecf6fb;
-  color: #2e7ea8;
-  border: 1px solid #b5d9ec;
+  background: #FFF1EB;
+  color: #FF6B35;
+  border: 1px solid #FFD5C5;
 }
 .sf-level-cyan {
-  background: #e8f7f5;
-  color: #178a7e;
-  border: 1px solid #b3e0da;
+  background: #EAF8F2;
+  color: #18A66A;
+  border: 1px solid rgba(24, 166, 106, 0.22);
 }
 .sf-level-normal {
-  background: #f4f4f5;
-  color: #909399;
+  background: #F8F9FB;
+  color: #626A73;
+  border: 1px solid #E7E9ED;
 }
 </style>

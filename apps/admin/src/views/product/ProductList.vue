@@ -85,59 +85,107 @@
     </SfPageContainer>
 
     <!-- 编辑弹窗 -->
-    <el-dialog v-model="editVisible" :title="editForm.id ? '编辑商品' : '新增商品'" width="640px" destroy-on-close>
-      <el-form ref="editFormRef" :model="editForm" label-width="100px">
-        <el-form-item label="商品名称" prop="name" required>
-          <el-input v-model="editForm.name" placeholder="请输入商品名称" />
-        </el-form-item>
-        <el-form-item label="品牌">
-          <el-input v-model="editForm.brand" placeholder="请输入品牌" />
-        </el-form-item>
-        <el-form-item label="分类">
-          <el-select v-model="editForm.categoryId" placeholder="选择分类" style="width: 100%">
-            <el-option v-for="c in categories" :key="c.id" :label="c.name" :value="c.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="主图">
-          <SfFilePicker v-model="editForm.mainImage" accept="image" placeholder="上传主图" title="选择商品主图" />
-        </el-form-item>
-        <el-form-item label="详情图">
-          <SfFilePicker v-model="editForm.images" :multiple="true" accept="image" placeholder="上传详情图" title="选择详情图" />
-        </el-form-item>
-        <el-form-item label="商品描述">
-          <el-input v-model="editForm.description" type="textarea" :rows="3" placeholder="商品描述" />
-        </el-form-item>
-        <el-form-item label="商品标签">
-          <el-checkbox v-model="editForm.isGiftPackage">大礼包商品</el-checkbox>
-          <el-checkbox v-model="editForm.isMonthlyProduct">领货商品</el-checkbox>
-          <el-checkbox v-model="editForm.excludeDiscount">排除会员折扣</el-checkbox>
-        </el-form-item>
+    <el-dialog
+      v-model="editVisible"
+      :title="editForm.id ? '编辑商品' : '新增商品'"
+      width="min(1180px, calc(100vw - 48px))"
+      class="product-dialog"
+      destroy-on-close
+    >
+      <el-form ref="editFormRef" :model="editForm" label-width="88px">
+        <div class="product-form-grid">
+          <el-form-item label="商品名称" prop="name" required>
+            <el-input v-model="editForm.name" placeholder="请输入商品名称" />
+          </el-form-item>
+          <el-form-item label="品牌">
+            <el-input v-model="editForm.brand" placeholder="请输入品牌" />
+          </el-form-item>
+          <el-form-item label="分类">
+            <el-select v-model="editForm.categoryId" placeholder="选择分类" style="width: 100%">
+              <el-option v-for="c in categories" :key="c.id" :label="c.name" :value="c.id" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="商品标签">
+            <div class="tag-checks">
+              <el-checkbox v-model="editForm.isGiftPackage">大礼包商品</el-checkbox>
+              <el-checkbox v-model="editForm.isMonthlyProduct">领货商品</el-checkbox>
+              <el-checkbox v-model="editForm.excludeDiscount">排除会员折扣</el-checkbox>
+            </div>
+          </el-form-item>
+          <el-form-item label="主图">
+            <SfFilePicker v-model="editForm.mainImage" accept="image" placeholder="上传主图" title="选择商品主图" />
+          </el-form-item>
+          <el-form-item label="详情图">
+            <SfFilePicker v-model="editForm.images" :multiple="true" accept="image" placeholder="上传详情图" title="选择详情图" />
+          </el-form-item>
+          <el-form-item label="商品描述" class="form-wide">
+            <el-input v-model="editForm.description" type="textarea" :rows="2" placeholder="商品描述" />
+          </el-form-item>
+        </div>
 
         <!-- SKU 编辑 -->
-        <el-form-item label="SKU 规格" v-if="editSkus.length || editForm.id">
-          <el-table :data="editSkus" border size="small" style="width: 100%">
-            <el-table-column label="规格" prop="skuName" min-width="140" />
-            <el-table-column label="销售价" width="120">
-              <template #default="{ row }">
-                <el-input-number v-model="row.price" :min="0" :precision="2" :controls="false" style="width: 100%" />
-              </template>
-            </el-table-column>
-            <el-table-column label="成本价" width="120">
-              <template #default="{ row }">
-                <el-input-number v-model="row.costPrice" :min="0" :precision="2" :controls="false" style="width: 100%" />
-              </template>
-            </el-table-column>
-            <el-table-column label="库存" width="120">
-              <template #default="{ row }">
-                <el-input-number v-model="row.stock" :min="0" :controls="false" style="width: 100%" />
-              </template>
-            </el-table-column>
-            <el-table-column label="状态" width="90" align="center">
-              <template #default="{ row }">
-                <el-switch v-model="row.status" :active-value="1" :inactive-value="0" />
-              </template>
-            </el-table-column>
-          </el-table>
+        <el-form-item label="SKU 规格" required>
+          <div class="sku-editor">
+            <div class="sku-toolbar">
+              <div>
+                <strong>规格列表</strong>
+                <span>用于前台购买、库存扣减和大礼包内容引用</span>
+              </div>
+              <el-button type="primary" plain :icon="Plus" @click="addSku">新增 SKU</el-button>
+            </div>
+
+            <el-table :data="editSkus" border size="small" style="width: 100%">
+              <el-table-column label="SKU 名称" min-width="170">
+                <template #default="{ row }">
+                  <el-input v-model="row.skuName" placeholder="如：黑色 / 150g×3" />
+                </template>
+              </el-table-column>
+              <el-table-column label="规格键值" min-width="240">
+                <template #default="{ row }">
+                  <div class="spec-list">
+                    <div v-for="spec in getSpecRows(row)" :key="spec.key" class="spec-row">
+                      <el-input v-model="spec.key" placeholder="规格名" @change="syncSpecRows(row, getSpecRows(row))" />
+                      <el-input v-model="spec.value" placeholder="规格值" @change="syncSpecRows(row, getSpecRows(row))" />
+                      <el-button link type="danger" :icon="Delete" @click="removeSpec(row, spec.key)" />
+                    </div>
+                    <el-button link type="primary" :icon="Plus" @click="addSpec(row)">添加规格项</el-button>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="SKU 图" width="122">
+                <template #default="{ row }">
+                  <SfFilePicker v-model="row.image" accept="image" placeholder="选择" title="选择 SKU 图片" />
+                </template>
+              </el-table-column>
+              <el-table-column label="销售价" width="120">
+                <template #default="{ row }">
+                  <el-input-number v-model="row.price" :min="0" :precision="2" :controls="false" style="width: 100%" />
+                </template>
+              </el-table-column>
+              <el-table-column label="原价/成本" width="120">
+                <template #default="{ row }">
+                  <el-input-number v-model="row.costPrice" :min="0" :precision="2" :controls="false" style="width: 100%" />
+                </template>
+              </el-table-column>
+              <el-table-column label="库存" width="110">
+                <template #default="{ row }">
+                  <el-input-number v-model="row.stock" :min="0" :controls="false" style="width: 100%" />
+                </template>
+              </el-table-column>
+              <el-table-column label="状态" width="86" align="center">
+                <template #default="{ row }">
+                  <el-switch v-model="row.status" :active-value="1" :inactive-value="0" />
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="70" align="center">
+                <template #default="{ row, $index }">
+                  <el-button link type="danger" @click="removeSku(row, $index)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+
+            <el-empty v-if="!editSkus.length" description="请至少新增一个 SKU 规格" :image-size="72" />
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -150,7 +198,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { Plus, Search, RefreshLeft } from '@element-plus/icons-vue'
+import { Delete, Plus, Search, RefreshLeft } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { apiProduct, apiCategory } from '@/api'
 import { type ProductSPU, type ProductCategory, type ProductSKU, ProductStatus } from '@shop-os/shared'
@@ -168,11 +216,14 @@ const categories = ref<ProductCategory[]>([])
 const skuSummary = ref<Record<number, { count: number; stock: number }>>({})
 
 const editVisible = ref(false)
+type EditableSku = ProductSKU & { image?: string; originalPrice?: number }
 const editForm = reactive<Partial<ProductSPU>>({
   name: '', brand: '', categoryId: undefined, mainImage: '', images: [], description: '',
   isGiftPackage: false, isMonthlyProduct: false, excludeDiscount: false,
 })
-const editSkus = ref<ProductSKU[]>([])
+const editSkus = ref<EditableSku[]>([])
+const deletedSkuIds = ref<number[]>([])
+const specRowsMap = reactive<Record<string, { key: string; value: string }[]>>({})
 
 const selectedRows = ref<ProductSPU[]>([])
 const selectedIds = computed(() => selectedRows.value.map(r => r.id))
@@ -207,13 +258,85 @@ const resetSearch = () => { filters.keyword = ''; filters.categoryId = ''; searc
 const onSelectionChange = (rows: ProductSPU[]) => { selectedRows.value = rows }
 const clearSelection = () => { selectedRows.value = [] }
 
+const normalizeSku = (sku: ProductSKU & { originalPrice?: number; image?: string }): EditableSku => ({
+  ...sku,
+  specInfo: sku.specInfo || {},
+  costPrice: Number(sku.costPrice ?? sku.originalPrice ?? sku.price ?? 0),
+  stockLocked: Number(sku.stockLocked ?? 0),
+  image: sku.image || '',
+})
+
+const specKey = (sku: EditableSku) => String(sku.id || editSkus.value.indexOf(sku))
+
+const getSpecRows = (sku: EditableSku) => {
+  const key = specKey(sku)
+  if (!specRowsMap[key]) {
+    specRowsMap[key] = Object.entries(sku.specInfo || {}).map(([name, value]) => ({ key: name, value }))
+  }
+  return specRowsMap[key]
+}
+
+const syncSpecRows = (sku: EditableSku, rows: { key: string; value: string }[]) => {
+  const next: Record<string, string> = {}
+  rows.forEach(item => {
+    const key = item.key.trim()
+    if (key) next[key] = item.value.trim()
+  })
+  sku.specInfo = next
+}
+
+const addSpec = (sku: EditableSku) => {
+  const rows = getSpecRows(sku)
+  rows.push({ key: '', value: '' })
+}
+
+const removeSpec = (sku: EditableSku, key: string) => {
+  const rows = getSpecRows(sku)
+  const index = rows.findIndex(item => item.key === key)
+  if (index >= 0) rows.splice(index, 1)
+  syncSpecRows(sku, rows)
+}
+
+const addSku = () => {
+  const index = editSkus.value.length + 1
+  const sku: EditableSku = {
+    id: 0,
+    spuId: editForm.id || 0,
+    skuName: index === 1 ? '默认规格' : `规格 ${index}`,
+    specInfo: { 规格: index === 1 ? '默认' : String(index) },
+    price: 0,
+    costPrice: 0,
+    stock: 0,
+    stockLocked: 0,
+    status: ProductStatus.OnSale,
+    image: '',
+  }
+  editSkus.value.push(sku)
+  specRowsMap[specKey(sku)] = Object.entries(sku.specInfo).map(([key, value]) => ({ key, value }))
+}
+
+const removeSku = async (sku: EditableSku, index: number) => {
+  if (sku.id) {
+    try {
+      await ElMessageBox.confirm(`确认删除 SKU「${sku.skuName}」？大礼包或订单引用该规格时请谨慎操作。`, '删除 SKU', {
+        type: 'warning', confirmButtonText: '删除', confirmButtonClass: 'el-button--danger',
+      })
+    } catch { return }
+    deletedSkuIds.value.push(sku.id)
+  }
+  editSkus.value.splice(index, 1)
+}
+
 const openEdit = async (row: ProductSPU | null) => {
+  Object.keys(specRowsMap).forEach(key => { delete specRowsMap[key] })
+  deletedSkuIds.value = []
   if (row) {
     Object.assign(editForm, row)
-    editSkus.value = await apiProduct.getSkus(row.id)
+    editSkus.value = (await apiProduct.getSkus(row.id)).map(normalizeSku)
   } else {
     Object.assign(editForm, { name: '', brand: '', categoryId: undefined, mainImage: '', images: [], description: '', isGiftPackage: false, isMonthlyProduct: false, excludeDiscount: false, status: 1, sort: 0 })
     editSkus.value = []
+    addSku()
   }
   editVisible.value = true
 }
@@ -223,13 +346,22 @@ const saveProduct = async () => {
     ElMessage.warning('请输入商品名称')
     return
   }
+  if (!editSkus.value.length) {
+    ElMessage.warning('请至少创建一个 SKU 规格')
+    return
+  }
+  const invalidSku = editSkus.value.find(sku => !sku.skuName.trim() || sku.price < 0 || sku.stock < 0)
+  if (invalidSku) {
+    ElMessage.warning('请完善 SKU 名称、价格和库存')
+    return
+  }
   saving.value = true
   try {
     const saved = await apiProduct.save(editForm)
-    // 保存 SKU（有 SKU 数据时）
-    if (editSkus.value.length) {
-      await apiProduct.saveSkus(saved.id, editSkus.value)
+    if (deletedSkuIds.value.length) {
+      await Promise.all(deletedSkuIds.value.map(id => apiProduct.removeSku(saved.id, id)))
     }
+    await apiProduct.saveSkus(saved.id, editSkus.value.map(sku => ({ ...sku, spuId: saved.id })))
     ElMessage.success('保存成功')
     editVisible.value = false
     load()
@@ -295,13 +427,13 @@ onMounted(async () => {
   gap: 12px;
   padding: 10px 14px;
   margin-bottom: 12px;
-  background: #ecf5ff;
+  background: #FFF1EB;
   border-radius: 6px;
   font-size: 13px;
-  color: #606266;
+  color: #626A73;
 }
 .batch-count {
-  color: #409eff;
+  color: #FF6B35;
   font-size: 16px;
 }
 .sku-summary {
@@ -309,12 +441,78 @@ onMounted(async () => {
   flex-direction: column;
   gap: 2px;
   font-size: 12px;
-  color: #606266;
+  color: #626A73;
 }
 .stock-text {
-  color: #909399;
+  color: #626A73;
 }
 .empty-tip {
-  color: #c0c4cc;
+  color: #9AA1AA;
+}
+:deep(.product-dialog) {
+  margin-top: 5vh;
+}
+:deep(.product-dialog .el-dialog__body) {
+  max-height: calc(90vh - 132px);
+  overflow: auto;
+  padding-top: 10px;
+}
+.product-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 22px;
+  padding-right: 4px;
+}
+.product-form-grid :deep(.el-form-item) {
+  min-width: 0;
+}
+.form-wide {
+  grid-column: 1 / -1;
+}
+.tag-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+.sku-editor {
+  width: 100%;
+  min-width: 0;
+}
+.sku-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border: 1px solid #FFD5C5;
+  border-radius: 10px;
+  background: #FFF1EB;
+}
+.sku-toolbar strong {
+  display: block;
+  color: #171A1F;
+  font-size: 14px;
+}
+.sku-toolbar span {
+  display: block;
+  margin-top: 3px;
+  color: #626A73;
+  font-size: 12px;
+}
+.spec-list {
+  display: grid;
+  gap: 6px;
+}
+.spec-row {
+  display: grid;
+  grid-template-columns: minmax(72px, 1fr) minmax(88px, 1fr) 28px;
+  gap: 6px;
+  align-items: center;
+}
+@media (max-width: 860px) {
+  .product-form-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

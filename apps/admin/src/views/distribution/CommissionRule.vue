@@ -7,6 +7,8 @@
 
       <div class="sf-card">
         <el-alert title="佣金比例按「被推荐人购买的礼包等级」对应，而非推荐人自身等级。三级合计建议不超过30%。" type="warning" :closable="false" show-icon style="margin-bottom: 20px" />
+        <el-alert v-if="!distEnabled" title="分销总开关已关闭（可在「分销关系」页开启），当前规则配置仍保留，重新开启后生效。" type="info" :closable="false" show-icon style="margin-bottom: 12px" />
+        <el-alert v-else :title="`当前分销生效层级：${activeLevelsText}`" type="success" :closable="false" show-icon style="margin-bottom: 12px" />
 
         <el-table :data="configs" border>
           <el-table-column label="礼包等级" min-width="140">
@@ -75,10 +77,16 @@ import { ElMessage } from 'element-plus'
 import { apiConfig } from '@/api'
 import { type CommissionRuleConfig, MemberLevel, calcCommission } from '@shop-os/shared'
 import SfPageContainer from '@/components/SfPageContainer.vue'
+import { loadLevelMap } from '@/utils/level'
 import SfLevelTag from '@/components/SfLevelTag.vue'
 import SfPriceTag from '@/components/SfPriceTag.vue'
 
 const configs = ref<CommissionRuleConfig[]>([])
+const distEnabled = ref(true)
+const activeLevels = ref<number[]>([1, 2, 3])
+const activeLevelsText = computed(() =>
+  activeLevels.value.length ? activeLevels.value.map(l => ['一', '二', '三'][l - 1] + '级').join(' / ') : '无（分销已暂停）',
+)
 
 const goldRates = computed(() => {
   const goldConfigs = configs.value.filter(c => c.packageLevel === MemberLevel.Gold).sort((a, b) => a.distributionLevel - b.distributionLevel)
@@ -106,7 +114,20 @@ const saveAll = async () => {
 }
 
 onMounted(async () => {
-  configs.value = await apiConfig.getCommissionConfigs()
+  loadLevelMap()
+  const [configsData, sysConfigs] = await Promise.all([
+    apiConfig.getCommissionConfigs(),
+    apiConfig.getSystemConfigs('distribution').catch(() => []),
+  ])
+  configs.value = configsData
+  const val = (k: string, def = '1') => {
+    const c = sysConfigs.find((x: { configKey: string; configValue: string }) => x.configKey === k)
+    return c ? c.configValue : def
+  }
+  distEnabled.value = val('distribution.enabled') === '1'
+  activeLevels.value = distEnabled.value
+    ? [1, 2, 3].filter(l => val(`distribution.level_${l}`) === '1')
+    : []
 })
 </script>
 
@@ -116,12 +137,12 @@ onMounted(async () => {
   padding: 24px;
 }
 .gold-summary {
-  background: linear-gradient(135deg, #fbf3e0 0%, #fdf8ed 100%);
-  border: 1px solid #e8d4a0;
+  background: linear-gradient(135deg, #FFF1EB 0%, #FFFFFF 100%);
+  border: 1px solid #FFD5C5;
 }
 .silver-summary {
-  background: linear-gradient(135deg, #f2f2f2 0%, #f9f9f9 100%);
-  border: 1px solid #d0d0d0;
+  background: linear-gradient(135deg, #F8F9FB 0%, #F8F9FB 100%);
+  border: 1px solid #E7E9ED;
 }
 .summary-title {
   font-size: 18px;
@@ -132,11 +153,11 @@ onMounted(async () => {
   display: flex;
   gap: 24px;
   font-size: 15px;
-  color: #606266;
+  color: #626A73;
   margin-bottom: 8px;
 }
 .summary-total {
   font-size: 13px;
-  color: #909399;
+  color: #626A73;
 }
 </style>

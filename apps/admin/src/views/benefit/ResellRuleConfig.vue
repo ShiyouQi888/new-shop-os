@@ -117,16 +117,16 @@ const saveAll = async () => {
 .form-tip {
   margin-left: 12px;
   font-size: 12px;
-  color: #909399;
+  color: #626A73;
 }
 .demo-item label {
   display: block;
   font-size: 13px;
-  color: #909399;
+  color: #626A73;
   margin-bottom: 8px;
 }
 .demo-result {
-  background: #f9fafc;
+  background: #F8F9FB;
   border-radius: 8px;
   padding: 20px;
 }
@@ -137,14 +137,14 @@ const saveAll = async () => {
   font-size: 14px;
 }
 .demo-line.danger span:last-child {
-  color: #e54d42;
+  color: #FF6B35;
 }
 .demo-line.result {
   font-weight: 600;
   font-size: 16px;
 }
 .result-price {
-  color: #e54d42;
+  color: #FF6B35;
   font-size: 22px;
 }
 </style>

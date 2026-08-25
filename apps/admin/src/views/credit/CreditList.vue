@@ -113,6 +113,7 @@ import { ElMessage } from 'element-plus'
 import { apiCredit, apiMember } from '@/api'
 import { type MonthlyCredit, type CreditStatus, type Member, CreditStatusLabels } from '@shop-os/shared'
 import SfPageContainer from '@/components/SfPageContainer.vue'
+import { loadLevelMap } from '@/utils/level'
 import SfLevelTag from '@/components/SfLevelTag.vue'
 import SfPriceTag from '@/components/SfPriceTag.vue'
 
@@ -134,10 +135,10 @@ const creditStatusTag = (status: number) => {
   return map[status] || 'info'
 }
 const progressColor = (row: MonthlyCredit) => {
-  if (row.status === 3) return '#909399'
-  if (row.status === 2) return '#39b54a'
+  if (row.status === 3) return '#626A73'
+  if (row.status === 2) return '#18A66A'
   const pct = row.creditAmount > 0 ? row.usedAmount / row.creditAmount : 0
-  return pct > 0.8 ? '#e54d42' : '#409eff'
+  return pct > 0.8 ? '#FF6B35' : '#FF6B35'
 }
 
 const memberName = (id: number) => members.value.find(m => m.id === id)?.nickname || `会员${id}`
@@ -183,6 +184,7 @@ const confirmAdjust = async () => {
 }
 
 onMounted(async () => {
+  loadLevelMap()
   const res = await apiMember.getList({ page: 1, pageSize: 100 })
   members.value = res.list
   load()
@@ -201,11 +203,11 @@ onMounted(async () => {
 }
 .member-id {
   font-size: 12px;
-  color: #909399;
+  color: #626A73;
 }
 .unit {
   margin-left: 6px;
-  color: #606266;
+  color: #626A73;
   font-size: 13px;
 }
 </style>

@@ -12,7 +12,7 @@
           </div>
           <LevelBadge :level="currentCredit?.memberLevel || 1" />
         </div>
-        <van-progress :percentage="usagePercent" color="#b88a44" stroke-width="10" />
+        <van-progress :percentage="usagePercent" color="#FF6B35" stroke-width="10" />
         <div class="current-stats">
           <div class="cs-item">
             <div class="cs-val price-lg">{{ formatMoney(currentCredit?.remainAmount || 0) }}</div>
@@ -31,8 +31,8 @@
 
       <!-- 领货操作 -->
       <div class="action-row">
-        <van-button color="#17202a" block round @click="goPickProducts">领取商品自用</van-button>
-        <van-button plain color="#8f6f3f" block round @click="goResell">一键转卖变现</van-button>
+        <van-button color="#FF6B35" block round @click="goPickProducts">领取商品自用</van-button>
+        <van-button plain color="#E85222" block round @click="goResell">一键转卖变现</van-button>
       </div>
 
       <!-- 领货进度 -->
@@ -103,31 +103,31 @@ onMounted(async () => {
 .credit-body { padding: 12px 14px 24px; }
 .current-card { padding: 16px; margin-bottom: 12px; }
 .current-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.current-month { color: #17202a; font-size: 18px; font-weight: 800; }
-.current-desc { font-size: 12px; color: #7b8794; margin-top: 4px; }
+.current-month { color: #171A1F; font-size: 18px; font-weight: 800; }
+.current-desc { font-size: 12px; color: #626A73; margin-top: 4px; }
 .current-stats { display: flex; justify-content: space-around; margin-top: 16px; }
 .cs-item { text-align: center; }
-.cs-val { font-size: 18px; font-weight: 800; color: #17202a; }
-.cs-label { font-size: 12px; color: #7b8794; margin-top: 4px; }
+.cs-val { font-size: 18px; font-weight: 800; color: #171A1F; }
+.cs-label { font-size: 12px; color: #626A73; margin-top: 4px; }
 .action-row { display: flex; gap: 10px; margin-bottom: 12px; }
 .progress-card { padding: 16px; margin-bottom: 12px; }
-.card-title { color: #17202a; font-size: 15px; font-weight: 800; margin-bottom: 12px; }
-.progress-info { display: flex; justify-content: space-between; font-size: 13px; color: #4d5967; margin-bottom: 12px; }
+.card-title { color: #171A1F; font-size: 15px; font-weight: 800; margin-bottom: 12px; }
+.progress-info { display: flex; justify-content: space-between; font-size: 13px; color: #626A73; margin-bottom: 12px; }
 .months-bar { display: flex; gap: 6px; flex-wrap: wrap; }
 .month-dot {
   width: 28px; height: 28px;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: 11px;
-  background: #f3f5f7; color: #a8b1bc;
+  background: #F8F9FB; color: #9AA1AA;
 }
-.month-dot.used { background: #177245; color: #fff; }
-.month-dot.current { background: #17202a; color: #fff; }
+.month-dot.used { background: #18A66A; color: #fff; }
+.month-dot.current { background: #FF6B35; color: #fff; }
 .history-card { padding: 16px; }
-.history-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e2e8f0; }
+.history-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #E7E9ED; }
 .history-item:last-child { border-bottom: none; }
-.hist-month { color: #17202a; font-size: 14px; font-weight: 700; }
-.hist-status { font-size: 12px; color: #7b8794; margin-top: 2px; }
-.hist-amount { color: #17202a; font-size: 14px; font-weight: 700; text-align: right; }
-.hist-desc { font-size: 12px; color: #7b8794; text-align: right; margin-top: 2px; }
+.hist-month { color: #171A1F; font-size: 14px; font-weight: 700; }
+.hist-status { font-size: 12px; color: #626A73; margin-top: 2px; }
+.hist-amount { color: #171A1F; font-size: 14px; font-weight: 700; text-align: right; }
+.hist-desc { font-size: 12px; color: #626A73; text-align: right; margin-top: 2px; }
 </style>

@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { adminRoutes } from './routes'
-import { isLoggedIn } from '@/utils/auth'
+import { isLoggedIn, getPermissions } from '@/utils/auth'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -20,6 +20,14 @@ router.beforeEach((to, _from, next) => {
   if (!WHITE_LIST.includes(to.path) && !logged) {
     next({ path: '/login', query: to.fullPath !== '/' ? { redirect: to.fullPath } : {} })
     return
+  }
+  // 权限校验：超管（permissions=null）或拥有对应权限码才放行
+  if (logged && to.meta?.permission) {
+    const perms = getPermissions()
+    if (perms !== null && !perms.includes(to.meta.permission as string)) {
+      next({ path: '/dashboard' })
+      return
+    }
   }
   next()
 })

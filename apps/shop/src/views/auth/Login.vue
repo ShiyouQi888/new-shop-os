@@ -1,22 +1,43 @@
 <template>
   <main class="auth-page">
-    <section class="auth-hero" aria-labelledby="login-title">
-      <button class="back-button" type="button" aria-label="返回" @click="router.back()">
-        <van-icon name="arrow-left" size="20" />
-      </button>
+    <section class="auth-shell" aria-labelledby="login-title">
+      <header class="auth-topbar">
+        <button class="icon-button" type="button" aria-label="返回" @click="router.back()">
+          <van-icon name="arrow-left" size="20" />
+        </button>
+        <button class="text-button" type="button" @click="router.push('/home')">先逛逛</button>
+      </header>
 
-      <div class="brand-lockup">
-        <div class="brand-mark">S</div>
-        <div>
-          <div class="brand-name">Shop-OS</div>
-          <div class="brand-subtitle">高端会员制精选商城</div>
+      <section class="brand-stage">
+        <div class="brand-lockup">
+          <div class="brand-mark">S</div>
+          <div>
+            <div class="brand-name">Shop-OS</div>
+            <div class="brand-subtitle">精选会员商城</div>
+          </div>
         </div>
-      </div>
 
-      <div class="auth-card">
-        <div class="eyebrow">MEMBER ACCESS</div>
-        <h1 id="login-title">欢迎回来</h1>
-        <p>登录后查看会员价、月度领货额度与代理收益。</p>
+        <div class="stage-copy">
+          <div class="eyebrow">MEMBER ACCESS</div>
+          <h1 id="login-title">欢迎回来</h1>
+          <p>登录后同步会员价、领货额度、购物车与代理权益。</p>
+        </div>
+
+        <div class="benefit-strip" aria-label="会员权益">
+          <span>会员价</span>
+          <span>月度领货</span>
+          <span>收益追踪</span>
+        </div>
+      </section>
+
+      <section class="auth-card" aria-label="登录表单">
+        <div class="card-head">
+          <div>
+            <span>手机号登录</span>
+            <strong>安全进入账户</strong>
+          </div>
+          <van-icon name="shield-o" />
+        </div>
 
         <van-form class="auth-form" @submit="onSubmit">
           <van-field
@@ -29,18 +50,14 @@
             :rules="[{ required: true, message: '请输入手机号' }, { pattern: /^1\d{10}$/, message: '手机号格式不正确' }]"
           />
           <van-field
-            v-model="code"
-            name="code"
-            type="digit"
-            label="验证码"
-            placeholder="输入 6 位验证码"
-            maxlength="6"
-            :rules="[{ required: true, message: '请输入验证码' }, { pattern: /^\d{6}$/, message: '验证码为 6 位数字' }]"
-          >
-            <template #button>
-              <van-button size="small" type="primary" plain native-type="button" @click="sendCode">获取验证码</van-button>
-            </template>
-          </van-field>
+            v-model="password"
+            name="password"
+            type="password"
+            label="密码"
+            placeholder="请输入登录密码"
+            maxlength="50"
+            :rules="[{ required: true, message: '请输入密码' }, { min: 6, message: '密码至少 6 位' }]"
+          />
 
           <van-button block round type="primary" native-type="submit" class="submit-button">
             登录
@@ -51,13 +68,7 @@
           还没有账号？
           <button type="button" @click="router.push('/register')">使用邀请码注册</button>
         </div>
-      </div>
-
-      <div class="trust-row">
-        <span>会员价</span>
-        <span>权益追踪</span>
-        <span>邀请关系保护</span>
-      </div>
+      </section>
     </section>
   </main>
 </template>
@@ -71,21 +82,12 @@ import { useUserStore } from '@/stores/user'
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
-const phone = ref('13800001111')
-const code = ref('888888')
+const phone = ref('13810000000')
+const password = ref('123456')
 
-const sendCode = () => {
-  code.value = '888888'
-  showSuccessToast('模拟验证码：888888')
-}
-
-const onSubmit = () => {
-  if (code.value !== '888888') {
-    showFailToast('验证码不正确')
-    return
-  }
+const onSubmit = async () => {
   try {
-    userStore.login(phone.value)
+    await userStore.login(phone.value, password.value)
     showSuccessToast('登录成功')
     router.replace(typeof route.query.redirect === 'string' ? route.query.redirect : '/mine')
   } catch (error) {
@@ -98,38 +100,63 @@ const onSubmit = () => {
 .auth-page {
   min-height: 100vh;
   background:
-    linear-gradient(160deg, rgba(23, 32, 42, 0.94), rgba(31, 41, 51, 0.84)),
-    url('https://images.unsplash.com/photo-1618220179428-22790b461013?auto=format&fit=crop&w=1200&q=80') center/cover;
+    linear-gradient(180deg, rgba(23, 26, 31, 0.46), rgba(23, 26, 31, 0.72) 38%, #F8F9FB 38%),
+    url('https://images.unsplash.com/photo-1618220179428-22790b461013?auto=format&fit=crop&w=1200&q=80') center top/cover;
+  color: #171A1F;
 }
-.auth-hero {
+.auth-shell {
   min-height: 100vh;
-  padding: 20px 20px 28px;
+  width: min(100%, 460px);
+  margin: 0 auto;
+  padding: calc(14px + env(safe-area-inset-top)) 16px calc(26px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  color: #fff;
+  gap: 18px;
 }
-.back-button {
+.auth-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.icon-button {
   width: 40px;
   height: 40px;
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  backdrop-filter: blur(14px);
+}
+.text-button {
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  backdrop-filter: blur(14px);
+}
+.brand-stage {
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   color: #fff;
 }
 .brand-lockup {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 24px;
 }
 .brand-mark {
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 12px;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, #d8b06a, #8f6f3f);
+  background: linear-gradient(135deg, #FF6B35, #E85222);
   font-size: 24px;
   font-weight: 800;
 }
@@ -142,61 +169,134 @@ const onSubmit = () => {
   color: rgba(255, 255, 255, 0.68);
   font-size: 12px;
 }
-.auth-card {
-  margin-top: 54px;
-  padding: 26px 18px 20px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.24);
-  color: #17202a;
+.stage-copy {
+  padding: 22px 0 10px;
 }
 .eyebrow {
-  color: #b88a44;
+  color: #FFD5C5;
   font-size: 11px;
   font-weight: 800;
+  letter-spacing: 0;
 }
 h1 {
-  margin-top: 8px;
-  font-size: 30px;
-  line-height: 1.15;
+  margin: 8px 0 0;
+  font-size: 34px;
+  line-height: 1.12;
+  letter-spacing: 0;
 }
 p {
-  margin-top: 8px;
-  color: #637083;
-  line-height: 1.6;
+  max-width: 300px;
+  margin: 10px 0 0;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 14px;
+  line-height: 1.7;
+}
+.benefit-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.benefit-strip span {
+  min-height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.13);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  font-weight: 700;
+  backdrop-filter: blur(14px);
+}
+.auth-card {
+  padding: 18px 16px 20px;
+  border: 1px solid rgba(231, 233, 237, 0.92);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 20px 54px rgba(17, 24, 39, 0.14);
+  color: #171A1F;
+  backdrop-filter: blur(18px);
+}
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  padding: 4px 2px 0;
+}
+.card-head span {
+  color: #626A73;
+  font-size: 12px;
+}
+.card-head strong {
+  display: block;
+  margin-top: 4px;
+  color: #171A1F;
+  font-size: 19px;
+}
+.card-head .van-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #FFF1EB;
+  color: #E85222;
 }
 .auth-form {
-  margin-top: 22px;
+  margin-top: 0;
 }
-.submit-button {
-  margin-top: 22px;
-  height: 44px;
+.auth-form :deep(.van-cell) {
+  margin-bottom: 12px;
+  padding: 14px 14px;
+  border: 1px solid #E7E9ED;
+  border-radius: 14px;
+  background: #F8F9FB;
+}
+.auth-form :deep(.van-cell::after) {
+  display: none;
+}
+.auth-form :deep(.van-field__label) {
+  width: 54px;
+  color: #171A1F;
   font-weight: 700;
 }
-.auth-switch {
+.auth-form :deep(.van-field__control) {
+  color: #171A1F;
+  font-weight: 600;
+}
+.submit-button {
   margin-top: 18px;
+  height: 48px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #FF6B35, #E85222);
+  border: 0;
+  box-shadow: 0 12px 26px rgba(255, 107, 53, 0.28);
+}
+.auth-switch {
+  margin-top: 20px;
   text-align: center;
-  color: #7b8794;
+  color: #626A73;
   font-size: 13px;
 }
 .auth-switch button {
   border: 0;
   background: transparent;
-  color: #8f6f3f;
+  color: #E85222;
   font-weight: 700;
 }
-.trust-row {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 24px;
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 11px;
-}
-.trust-row span {
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
+@media (min-width: 768px) {
+  .auth-page {
+    display: grid;
+    place-items: center;
+    padding: 32px;
+  }
+  .auth-shell {
+    min-height: 760px;
+    border: 1px solid rgba(231, 233, 237, 0.9);
+    border-radius: 32px;
+    overflow: hidden;
+    box-shadow: 0 28px 80px rgba(17, 24, 39, 0.24);
+  }
 }
 </style>

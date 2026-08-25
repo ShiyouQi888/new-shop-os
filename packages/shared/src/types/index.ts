@@ -23,7 +23,7 @@ export interface Option<T = string | number> {
   disabled?: boolean
 }
 
-// ============ 会员与分销 ============
+// ============ 会员与分享 ============
 
 export enum MemberLevel {
   Normal = 0,
@@ -168,6 +168,7 @@ export interface GiftPackage {
   spuId: number
   price: number
   level: number // 关联的代理商等级标识（对应 LevelBenefitConfig.level）
+  levelName?: string // 关联等级名称（接口联查返回）
   status: ProductStatus
   items: GiftPackageItem[]
 }
@@ -338,9 +339,12 @@ export interface Withdraw {
   amount: number
   fee: number
   actualAmount: number
-  payType: 1 | 2 // 1银行卡 2微信
+  payType: 0 | 1 // 0银行卡 1支付宝
   bankName: string
   bankCard: string
+  bankHolder: string
+  alipayName: string
+  alipayAccount: string
   status: WithdrawStatus
   auditTime: string | null
   auditOperator: string | null

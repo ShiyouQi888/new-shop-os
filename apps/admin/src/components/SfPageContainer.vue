@@ -37,11 +37,11 @@ defineProps<{
 .sf-page-title {
   font-size: 20px;
   font-weight: 600;
-  color: #303133;
+  color: #171A1F;
 }
 .sf-page-desc {
   font-size: 13px;
-  color: #909399;
+  color: #626A73;
   margin-top: 4px;
 }
 .sf-page-header-right {

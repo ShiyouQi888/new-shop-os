@@ -3,25 +3,25 @@
     <SfPageContainer title="资金总览" description="平台收入、佣金支出、服务费收入一览" v-loading="loading">
       <el-row :gutter="16" class="stat-row">
         <el-col :xs="12" :sm="6">
-          <SfStatCard :value="overview.totalRevenue" label="订单总收入" icon="Coin" color="#e54d42" prefix="¥" />
+          <SfStatCard :value="overview.totalRevenue" label="订单总收入" icon="Coin" color="#FF6B35" prefix="¥" />
         </el-col>
         <el-col :xs="12" :sm="6">
-          <SfStatCard :value="overview.commissionPaid" label="已提现佣金" icon="Money" color="#f37b1d" prefix="¥" />
+          <SfStatCard :value="overview.commissionPaid" label="已提现佣金" icon="Money" color="#E85222" prefix="¥" />
         </el-col>
         <el-col :xs="12" :sm="6">
-          <SfStatCard :value="overview.resellServiceFee" label="转卖服务费收入" icon="RefreshRight" color="#39b54a" prefix="¥" />
+          <SfStatCard :value="overview.resellServiceFee" label="转卖服务费收入" icon="RefreshRight" color="#18A66A" prefix="¥" />
         </el-col>
         <el-col :xs="12" :sm="6">
-          <SfStatCard :value="overview.grossProfit" label="平台毛利" icon="TrendCharts" color="#d4a851" prefix="¥" />
+          <SfStatCard :value="overview.grossProfit" label="平台毛利" icon="TrendCharts" color="#FF6B35" prefix="¥" />
         </el-col>
       </el-row>
 
       <el-row :gutter="16" class="stat-row">
         <el-col :xs="12" :sm="6">
-          <SfStatCard :value="overview.withdrawPaid" label="累计打款" icon="Wallet" color="#909399" prefix="¥" />
+          <SfStatCard :value="overview.withdrawPaid" label="累计打款" icon="Wallet" color="#626A73" prefix="¥" />
         </el-col>
         <el-col :xs="12" :sm="6">
-          <SfStatCard :value="overview.commissionPending" label="待结算佣金" icon="Timer" color="#409eff" prefix="¥" />
+          <SfStatCard :value="overview.commissionPending" label="待结算佣金" icon="Timer" color="#FF6B35" prefix="¥" />
         </el-col>
       </el-row>
 
@@ -102,10 +102,10 @@ const applyFlowPage = () => {
 const flowBars = computed(() => {
   const o = overview.value
   const items = [
-    { label: '订单收入', amount: o.totalRevenue, color: '#e54d42' },
-    { label: '服务费收入', amount: o.resellServiceFee, color: '#39b54a' },
-    { label: '已提现佣金', amount: -o.commissionPaid, color: '#f37b1d' },
-    { label: '累计打款', amount: -o.withdrawPaid, color: '#909399' },
+    { label: '订单收入', amount: o.totalRevenue, color: '#FF6B35' },
+    { label: '服务费收入', amount: o.resellServiceFee, color: '#18A66A' },
+    { label: '已提现佣金', amount: -o.commissionPaid, color: '#E85222' },
+    { label: '累计打款', amount: -o.withdrawPaid, color: '#626A73' },
   ]
   const max = Math.max(...items.map(i => Math.abs(i.amount)), 1)
   return items.map(i => ({ ...i, percent: Math.max(Math.round(Math.abs(i.amount) / max * 100), 2) }))
@@ -130,11 +130,11 @@ onMounted(async () => {
   margin-bottom: 16px;
 }
 .text-success {
-  color: #39b54a;
+  color: #18A66A;
   font-weight: 500;
 }
 .text-danger {
-  color: #e54d42;
+  color: #FF6B35;
   font-weight: 500;
 }
 .flow-chart {
@@ -151,14 +151,14 @@ onMounted(async () => {
 .flow-label {
   width: 90px;
   font-size: 13px;
-  color: #606266;
+  color: #626A73;
   text-align: right;
   flex-shrink: 0;
 }
 .flow-track {
   flex: 1;
   height: 14px;
-  background: #f2f3f5;
+  background: #F8F9FB;
   border-radius: 7px;
   overflow: hidden;
 }

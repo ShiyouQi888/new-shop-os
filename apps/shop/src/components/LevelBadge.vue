@@ -3,17 +3,27 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { MemberLevel, MemberLevelLabels } from '@shop-os/shared'
+import { computed, onMounted } from 'vue'
+import { getLevelName, ensureLevelMap } from '@/utils/level'
 
-const props = defineProps<{ level: MemberLevel }>()
-const label = computed(() => MemberLevelLabels[props.level])
+const props = defineProps<{
+  level: number
+  /** 自定义等级名称（优先展示；未传时自动从等级配置映射） */
+  name?: string
+}>()
+
+const label = computed(() => props.name || getLevelName(props.level) || `Lv.${props.level}`)
+
 const levelClass = computed(() => {
   switch (props.level) {
-    case MemberLevel.Gold: return 'badge-gold'
-    case MemberLevel.Silver: return 'badge-silver'
+    case 2: return 'badge-gold'
+    case 1: return 'badge-silver'
     default: return 'badge-normal'
   }
+})
+
+onMounted(() => {
+  ensureLevelMap()
 })
 </script>
 
@@ -28,9 +38,9 @@ const levelClass = computed(() => {
   line-height: 1.4;
 }
 .badge-gold {
-  background: rgba(184, 138, 68, .14);
+  background: rgba(255, 107, 53, .14);
   color: var(--color-gold);
-  border: 1px solid rgba(184, 138, 68, .2);
+  border: 1px solid rgba(255, 107, 53, .2);
 }
 .badge-silver {
   background: rgba(21, 31, 46, .08);

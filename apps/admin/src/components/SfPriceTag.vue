@@ -29,7 +29,7 @@ const formatted = computed(() => formatNumber(props.value, props.decimals))
 
 <style scoped>
 .sf-price-num {
-  color: #e54d42;
+  color: #FF6B35;
   font-weight: 600;
   white-space: nowrap;
   word-break: keep-all;

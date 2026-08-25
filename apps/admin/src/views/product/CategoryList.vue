@@ -24,7 +24,7 @@
                 :model-value="row.status === 1"
                 :disabled="row.isGiftZone"
                 @change="(val: string | number | boolean) => toggleStatus(row as ProductCategory, Boolean(val))"
-                style="--el-switch-on-color: #39b54a"
+                style="--el-switch-on-color: #18A66A"
               />
             </template>
           </el-table-column>
@@ -182,7 +182,7 @@ onMounted(load)
 }
 .form-tip {
   font-size: 12px;
-  color: #909399;
+  color: #626A73;
   margin-left: 8px;
 }
 </style>

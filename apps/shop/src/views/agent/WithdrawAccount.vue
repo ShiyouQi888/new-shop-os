@@ -51,23 +51,49 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { showSuccessToast } from 'vant'
+import { showSuccessToast, showFailToast } from 'vant'
+import { api } from '@/api'
+import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
+const userStore = useUserStore()
 const bankForm = reactive({
-  name: '张伟',
-  bankName: '招商银行',
-  cardNo: '622588******1234',
+  name: '',
+  bankName: '',
+  cardNo: '',
 })
 const alipayForm = reactive({
-  name: '张伟',
-  account: '138****1111',
+  name: '',
+  account: '',
 })
 
-const onSave = () => {
-  showSuccessToast('提现账号已保存')
+onMounted(async () => {
+  if (!userStore.member) return
+  try {
+    const acc = await api.getPayoutAccount()
+    bankForm.name = acc.bankHolder
+    bankForm.bankName = acc.bankName
+    bankForm.cardNo = acc.bankCard
+    alipayForm.name = acc.alipayName
+    alipayForm.account = acc.alipayAccount
+  } catch { /* 首次进入为空 */ }
+})
+
+const onSave = async () => {
+  try {
+    await api.savePayoutAccount({
+      bankHolder: bankForm.name.trim(),
+      bankName: bankForm.bankName.trim(),
+      bankCard: bankForm.cardNo.trim(),
+      alipayName: alipayForm.name.trim(),
+      alipayAccount: alipayForm.account.trim(),
+    })
+    showSuccessToast('提现账号已保存')
+  } catch {
+    showFailToast('保存失败，请稍后重试')
+  }
 }
 </script>
 
@@ -83,11 +109,11 @@ const onSave = () => {
   padding: 22px 18px;
   border-radius: 20px;
   color: #fff;
-  background: linear-gradient(135deg, #17202a, #343d49);
+  background: linear-gradient(135deg, #171A1F, #171A1F);
   box-shadow: 0 22px 54px rgba(23, 32, 42, 0.18);
 }
 .section-kicker {
-  color: #d8b06a;
+  color: #FF6B35;
   font-size: 11px;
   font-weight: 800;
 }
@@ -116,40 +142,40 @@ p {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #17202a;
+  color: #171A1F;
   font-size: 16px;
   font-weight: 800;
 }
 .account-title .van-icon {
-  color: #8f6f3f;
+  color: #E85222;
 }
 .status-pill {
   padding: 4px 9px;
   border-radius: 999px;
-  background: #e8f4ee;
-  color: #177245;
+  background: #EAF8F2;
+  color: #18A66A;
   font-size: 11px;
   font-weight: 700;
 }
 .status-pill.muted {
-  background: #f1f4f8;
-  color: #637083;
+  background: #F8F9FB;
+  color: #626A73;
 }
 .account-form {
-  border-top: 1px solid rgba(226, 232, 240, 0.76);
+  border-top: 1px solid rgba(231, 233, 237, 0.76);
 }
 .security-note {
   display: flex;
   align-items: flex-start;
   gap: 8px;
   margin: 14px 4px;
-  color: #7b8794;
+  color: #626A73;
   font-size: 12px;
   line-height: 1.5;
 }
 .security-note .van-icon {
   margin-top: 2px;
-  color: #8f6f3f;
+  color: #E85222;
 }
 .save-button {
   height: 44px;

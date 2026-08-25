@@ -109,13 +109,22 @@ import { useRoute, useRouter, type RouteRecordRaw } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { Fold, Expand, Refresh, FullScreen, ArrowDown, SwitchButton, ShoppingBag } from '@element-plus/icons-vue'
 import { adminRoutes } from '@/router/routes'
-import { getUser, clearAuth } from '@/utils/auth'
+import { getUser, getPermissions, clearAuth } from '@/utils/auth'
 import { apiAuth } from '@/api'
 
 const route = useRoute()
 const router = useRouter()
 const collapsed = ref(false)
 const user = getUser()
+/** 权限码数组；null = 超管全部可见 */
+const perms = getPermissions()
+
+/** 是否拥有某权限（超管恒通过） */
+const hasPerm = (code?: string) => {
+  if (!code) return true
+  if (perms === null) return true
+  return perms.includes(code)
+}
 
 const handleUserCommand = async (cmd: string) => {
   if (cmd !== 'logout') return
@@ -135,11 +144,20 @@ const handleUserCommand = async (cmd: string) => {
 }
 
 const menuRoutes = computed(() => {
-  return adminRoutes.filter(r => r.meta?.title && !r.meta?.hidden)
+  return adminRoutes
+    .filter(r => r.meta?.title && !r.meta?.hidden && hasPerm(r.meta?.permission as string | undefined))
+    // 子路由按权限过滤；带 redirect 的页面可作为单菜单项展示（如仪表盘）
+    .map(r => {
+      const children = (r.children || []).filter(c => !c.meta?.hidden && c.meta?.title && hasPerm(c.meta?.permission as string | undefined))
+      if (children.length) return { ...r, children }
+      if (r.redirect) return { ...r, children: [] }
+      return null
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null)
 })
 
 const visibleChildren = (route: RouteRecordRaw) => {
-  return (route.children || []).filter(c => !c.meta?.hidden && c.meta?.title)
+  return (route.children || []).filter(c => !c.meta?.hidden && c.meta?.title && hasPerm(c.meta?.permission as string | undefined))
 }
 
 const firstMenuPath = (route: RouteRecordRaw) => {
@@ -196,7 +214,9 @@ const toggleFullscreen = () => {
   height: 100vh;
 }
 .admin-aside {
-  background: #1a1a2e;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(255, 107, 53, 0.22), transparent 30%),
+    linear-gradient(180deg, #171A1F 0%, #242830 100%);
   transition: width 0.25s ease;
   overflow: hidden;
 }
@@ -214,12 +234,12 @@ const toggleFullscreen = () => {
   width: 34px;
   height: 34px;
   border-radius: 9px;
-  background: linear-gradient(135deg, #e54d42, #f37b1d);
+  background: linear-gradient(135deg, #FF6B35, #E85222);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(229, 77, 66, 0.35);
+  box-shadow: 0 10px 24px rgba(255, 107, 53, 0.34);
 }
 .logo-text {
   color: #fff;
@@ -241,28 +261,32 @@ const toggleFullscreen = () => {
 }
 :deep(.el-menu-item),
 :deep(.el-sub-menu__title) {
-  color: rgba(255, 255, 255, 0.65);
+  margin: 4px 10px;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.68);
 }
 :deep(.el-menu-item:hover),
 :deep(.el-sub-menu__title:hover) {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
   color: #fff;
 }
 :deep(.el-menu-item.is-active) {
-  background: rgba(229, 77, 66, 0.15);
+  background: linear-gradient(135deg, rgba(255, 107, 53, 0.22), rgba(232, 82, 34, 0.14));
   color: #fff;
-  border-right: 3px solid #e54d42;
+  border-right: 0;
+  box-shadow: inset 3px 0 0 #FF6B35;
 }
 
 .admin-header {
   height: 56px;
-  background: #fff;
-  border-bottom: 1px solid #ebeef5;
+  background: rgba(255, 255, 255, 0.94);
+  border-bottom: 1px solid #E7E9ED;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 8px 24px rgba(17, 24, 39, 0.04);
+  backdrop-filter: blur(14px);
 }
 .header-left {
   display: flex;
@@ -272,11 +296,11 @@ const toggleFullscreen = () => {
 .collapse-btn {
   font-size: 20px;
   cursor: pointer;
-  color: #606266;
+  color: #626A73;
   transition: color 0.2s;
 }
 .collapse-btn:hover {
-  color: #e54d42;
+  color: #FF6B35;
 }
 .header-right {
   display: flex;
@@ -286,10 +310,10 @@ const toggleFullscreen = () => {
 .header-icon {
   font-size: 18px;
   cursor: pointer;
-  color: #606266;
+  color: #626A73;
 }
 .header-icon:hover {
-  color: #e54d42;
+  color: #FF6B35;
 }
 .user-info {
   display: flex;
@@ -299,11 +323,11 @@ const toggleFullscreen = () => {
 }
 .username {
   font-size: 14px;
-  color: #303133;
+  color: #171A1F;
 }
 .user-caret {
   font-size: 12px;
-  color: #909399;
+  color: #626A73;
 }
 .user-meta {
   font-size: 13px;
@@ -311,10 +335,12 @@ const toggleFullscreen = () => {
 }
 .user-role {
   font-size: 12px;
-  color: #909399;
+  color: #626A73;
 }
 .admin-main {
-  background: #f0f2f5;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255, 107, 53, 0.06), transparent 30%),
+    #F8F9FB;
   padding: 0;
   overflow-y: auto;
 }

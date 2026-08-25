@@ -33,8 +33,8 @@ const iconComp = computed(() => SF_ICON_MAP[props.name] || Folder)
   width: 30px;
   height: 30px;
   border-radius: 8px;
-  background: #fef0ef;
-  color: #e54d42;
+  background: #FFF1EB;
+  color: #FF6B35;
   display: inline-flex;
   align-items: center;
   justify-content: center;

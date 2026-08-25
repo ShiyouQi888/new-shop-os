@@ -359,17 +359,17 @@ onMounted(load)
   gap: 12px;
   padding: 10px 14px;
   margin-bottom: 12px;
-  background: #ecf5ff;
+  background: #FFF1EB;
   border-radius: 6px;
   font-size: 13px;
-  color: #606266;
+  color: #626A73;
 }
 .batch-count {
-  color: #409eff;
+  color: #FF6B35;
   font-size: 16px;
 }
 .price-red {
-  color: #e54d42;
+  color: #FF6B35;
   font-weight: 600;
 }
 </style>

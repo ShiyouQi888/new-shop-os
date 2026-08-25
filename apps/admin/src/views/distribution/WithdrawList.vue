@@ -30,11 +30,22 @@
           </el-table-column>
           <el-table-column label="收款方式" width="100">
             <template #default="{ row }">
-              <el-tag size="small" effect="light">{{ row.payType === 1 ? '银行卡' : '微信' }}</el-tag>
+              <el-tag size="small" effect="light" :type="Number(row.payType) === 1 ? 'success' : 'info'">
+                {{ Number(row.payType) === 1 ? '支付宝' : '银行卡' }}
+              </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="收款账户" min-width="160">
-            <template #default="{ row }">{{ row.bankName }} {{ row.bankCard }}</template>
+          <el-table-column label="收款账户" min-width="180">
+            <template #default="{ row }">
+              <div v-if="Number(row.payType) === 1">
+                <div class="acc-name">{{ row.alipayName || '-' }}</div>
+                <div class="acc-no">{{ row.alipayAccount || '-' }}</div>
+              </div>
+              <div v-else>
+                <div class="acc-name">{{ row.bankName || '银行卡' }}</div>
+                <div class="acc-no">{{ row.bankHolder ? `${row.bankHolder} ` : '' }}{{ row.bankCard }}</div>
+              </div>
+            </template>
           </el-table-column>
           <el-table-column label="状态" width="100">
             <template #default="{ row }">
@@ -92,7 +103,8 @@
           <span class="price-red">¥{{ current?.actualAmount }}</span>
         </el-form-item>
         <el-form-item label="收款账户">
-          <span>{{ current?.bankName }} {{ current?.bankCard }}</span>
+          <span v-if="Number(current?.payType) === 1">{{ current?.alipayName }} {{ current?.alipayAccount }}</span>
+          <span v-else>{{ current?.bankName }} {{ current?.bankCard }}</span>
         </el-form-item>
         <el-form-item label="交易流水号">
           <el-input v-model="payTransactionNo" placeholder="留空自动生成" />
@@ -112,7 +124,11 @@
         <el-descriptions-item label="提现金额">¥{{ current.amount.toFixed(2) }}</el-descriptions-item>
         <el-descriptions-item label="手续费">¥{{ current.fee.toFixed(2) }}</el-descriptions-item>
         <el-descriptions-item label="到账金额">¥{{ current.actualAmount.toFixed(2) }}</el-descriptions-item>
-        <el-descriptions-item label="收款账户">{{ current.bankName }} {{ current.bankCard }}</el-descriptions-item>
+        <el-descriptions-item label="收款方式">{{ Number(current.payType) === 1 ? '支付宝' : '银行卡' }}</el-descriptions-item>
+        <el-descriptions-item label="收款账户">
+          <span v-if="Number(current.payType) === 1">{{ current.alipayName }} {{ current.alipayAccount }}</span>
+          <span v-else>{{ current.bankHolder || current.bankName }} {{ current.bankCard }}</span>
+        </el-descriptions-item>
         <el-descriptions-item label="申请时间">{{ current.createTime }}</el-descriptions-item>
         <el-descriptions-item label="审核时间">{{ current.auditTime || '-' }}</el-descriptions-item>
         <el-descriptions-item label="审核操作人">{{ current.auditOperator || '-' }}</el-descriptions-item>
@@ -228,7 +244,16 @@ onMounted(load)
 
 <style scoped>
 .price-red {
-  color: #e54d42;
+  color: #FF6B35;
   font-weight: 600;
+}
+.acc-name {
+  font-size: 13px;
+  color: #171A1F;
+}
+.acc-no {
+  font-size: 12px;
+  color: #626A73;
+  margin-top: 2px;
 }
 </style>

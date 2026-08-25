@@ -14,8 +14,48 @@ html, body, #app {
     'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 14px;
   color: $text-primary;
-  background-color: $bg-page;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(255, 107, 53, 0.08), transparent 28%),
+    linear-gradient(180deg, #FFFFFF 0%, $bg-page 48%, #EEF1F5 100%);
   -webkit-font-smoothing: antialiased;
+}
+
+:root {
+  --color-primary: #{$color-primary};
+  --color-primary-dark: #{$color-primary-hover};
+  --color-primary-light: #{$color-primary-light};
+  --color-primary-border: #{$color-primary-border};
+  --color-success: #{$color-success};
+  --color-warning: #{$color-warning};
+  --color-danger: #{$color-danger};
+  --text-primary: #{$text-primary};
+  --text-regular: #{$text-regular};
+  --text-secondary: #{$text-secondary};
+  --text-placeholder: #{$text-placeholder};
+  --border-color: #{$border-base};
+  --bg-page: #{$bg-page};
+  --bg-card: #{$bg-card};
+  --el-color-primary: #{$color-primary};
+  --el-color-primary-light-3: #{$color-primary-hover};
+  --el-color-primary-light-5: #{$color-primary-border};
+  --el-color-primary-light-7: #{$color-primary-light};
+  --el-color-primary-light-8: #{$color-primary-light};
+  --el-color-primary-light-9: #{$color-primary-light};
+  --el-color-primary-dark-2: #{$color-primary-active};
+  --el-color-success: #{$color-success};
+  --el-color-warning: #{$color-warning};
+  --el-color-danger: #{$color-danger};
+  --el-color-info: #{$color-info};
+  --el-text-color-primary: #{$text-primary};
+  --el-text-color-regular: #{$text-regular};
+  --el-text-color-secondary: #{$text-secondary};
+  --el-text-color-placeholder: #{$text-placeholder};
+  --el-border-color: #{$border-base};
+  --el-border-color-light: #{$border-light};
+  --el-border-color-lighter: #{$border-lighter};
+  --el-bg-color-page: #{$bg-page};
+  --el-bg-color: #{$bg-card};
+  --el-border-radius-base: #{$radius-base};
 }
 
 a {
@@ -29,11 +69,11 @@ a {
   height: 6px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #c0c4cc;
+  background: #9AA1AA;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #909399;
+  background: #626A73;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -50,7 +90,8 @@ a {
 
 .sf-card {
   background: $bg-card;
-  border-radius: $radius-md;
+  border: 1px solid rgba(231, 233, 237, 0.86);
+  border-radius: $radius-lg;
   box-shadow: $shadow-sm;
   padding: $spacing-lg;
   margin-bottom: $spacing-lg;
@@ -105,7 +146,7 @@ a {
 .sf-mb-lg { margin-bottom: $spacing-lg; }
 
 .sf-price {
-  color: $color-danger;
+  color: $color-primary-hover;
   font-weight: 600;
   white-space: nowrap;
   word-break: keep-all;
@@ -118,7 +159,7 @@ a {
 }
 
 .sf-price-large {
-  color: $color-danger;
+  color: $color-primary-hover;
   font-size: 22px;
   font-weight: 700;
   white-space: nowrap;
@@ -140,7 +181,8 @@ a {
 // ===== 搜索栏 =====
 .sf-search-bar {
   background: $bg-card;
-  border-radius: $radius-md;
+  border: 1px solid rgba(231, 233, 237, 0.86);
+  border-radius: $radius-lg;
   box-shadow: $shadow-sm;
   padding: $spacing-lg $spacing-lg $spacing-sm;
   margin-bottom: $spacing-lg;
@@ -183,6 +225,15 @@ a {
   --el-button-hover-border-color: #{$color-primary-hover};
   --el-button-active-bg-color: #{$color-primary-active};
   --el-button-active-border-color: #{$color-primary-active};
+}
+
+.el-button--danger {
+  --el-button-bg-color: #{$color-danger};
+  --el-button-border-color: #{$color-danger};
+  --el-button-hover-bg-color: #{color.adjust($color-danger, $lightness: -5%)};
+  --el-button-hover-border-color: #{color.adjust($color-danger, $lightness: -5%)};
+  --el-button-active-bg-color: #{color.adjust($color-danger, $lightness: -10%)};
+  --el-button-active-border-color: #{color.adjust($color-danger, $lightness: -10%)};
 }
 
 .el-tag--primary {

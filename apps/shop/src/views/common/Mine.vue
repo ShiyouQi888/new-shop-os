@@ -9,7 +9,7 @@
             <LevelBadge v-if="userStore.isAgent" :level="userStore.level" />
           </div>
           <div class="user-phone">{{ userStore.member.phone }}</div>
-          <div class="upgrade-hint">{{ userStore.isAgent ? '代理权益已生效' : '购买大礼包成为代理商' }}</div>
+          <div class="upgrade-hint">{{ userStore.isAgent ? '分享权益已生效' : '购买大礼包成为代理商' }}</div>
         </div>
         <div class="auth-actions">
           <button class="auth-link" type="button" @click.stop="router.push('/login')">切换</button>
@@ -35,9 +35,9 @@
 
     <section v-if="userStore.isAgent" class="agent-entry" @click="router.push('/agent')">
       <div class="entry-left">
-        <van-icon name="medal-o" size="24" color="#b88a44" />
+        <van-icon name="medal-o" size="24" color="#FF6B35" />
         <div>
-          <div class="entry-title">代理商工作台</div>
+          <div class="entry-title">会员工作台</div>
           <div class="entry-desc">可提现 ¥{{ userStore.wallet?.balance.toFixed(2) || '0' }}，管理团队与收益</div>
         </div>
       </div>
@@ -77,7 +77,7 @@
         <van-cell title="收货地址" icon="location-o" is-link @click="router.push('/mine/address')" />
         <van-cell title="我的收藏" icon="star-o" is-link @click="router.push('/mine/favorites')" />
         <van-cell title="浏览历史" icon="clock-o" is-link @click="router.push('/mine/history')" />
-        <van-cell title="消息通知" icon="bell" is-link :value="'3'" @click="router.push('/mine/notifications')" />
+        <van-cell title="消息通知" icon="bell" is-link :value="unreadCount > 0 ? String(unreadCount) : ''" @click="router.push('/mine/notifications')" />
         <van-cell title="客服与帮助" icon="service-o" is-link @click="router.push('/mine/help')" />
         <van-cell title="规则中心" icon="description" is-link @click="router.push('/mine/rules')" />
       </van-cell-group>
@@ -86,13 +86,24 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showConfirmDialog, showSuccessToast } from 'vant'
 import { useUserStore } from '@/stores/user'
+import { api } from '@/api'
 import LevelBadge from '@/components/LevelBadge.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
+const unreadCount = ref(0)
+
+onMounted(async () => {
+  if (!userStore.member) return
+  try {
+    const data = await api.getNotifications()
+    unreadCount.value = data.unread
+  } catch { /* 忽略 */ }
+})
 
 const orderStatusItems = [
   { label: '待付款', icon: 'balance-o', value: 1, badge: '' },
@@ -111,7 +122,7 @@ const goOrders = (status: number) => router.push({ path: '/orders', query: { sta
 const onLogout = () => {
   showConfirmDialog({
     title: '退出登录',
-    message: '退出后需要重新登录才能查看订单、地址和代理权益。',
+    message: '退出后需要重新登录才能查看订单、地址和分享权益。',
     confirmButtonText: '退出',
   }).then(() => {
     userStore.logout()
@@ -124,21 +135,21 @@ const onLogout = () => {
 <style scoped>
 .mine-page {
   min-height: 100vh;
-  padding: 14px 14px 86px;
+  padding: 12px 12px 84px;
 }
 .user-header {
-  padding: 22px 16px 16px;
-  border-radius: 20px;
+  padding: 18px 14px 14px;
+  border-radius: 18px;
   color: #fff;
   background:
     linear-gradient(135deg, rgba(23, 32, 42, 0.94), rgba(54, 61, 72, 0.86)),
     url('https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=900&q=80') center/cover;
-  box-shadow: 0 22px 54px rgba(23, 32, 42, 0.2);
+  box-shadow: 0 16px 40px rgba(23, 32, 42, 0.18);
 }
 .user-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 .user-detail {
   flex: 1;
@@ -148,7 +159,7 @@ const onLogout = () => {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 750;
 }
 .user-phone {
@@ -158,7 +169,7 @@ const onLogout = () => {
 }
 .upgrade-hint {
   margin-top: 5px;
-  color: #f7efe2;
+  color: #FFF1EB;
   font-size: 12px;
 }
 .auth-link {
@@ -183,10 +194,10 @@ const onLogout = () => {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
-  margin-top: 18px;
+  margin-top: 14px;
 }
 .identity-metrics div {
-  padding: 12px 8px;
+  padding: 10px 6px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.1);
 }
@@ -206,17 +217,17 @@ const onLogout = () => {
 .agent-entry,
 .section-card,
 .wallet-card {
-  margin-top: 12px;
-  border: 1px solid rgba(226, 232, 240, 0.86);
-  border-radius: 14px;
+  margin-top: 10px;
+  border: 1px solid rgba(231, 233, 237, 0.86);
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 8px 24px rgba(17, 24, 39, 0.06);
+  box-shadow: 0 8px 22px rgba(17, 24, 39, 0.052);
 }
 .agent-entry {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
+  padding: 13px 14px;
 }
 .entry-left {
   display: flex;
@@ -224,13 +235,13 @@ const onLogout = () => {
   gap: 10px;
 }
 .entry-title {
-  color: #17202a;
+  color: #171A1F;
   font-size: 15px;
   font-weight: 750;
 }
 .entry-desc {
   margin-top: 3px;
-  color: #7b8794;
+  color: #626A73;
   font-size: 12px;
 }
 .section-card {
@@ -240,19 +251,19 @@ const onLogout = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 16px 8px;
+  padding: 13px 14px 7px;
 }
 .section-more {
   border: 0;
   background: transparent;
-  color: #8f6f3f;
+  color: #E85222;
   font-size: 12px;
   font-weight: 700;
 }
 .order-status-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  padding: 8px 0 14px;
+  padding: 7px 0 12px;
 }
 .status-item {
   display: flex;
@@ -261,25 +272,25 @@ const onLogout = () => {
   gap: 6px;
   border: 0;
   background: transparent;
-  color: #637083;
+  color: #626A73;
   font-size: 11px;
 }
 .wallet-card {
   display: flex;
-  padding: 16px 0;
+  padding: 14px 0;
 }
 .wallet-item {
   flex: 1;
   text-align: center;
 }
 .wallet-value {
-  color: #17202a;
+  color: #171A1F;
   font-size: 16px;
   font-weight: 800;
 }
 .wallet-label {
   margin-top: 4px;
-  color: #7b8794;
+  color: #626A73;
   font-size: 11px;
 }
 .tools-card {

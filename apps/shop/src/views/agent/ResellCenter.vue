@@ -29,7 +29,7 @@
             <span class="result-price">¥{{ settleAmount.toFixed(2) }}</span>
           </div>
         </div>
-        <van-button block round color="#17202a" :loading="submitting" loading-text="提交中..." @click="confirmResell">
+        <van-button block round color="#FF6B35" :loading="submitting" loading-text="提交中..." @click="confirmResell">
           确认发起转卖
         </van-button>
       </div>
@@ -96,20 +96,7 @@ const statusClass = (status: ResellStatus) => {
   return map[status] || ''
 }
 
-const nowText = () => {
-  const d = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-}
-
-const generateResellNo = () => {
-  const d = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const date = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`
-  return `RS${date}${String(Date.now()).slice(-5)}`
-}
-
-const confirmResell = () => {
+const confirmResell = async () => {
   if (!userStore.member) {
     showToast('请先登录')
     router.replace('/login')
@@ -120,38 +107,31 @@ const confirmResell = () => {
     return
   }
 
-  showConfirmDialog({
-    title: '确认转卖',
-    message: `提交后系统将按 ¥${goodsValue.value.toFixed(2)} 商品价值进入匹配，预计到账 ¥${settleAmount.value.toFixed(2)}。`,
-    confirmButtonText: '发起转卖',
-  }).then(() => {
-    submitting.value = true
-    setTimeout(() => {
-      const order: ResellOrder = {
-        id: Date.now(),
-        resellNo: generateResellNo(),
-        memberId: userStore.member!.id,
-        creditId: 0,
-        skuId: 0,
-        skuName: '月度领货转卖商品',
-        quantity: 1,
-        goodsValue: goodsValue.value,
-        serviceFee: serviceFee.value,
-        shippingFee,
-        settleAmount: settleAmount.value,
-        status: ResellStatus.PendingMatch,
-        matchOrderId: null,
-        matchTime: null,
-        settleTime: null,
-        cancelTime: null,
-        createTime: nowText(),
-      }
-      list.value.unshift(order)
-      activeTab.value = 1
-      submitting.value = false
-      showSuccessToast('转卖申请已提交，等待系统匹配')
-    }, 500)
-  }).catch(() => {})
+  try {
+    await showConfirmDialog({
+      title: '确认转卖',
+      message: `提交后系统将按 ¥${goodsValue.value.toFixed(2)} 商品价值进入匹配，预计到账 ¥${settleAmount.value.toFixed(2)}。`,
+      confirmButtonText: '发起转卖',
+    })
+  } catch {
+    return
+  }
+
+  submitting.value = true
+  try {
+    await api.createResell({
+      goodsValue: goodsValue.value,
+      serviceFee: serviceFee.value,
+      shippingFee,
+      settleAmount: settleAmount.value,
+      skuName: '月度领货转卖商品',
+    })
+    list.value = await api.getResellOrders(userStore.member!.id)
+    activeTab.value = 1
+    showSuccessToast('转卖申请已提交，等待系统匹配')
+  } finally {
+    submitting.value = false
+  }
 }
 
 onMounted(async () => {
@@ -163,24 +143,24 @@ onMounted(async () => {
 <style scoped>
 .resell-page { padding-top: 46px; min-height: 100vh; padding-bottom: 20px; }
 .estimate-card, .rules-card, .records-card { padding: 16px; margin: 12px 14px; }
-.card-title { color: #17202a; font-size: 15px; font-weight: 800; margin-bottom: 12px; }
+.card-title { color: #171A1F; font-size: 15px; font-weight: 800; margin-bottom: 12px; }
 .estimate-form { display: flex; flex-direction: column; gap: 12px; }
 .est-item { display: flex; justify-content: space-between; align-items: center; }
-.est-result { background: #f3f5f7; border-radius: 12px; padding: 16px; }
-.est-line { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; color: #4d5967; }
-.est-line.danger span:last-child { color: #b42318; }
+.est-result { background: #F8F9FB; border-radius: 12px; padding: 16px; }
+.est-line { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; color: #626A73; }
+.est-line.danger span:last-child { color: #E5484D; }
 .est-line.result { font-weight: 600; font-size: 15px; }
-.result-price { color: #17202a; font-size: 20px; font-weight: 800; }
-.rule-item { font-size: 13px; color: #4d5967; padding: 4px 0; }
-.record-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e2e8f0; }
+.result-price { color: #171A1F; font-size: 20px; font-weight: 800; }
+.rule-item { font-size: 13px; color: #626A73; padding: 4px 0; }
+.record-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #E7E9ED; }
 .record-item:last-child { border-bottom: none; }
 .rec-name { font-size: 14px; font-weight: 500; }
-.rec-meta { font-size: 11px; color: #7b8794; margin-top: 2px; }
+.rec-meta { font-size: 11px; color: #626A73; margin-top: 2px; }
 .rec-amount { font-size: 15px; }
 .rec-status { font-size: 12px; margin-top: 4px; text-align: right; }
-.st-wait { color: #fbbd08; }
-.st-match { color: #409eff; }
-.st-matched { color: #409eff; }
-.st-done { color: #39b54a; }
-.st-cancel { color: #7b8794; }
+.st-wait { color: #F5A623; }
+.st-match { color: #FF6B35; }
+.st-matched { color: #FF6B35; }
+.st-done { color: #18A66A; }
+.st-cancel { color: #626A73; }
 </style>

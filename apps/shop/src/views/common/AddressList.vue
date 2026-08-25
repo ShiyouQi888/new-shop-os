@@ -99,7 +99,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showConfirmDialog, showSuccessToast, showToast } from 'vant'
 import { areaList } from '@vant/area-data'
@@ -121,6 +121,8 @@ const emptyForm = (): AddressForm => ({
   isDefault: addressStore.addresses.length === 0,
 })
 const form = reactive<AddressForm>(emptyForm())
+
+onMounted(() => { addressStore.load() })
 
 const fillForm = (next: AddressForm) => {
   Object.assign(form, next)
@@ -176,19 +178,19 @@ const openEdit = (item: ShippingAddress) => {
   showEditor.value = true
 }
 
-const saveAddress = () => {
+const saveAddress = async () => {
   if (editingId.value) {
-    addressStore.updateAddress(editingId.value, { ...form })
+    await addressStore.updateAddress(editingId.value, { ...form })
     showSuccessToast('地址已更新')
   } else {
-    addressStore.addAddress({ ...form })
+    await addressStore.addAddress({ ...form })
     showSuccessToast('地址已新增')
   }
   showEditor.value = false
 }
 
-const setDefault = (id: number) => {
-  addressStore.setDefault(id)
+const setDefault = async (id: number) => {
+  await addressStore.setDefault(id)
   showSuccessToast('默认地址已更新')
 }
 
@@ -200,8 +202,8 @@ const removeAddress = (id: number) => {
   showConfirmDialog({
     title: '删除地址',
     message: '确认删除该收货地址？',
-  }).then(() => {
-    addressStore.removeAddress(id)
+  }).then(async () => {
+    await addressStore.removeAddress(id)
     showSuccessToast('地址已删除')
   }).catch(() => {})
 }
@@ -210,23 +212,23 @@ const removeAddress = (id: number) => {
 <style scoped>
 .mine-sub-page { min-height: 100vh; padding-top: 46px; }
 .mine-sub-body { padding: 12px 14px 28px; }
-.sub-hero { padding: 22px 18px; border-radius: 20px; color: #fff; background: linear-gradient(135deg, #17202a, #343d49); box-shadow: 0 18px 44px rgba(23, 32, 42, 0.16); }
-.sub-hero span { color: #d8b06a; font-size: 11px; font-weight: 800; }
+.sub-hero { padding: 22px 18px; border-radius: 20px; color: #fff; background: linear-gradient(135deg, #171A1F, #171A1F); box-shadow: 0 18px 44px rgba(23, 32, 42, 0.16); }
+.sub-hero span { color: #FF6B35; font-size: 11px; font-weight: 800; }
 .sub-hero h1 { margin-top: 8px; font-size: 25px; }
 .sub-hero p { margin-top: 8px; color: rgba(255,255,255,.72); line-height: 1.55; }
-.address-card { margin-top: 12px; padding: 16px; border: 1px solid rgba(226,232,240,.86); border-radius: 14px; background: rgba(255,255,255,.96); box-shadow: 0 8px 24px rgba(17,24,39,.06); }
+.address-card { margin-top: 12px; padding: 16px; border: 1px solid rgba(231, 233, 237,.86); border-radius: 14px; background: rgba(255,255,255,.96); box-shadow: 0 8px 24px rgba(17,24,39,.06); }
 .address-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .address-top div { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.address-top strong { color: #17202a; font-size: 16px; }
-.address-top span { color: #637083; font-size: 13px; }
-.address-top em { padding: 3px 8px; border-radius: 999px; background: #f7efe2; color: #8f6f3f; font-style: normal; font-size: 11px; font-weight: 700; }
-.address-card p { margin-top: 8px; color: #4d5967; line-height: 1.55; }
-.address-actions { display: flex; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(226,232,240,.82); }
-.address-actions button { flex: 1; height: 34px; border: 1px solid rgba(226,232,240,.9); border-radius: 999px; background: #fff; color: #637083; display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 700; }
-.address-actions button.active { color: #8f6f3f; background: #f7efe2; border-color: rgba(184,138,68,.22); }
-.address-actions button.danger { color: #b42318; }
+.address-top strong { color: #171A1F; font-size: 16px; }
+.address-top span { color: #626A73; font-size: 13px; }
+.address-top em { padding: 3px 8px; border-radius: 999px; background: #FFF1EB; color: #E85222; font-style: normal; font-size: 11px; font-weight: 700; }
+.address-card p { margin-top: 8px; color: #626A73; line-height: 1.55; }
+.address-actions { display: flex; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(231, 233, 237,.82); }
+.address-actions button { flex: 1; height: 34px; border: 1px solid rgba(231, 233, 237,.9); border-radius: 999px; background: #fff; color: #626A73; display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 700; }
+.address-actions button.active { color: #E85222; background: #FFF1EB; border-color: rgba(255, 107, 53,.22); }
+.address-actions button.danger { color: #E5484D; }
 .primary-action { margin-top: 16px; height: 44px; font-weight: 800; }
 .address-editor { padding: 20px 16px 18px; }
-.popup-title { color: #17202a; font-size: 17px; font-weight: 800; text-align: center; margin-bottom: 12px; }
+.popup-title { color: #171A1F; font-size: 17px; font-weight: 800; text-align: center; margin-bottom: 12px; }
 .save-button { margin-top: 16px; height: 44px; font-weight: 800; }
 </style>

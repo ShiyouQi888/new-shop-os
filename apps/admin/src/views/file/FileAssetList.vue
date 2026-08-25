@@ -80,7 +80,7 @@
                   <el-dropdown-menu>
                     <el-dropdown-item command="rename">重命名</el-dropdown-item>
                     <el-dropdown-item command="rule">设置自动归组</el-dropdown-item>
-                    <el-dropdown-item divided command="delete" style="color: #e54d42">删除分组</el-dropdown-item>
+                    <el-dropdown-item divided command="delete" style="color: #FF6B35">删除分组</el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
@@ -113,9 +113,10 @@
               <el-col v-for="item in list" :key="item.id" :xs="12" :sm="8" :md="6" :lg="4" :xl="3" class="asset-col">
                 <div class="asset-card" :class="{ selected: selectedIds.includes(item.id) }" @click="toggleSelect(item.id)">
                   <div class="asset-preview">
-                    <el-image v-if="item.type === FileAssetType.Image" :src="item.thumbUrl" fit="cover" class="asset-image" @click.stop="preview(item)" />
+                    <el-image v-if="item.type === FileAssetType.Image" :src="item.thumbUrl || item.url" fit="cover" class="asset-image" @click.stop="preview(item)" />
                     <div v-else class="asset-video" @click.stop="preview(item)">
-                      <video :src="item.url" class="video-el" />
+                      <img v-if="item.thumbUrl" :src="item.thumbUrl" alt="" class="video-cover" />
+                      <video v-else :src="item.url" class="video-el" preload="metadata" muted />
                       <div class="video-mask">
                         <el-icon><VideoPlay /></el-icon>
                       </div>
@@ -437,11 +438,11 @@ onMounted(async () => {
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #606266;
+  color: #626A73;
   padding: 4px 0;
 }
 .upload-hint b {
-  color: #e54d42;
+  color: #FF6B35;
 }
 
 /* 左右布局 */
@@ -455,7 +456,7 @@ onMounted(async () => {
   flex-shrink: 0;
   background: #fff;
   border-radius: 10px;
-  border: 1px solid #ebeef5;
+  border: 1px solid #E7E9ED;
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -467,12 +468,12 @@ onMounted(async () => {
   margin-bottom: 4px;
 }
 .side-nav {
-  border-bottom: 1px solid #f0f1f4;
+  border-bottom: 1px solid #E7E9ED;
   padding-bottom: 8px;
 }
 .side-title {
   font-size: 12px;
-  color: #909399;
+  color: #626A73;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -481,11 +482,11 @@ onMounted(async () => {
 }
 .side-add {
   cursor: pointer;
-  color: #606266;
+  color: #626A73;
   font-size: 14px;
 }
 .side-add:hover {
-  color: #e54d42;
+  color: #FF6B35;
 }
 .side-scroll {
   max-height: calc(100vh - 380px);
@@ -498,17 +499,17 @@ onMounted(async () => {
   border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
-  color: #606266;
+  color: #626A73;
   transition: all 0.15s;
   margin-bottom: 2px;
 }
 .side-item:hover {
-  background: #f5f7fa;
-  color: #303133;
+  background: #F8F9FB;
+  color: #171A1F;
 }
 .side-item.active {
-  background: #fef0ef;
-  color: #e54d42;
+  background: #FFF1EB;
+  color: #FF6B35;
   font-weight: 500;
 }
 .side-icon {
@@ -522,15 +523,15 @@ onMounted(async () => {
 }
 .side-count {
   font-size: 12px;
-  color: #c0c4cc;
-  background: #f5f7fa;
+  color: #9AA1AA;
+  background: #F8F9FB;
   border-radius: 999px;
   padding: 0 8px;
   line-height: 18px;
 }
 .side-item.active .side-count {
-  background: #fde2df;
-  color: #e54d42;
+  background: #FFF1EB;
+  color: #FF6B35;
 }
 .side-more {
   font-size: 13px;
@@ -568,22 +569,22 @@ onMounted(async () => {
   background: #fff;
   border-radius: 8px;
   overflow: hidden;
-  border: 1px solid #ebeef5;
+  border: 1px solid #E7E9ED;
   transition: all 0.2s;
   cursor: pointer;
 }
 .asset-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  border-color: #e54d42;
+  border-color: #FF6B35;
 }
 .asset-card.selected {
-  border-color: #e54d42;
-  box-shadow: 0 0 0 2px rgba(229, 77, 66, 0.2);
+  border-color: #FF6B35;
+  box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.2);
 }
 .asset-preview {
   position: relative;
   aspect-ratio: 1;
-  background: #f5f7fa;
+  background: #F8F9FB;
   overflow: hidden;
 }
 .asset-image {
@@ -599,6 +600,12 @@ onMounted(async () => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+.video-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 .video-mask {
   position: absolute;
@@ -627,7 +634,7 @@ onMounted(async () => {
   padding: 2px 8px;
   border-radius: 4px;
   font-size: 12px;
-  background: rgba(229, 77, 66, 0.85);
+  background: rgba(255, 107, 53, 0.85);
   color: #fff;
 }
 .asset-info {
@@ -636,7 +643,7 @@ onMounted(async () => {
 .asset-name {
   font-size: 13px;
   font-weight: 500;
-  color: #303133;
+  color: #171A1F;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -644,7 +651,7 @@ onMounted(async () => {
 }
 .asset-meta {
   font-size: 12px;
-  color: #909399;
+  color: #626A73;
   display: flex;
   gap: 12px;
   margin-bottom: 10px;
@@ -659,18 +666,18 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   min-height: 200px;
-  background: #f5f7fa;
+  background: #F8F9FB;
 }
 .form-tip {
   font-size: 12px;
-  color: #909399;
+  color: #626A73;
   line-height: 1.6;
   margin-top: 4px;
   width: 100%;
 }
 .move-tip {
   font-size: 13px;
-  color: #606266;
+  color: #626A73;
   margin-bottom: 16px;
 }
 .move-options {

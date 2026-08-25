@@ -53,10 +53,10 @@ const onClick = () => {
 <style scoped>
 .product-card {
   background: rgba(255, 255, 255, 0.96);
-  border: 1px solid rgba(226, 232, 240, 0.88);
-  border-radius: 12px;
+  border: 1px solid rgba(231, 233, 237, 0.78);
+  border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 8px 24px rgba(17, 24, 39, 0.06);
+  box-shadow: 0 8px 22px rgba(17, 24, 39, 0.052);
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -66,8 +66,9 @@ const onClick = () => {
 .product-img {
   position: relative;
   width: 100%;
-  aspect-ratio: 1;
+  aspect-ratio: 1 / 0.92;
   overflow: hidden;
+  background: #F8F9FB;
 }
 .product-img img {
   width: 100%;
@@ -80,23 +81,24 @@ const onClick = () => {
 }
 .product-tag {
   position: absolute;
-  top: 8px;
-  left: 8px;
-  padding: 4px 8px;
+  top: 7px;
+  left: 7px;
+  padding: 3px 7px;
   border-radius: 999px;
   font-size: 10px;
   font-weight: 700;
 }
-.tag-gift { background: rgba(23, 32, 42, 0.9); color: #f7efe2; }
-.tag-monthly { background: rgba(247, 239, 226, 0.94); color: #8f6f3f; }
+.tag-gift { background: rgba(23, 32, 42, 0.9); color: #FFF1EB; }
+.tag-monthly { background: rgba(247, 239, 226, 0.94); color: #E85222; }
 .product-info {
-  padding: 10px;
+  padding: 9px 9px 10px;
 }
 .product-name {
-  margin-top: 4px;
-  font-size: 14px;
-  line-height: 1.4;
-  color: #17202a;
+  margin-top: 3px;
+  min-height: 38px;
+  font-size: 13px;
+  line-height: 1.42;
+  color: #171A1F;
   font-weight: 650;
   overflow: hidden;
   display: -webkit-box;
@@ -105,28 +107,29 @@ const onClick = () => {
 }
 .product-brand {
   font-size: 11px;
-  color: #8f6f3f;
+  color: #E85222;
   font-weight: 700;
 }
 .product-price {
   display: flex;
   align-items: baseline;
-  gap: 6px;
-  margin-top: 6px;
+  gap: 5px;
+  margin-top: 5px;
 }
 .price-now {
-  font-size: 16px;
+  font-size: 15px;
+  font-weight: 800;
 }
 .price-old {
-  font-size: 11px;
-  color: #c0c4cc;
+  font-size: 10px;
+  color: #9AA1AA;
   text-decoration: line-through;
 }
 .member-tag {
   font-size: 10px;
-  color: #8f6f3f;
-  background: #f7efe2;
-  padding: 2px 6px;
+  color: #E85222;
+  background: #FFF1EB;
+  padding: 2px 5px;
   border-radius: 999px;
   white-space: nowrap;
 }

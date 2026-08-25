@@ -214,21 +214,21 @@ onMounted(load)
 <style scoped>
 .gift-item {
   font-size: 13px;
-  color: #606266;
+  color: #626A73;
   line-height: 1.8;
 }
 .gift-price {
-  color: #909399;
+  color: #626A73;
   margin-left: 4px;
   white-space: nowrap;
   word-break: keep-all;
 }
 .empty-tip {
-  color: #c0c4cc;
+  color: #9AA1AA;
   font-size: 12px;
 }
 .sum-price {
-  color: #e54d42;
+  color: #FF6B35;
   font-weight: 600;
   white-space: nowrap;
   word-break: keep-all;
@@ -246,7 +246,7 @@ onMounted(load)
 .items-total {
   margin-top: 12px;
   font-size: 13px;
-  color: #606266;
+  color: #626A73;
   text-align: right;
 }
 </style>

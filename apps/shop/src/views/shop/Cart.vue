@@ -31,7 +31,7 @@
     </main>
 
     <van-empty v-else description="购物车是空的">
-      <van-button color="#17202a" size="small" round @click="router.push('/home')">去逛逛</van-button>
+      <van-button color="#FF6B35" size="small" round @click="router.push('/home')">去逛逛</van-button>
     </van-empty>
 
     <van-submit-bar
@@ -39,7 +39,7 @@
       class="cart-submit-bar"
       :price="cartStore.memberTotalPrice * 100"
       button-text="去结算"
-      :button-color="'#1f2933'"
+      :button-color="'#FF6B35'"
       @submit="onCheckout"
     >
       <van-checkbox v-model="selectAll" shape="round">全选</van-checkbox>
@@ -48,31 +48,47 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showConfirmDialog, showSuccessToast, showToast } from 'vant'
 import { formatMoney } from '@shop-os/shared'
 import { useCartStore } from '@/stores/cart'
+import { useUserStore } from '@/stores/user'
+import { api } from '@/api'
 
 const router = useRouter()
 const cartStore = useCartStore()
+const userStore = useUserStore()
 const selectedIds = ref(cartStore.items.filter(i => i.selected).map(i => i.skuId))
 
+onMounted(async () => {
+  if (!userStore.member) {
+    showToast('请先登录')
+    router.replace('/login')
+    return
+  }
+  await cartStore.load()
+  selectedIds.value = cartStore.items.filter(i => i.selected).map(i => i.skuId)
+})
+
 const selectAll = computed({
-  get: () => cartStore.items.every(i => i.selected),
+  get: () => cartStore.items.length > 0 && cartStore.items.every(i => i.selected),
   set: (val) => cartStore.toggleSelectAll(val),
 })
 
-watch(selectedIds, (ids) => {
-  cartStore.items.forEach(i => {
-    i.selected = ids.includes(i.skuId)
-  })
+watch(selectedIds, async (ids) => {
+  // checkbox-group 已更新本地选中 → 仅同步后端
+  const changed = cartStore.items.filter(i => (i.selected && !ids.includes(i.skuId)) || (!i.selected && ids.includes(i.skuId)))
+  for (const item of changed) {
+    item.selected = ids.includes(item.skuId)
+    await api.updateCartItem(item.skuId, { selected: item.selected })
+  }
 })
 
 const goDetail = (spuId: number) => router.push(`/product/${spuId}`)
 
-const updateQuantity = (skuId: number, quantity: number) => {
-  cartStore.updateQuantity(skuId, quantity)
+const updateQuantity = async (skuId: number, quantity: number) => {
+  await cartStore.updateQuantity(skuId, quantity)
   showToast('数量已更新')
 }
 
@@ -80,8 +96,8 @@ const removeItem = (skuId: number) => {
   showConfirmDialog({
     title: '移除商品',
     message: '确认从购物车移除这件商品？',
-  }).then(() => {
-    cartStore.removeItem(skuId)
+  }).then(async () => {
+    await cartStore.removeItem(skuId)
     selectedIds.value = cartStore.items.filter(i => i.selected).map(i => i.skuId)
     showSuccessToast('已移除')
   }).catch(() => {})
@@ -99,22 +115,22 @@ const onCheckout = () => {
 <style scoped>
 .cart-page { min-height: 100vh; padding-top: 46px; padding-bottom: 132px; }
 .cart-body { padding: 12px 14px 24px; }
-.cart-hero { padding: 20px 18px; border-radius: 20px; color: #fff; background: linear-gradient(135deg, #17202a, #343d49); box-shadow: 0 18px 44px rgba(23,32,42,.16); margin-bottom: 12px; }
-.cart-hero span { color: #d8b06a; font-size: 11px; font-weight: 800; }
+.cart-hero { padding: 20px 18px; border-radius: 20px; color: #fff; background: linear-gradient(135deg, #171A1F, #171A1F); box-shadow: 0 18px 44px rgba(23,32,42,.16); margin-bottom: 12px; }
+.cart-hero span { color: #FF6B35; font-size: 11px; font-weight: 800; }
 .cart-hero h1 { margin-top: 8px; font-size: 24px; }
 .cart-hero p { margin-top: 8px; color: rgba(255,255,255,.72); line-height: 1.55; }
 .cart-item { display: flex; align-items: center; gap: 10px; padding: 12px; margin-bottom: 10px; }
 .cart-img { width: 82px; height: 82px; border-radius: 12px; object-fit: cover; cursor: pointer; }
 .cart-info { flex: 1; min-width: 0; }
-.cart-name { color: #17202a; font-size: 14px; font-weight: 750; line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-bottom: 6px; }
+.cart-name { color: #171A1F; font-size: 14px; font-weight: 750; line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-bottom: 6px; }
 .cart-price-row { display: flex; align-items: baseline; gap: 6px; margin-bottom: 8px; }
-.price-old { font-size: 12px; color: #a8b1bc; text-decoration: line-through; }
+.price-old { font-size: 12px; color: #9AA1AA; text-decoration: line-through; }
 .cart-actions { display: flex; justify-content: space-between; align-items: center; }
-.icon-button { width: 32px; height: 32px; border: 0; border-radius: 999px; background: #f3f5f7; color: #7b8794; }
+.icon-button { width: 32px; height: 32px; border: 0; border-radius: 999px; background: #F8F9FB; color: #626A73; }
 </style>
 
 <style>
-.cart-submit-bar { bottom: calc(74px + env(safe-area-inset-bottom)); left: 12px; right: 12px; width: auto; border: 1px solid rgba(226, 232, 240, 0.9); border-radius: 16px; overflow: hidden; box-shadow: 0 14px 34px rgba(17, 24, 39, 0.12); }
+.cart-submit-bar { bottom: calc(74px + env(safe-area-inset-bottom)); left: 12px; right: 12px; width: auto; border: 1px solid rgba(231, 233, 237, 0.9); border-radius: 16px; overflow: hidden; box-shadow: 0 14px 34px rgba(17, 24, 39, 0.12); }
 .cart-submit-bar::after { display: none; }
 .cart-submit-bar .van-submit-bar__bar { height: 54px; padding: 0 10px 0 14px; }
 .cart-submit-bar .van-submit-bar__button { height: 38px; border-radius: 999px; font-weight: 700; }

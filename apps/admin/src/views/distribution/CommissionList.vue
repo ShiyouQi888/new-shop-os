@@ -110,6 +110,7 @@ import { Search, RefreshLeft } from '@element-plus/icons-vue'
 import { apiCommission, apiMember } from '@/api'
 import { type Commission, type CommissionStatus, type Member, CommissionStatusLabels } from '@shop-os/shared'
 import SfPageContainer from '@/components/SfPageContainer.vue'
+import { loadLevelMap } from '@/utils/level'
 import SfLevelTag from '@/components/SfLevelTag.vue'
 import SfPriceTag from '@/components/SfPriceTag.vue'
 
@@ -155,6 +156,7 @@ const openDetail = (row: Commission) => {
 }
 
 onMounted(async () => {
+  loadLevelMap()
   const res = await apiMember.getList({ page: 1, pageSize: 100 })
   members.value = res.list
   load()
@@ -173,10 +175,10 @@ onMounted(async () => {
 }
 .member-id {
   font-size: 12px;
-  color: #909399;
+  color: #626A73;
 }
 .price-red {
-  color: #e54d42;
+  color: #FF6B35;
   font-weight: 600;
 }
 </style>

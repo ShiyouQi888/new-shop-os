@@ -191,6 +191,6 @@ onMounted(load)
 
 <style scoped>
 .text-danger {
-  color: #e54d42;
+  color: #FF6B35;
 }
 </style>

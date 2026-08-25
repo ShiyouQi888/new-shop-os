@@ -12,14 +12,16 @@ html, body, #app {
   font-size: 14px;
   color: $text-primary;
   background:
-    radial-gradient(circle at 16% 0%, rgba(184, 138, 68, 0.12), transparent 28%),
-    linear-gradient(180deg, #f7f8fa 0%, $bg-page 52%, #eef1f5 100%);
+    radial-gradient(circle at 16% 0%, rgba(255, 107, 53, 0.12), transparent 28%),
+    linear-gradient(180deg, #F8F9FB 0%, $bg-page 52%, #EEF1F5 100%);
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
 }
 
 a { text-decoration: none; color: inherit; }
 img { display: block; max-width: 100%; }
 button, input { font: inherit; }
+button { -webkit-tap-highlight-color: transparent; }
 
 // 滚动条隐藏
 ::-webkit-scrollbar { display: none; }
@@ -43,10 +45,10 @@ button, input { font: inherit; }
 // 卡片
 .mall-card {
   background: $bg-card;
-  border-radius: $radius-lg;
+  border-radius: $radius-xl;
   box-shadow: $shadow-sm;
-  border: 1px solid rgba(226, 232, 240, 0.72);
-  margin-bottom: 10px;
+  border: 1px solid rgba(231, 233, 237, 0.72);
+  margin-bottom: 8px;
   overflow: hidden;
 }
 
@@ -76,13 +78,38 @@ button, input { font: inherit; }
 
 // Vant 主题覆盖
 :root {
+  --color-primary: #{$color-primary};
+  --color-primary-dark: #{$color-primary-dark};
+  --color-primary-light: #{$color-primary-light};
+  --color-primary-border: #{$color-primary-border};
+  --color-gold: #{$color-primary};
+  --color-success: #{$color-success};
+  --color-warning: #{$color-warning};
+  --color-danger: #{$color-danger};
+  --text-primary: #{$text-primary};
+  --text-regular: #{$text-regular};
+  --text-secondary: #{$text-secondary};
+  --text-placeholder: #{$text-placeholder};
+  --border-color: #{$border-color};
+  --bg-page: #{$bg-page};
+  --bg-card: #{$bg-card};
   --van-primary-color: #{$color-primary};
   --van-danger-color: #{$color-danger};
-  --van-warning-color: #{$color-gold};
+  --van-warning-color: #{$color-warning};
   --van-tabbar-item-active-color: #{$color-primary};
   --van-tabs-bottom-bar-color: #{$color-primary};
   --van-button-primary-background: #{$color-primary};
   --van-button-primary-border-color: #{$color-primary};
+  --van-button-default-color: #{$text-primary};
+  --van-button-default-border-color: #{$border-color};
+  --van-submit-bar-price-color: #{$color-primary-dark};
+  --van-stepper-input-background: #{$bg-page};
+  --van-stepper-button-round-theme-color: #{$color-primary};
+  --van-switch-on-background: #{$color-primary};
+  --van-checkbox-checked-icon-color: #{$color-primary};
+  --van-radio-checked-icon-color: #{$color-primary};
+  --van-search-left-icon-color: #{$text-placeholder};
+  --van-search-content-background: #{$bg-page};
   --van-nav-bar-background: rgba(255, 255, 255, 0.92);
   --van-nav-bar-title-text-color: #{$text-primary};
   --van-nav-bar-arrow-icon-text-color: #{$text-primary};
@@ -95,8 +122,44 @@ button, input { font: inherit; }
   --van-radius-lg: #{$radius-lg};
   --van-submit-bar-button-width: 128px;
   --van-toast-text-color: #fff;
-  --van-toast-background: rgba(23, 32, 42, 0.92);
+  --van-toast-background: rgba(23, 26, 31, 0.92);
   --van-toast-icon-size: 30px;
+  --van-cell-background: transparent;
+  --van-cell-group-background: transparent;
+  --van-button-primary-background: linear-gradient(135deg, #{$color-primary}, #{$color-primary-dark});
+  --van-button-primary-border-color: transparent;
+}
+
+.van-nav-bar {
+  left: 50% !important;
+  width: min(430px, 100vw);
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-bottom: 1px solid rgba(231, 233, 237, 0.76);
+  backdrop-filter: blur(16px);
+}
+
+.van-nav-bar::after {
+  display: none;
+}
+
+.van-nav-bar__title {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.van-tabbar--fixed,
+.van-action-bar,
+.van-submit-bar {
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%);
+}
+
+.van-action-bar,
+.van-submit-bar {
+  width: min(406px, calc(100vw - 24px)) !important;
 }
 
 .van-toast {
@@ -121,22 +184,23 @@ button, input { font: inherit; }
 
 .page-shell {
   min-height: 100vh;
+  width: min(430px, 100%);
+  margin: 0 auto;
   background:
-    radial-gradient(circle at 100% 0%, rgba(31, 41, 51, 0.07), transparent 32%),
-    linear-gradient(180deg, #f8fafc 0%, $bg-page 46%, #eef1f5 100%);
+    linear-gradient(180deg, #FFFFFF 0%, #F8F9FB 120px, #EEF1F5 100%);
 }
 
 .premium-card {
   background: rgba(255, 255, 255, 0.94);
-  border: 1px solid rgba(226, 232, 240, 0.86);
-  border-radius: $radius-lg;
-  box-shadow: $shadow-sm;
+  border: 1px solid rgba(231, 233, 237, 0.78);
+  border-radius: $radius-xl;
+  box-shadow: 0 10px 28px rgba(17, 24, 39, 0.055);
 }
 
 .premium-section-title {
   color: $text-primary;
-  font-size: 17px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 800;
   letter-spacing: 0;
 }
 
@@ -149,7 +213,19 @@ button, input { font: inherit; }
   border-radius: $radius-round;
   color: $color-gold;
   background: $color-gold-light;
-  border: 1px solid rgba(184, 138, 68, 0.18);
+  border: 1px solid rgba(255, 107, 53, 0.18);
   font-size: 11px;
   font-weight: 600;
+}
+
+.van-button--primary {
+  background: linear-gradient(135deg, #{$color-primary}, #{$color-primary-dark}) !important;
+  border-color: transparent !important;
+  box-shadow: 0 10px 22px rgba(255, 107, 53, 0.22);
+}
+
+.van-cell-group--inset {
+  margin: 0;
+  border-radius: $radius-xl;
+  overflow: hidden;
 }

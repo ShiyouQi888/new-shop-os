@@ -9,6 +9,11 @@ dist-ssr
 .idea
 *.log
 .tmp-*.py
+.tmp_*
+.qr_fix/
+.qrcode_tmp/
+package-lock.json
+apps/**/package-lock.json
 .vscode/*
 !.vscode/extensions.json
 *.tsbuildinfo
