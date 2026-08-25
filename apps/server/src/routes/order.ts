@@ -6,6 +6,9 @@ import { ok, notFound, badRequest } from '../utils/response.js'
 import { parsePagination, int, str, now, uniqueNumbers, genNo } from '../utils/index.js'
 import { requireAuth, requirePermission } from '../middlewares/auth.js'
 import { logOperation } from './log.js'
+import { rollbackOrderCommissions, scheduleOrderCommissions } from '../services/distribution.js'
+import { recordFinanceFlow } from '../services/finance.js'
+import { restoreOrderStock } from '../services/inventory.js'
 
 const router = Router()
 router.use(requireAuth)
@@ -59,7 +62,7 @@ router.get('/:id', (req, res, next) => {
 })
 
 /** PATCH /orders/:id/status 更新订单状态（发货/完成/取消） */
-router.patch('/:id/status', (req, res, next) => {
+router.patch('/:id/status', requirePermission('order:ship'), (req, res, next) => {
   try {
     const id = Number(req.params.id)
     const order = get<Record<string, unknown>>('SELECT * FROM "order" WHERE id = ?', id)
@@ -69,15 +72,24 @@ router.patch('/:id/status', (req, res, next) => {
       logisticsCompany: z.string().optional(),
       logisticsNo: z.string().optional(),
     }).parse(req.body)
+    if (body.status === 2 && Number(order.status) !== 1) throw badRequest('仅待发货订单可发货')
+    if (body.status === 2 && (!body.logisticsCompany || !body.logisticsNo)) throw badRequest('发货必须填写物流公司和物流单号')
+    if (body.status === 3 && Number(order.status) !== 2) throw badRequest('仅待收货订单可完成')
+    if (body.status === 4 && ![0, 1, 2].includes(Number(order.status))) throw badRequest('当前订单状态不可取消')
     const sets: string[] = ['status = ?']
     const params: (string | number)[] = [body.status]
-    if (body.status === 1 && !order.shipTime) { sets.push('ship_time = ?'); params.push(now()) }
+    if (body.status === 2 && !order.shipTime) { sets.push('ship_time = ?'); params.push(now()) }
     if (body.logisticsCompany) { sets.push('logistics_company = ?'); params.push(body.logisticsCompany) }
     if (body.logisticsNo) { sets.push('logistics_no = ?'); params.push(body.logisticsNo) }
     if (body.status === 3) { sets.push('finish_time = ?'); params.push(now()) }
     if (body.status === 4) { sets.push('cancel_time = ?'); params.push(now()) }
     params.push(id)
     run(`UPDATE "order" SET ${sets.join(', ')} WHERE id = ?`, ...params)
+    if (body.status === 3) scheduleOrderCommissions(id)
+    if (body.status === 4) {
+      rollbackOrderCommissions(id, '订单取消')
+      restoreOrderStock(id)
+    }
     ok(res, null, '订单状态已更新')
   } catch (e) { next(e) }
 })
@@ -92,7 +104,7 @@ router.patch('/ship', requirePermission('order:ship'), (req, res, next) => {
     }).parse(req.body)
     const ts = now()
     for (const id of body.ids) {
-      run('UPDATE "order" SET status = 1, logistics_company = ?, logistics_no = ?, ship_time = ? WHERE id = ? AND status = 0',
+      run('UPDATE "order" SET status = 2, logistics_company = ?, logistics_no = ?, ship_time = ? WHERE id = ? AND status = 1',
         body.company, body.no, ts, id)
     }
     logOperation(String(req.auth?.username || ''), '订单管理', '发货',
@@ -109,9 +121,14 @@ router.post('/:id/refund-audit', requirePermission('order:ship'), (req, res, nex
     if (!order) throw notFound('订单不存在')
     const body = z.object({ pass: z.boolean(), remark: z.string().max(200).optional() }).parse(req.body)
     if (!body.pass && !body.remark) throw badRequest('驳回时必须填写原因')
-    // 模拟退款：订单取消 + 状态变更
-    run('UPDATE "order" SET status = 4, cancel_time = ? WHERE id = ?', now(), id)
-    ok(res, null, body.pass ? '退款已同意' : '退款已驳回')
+    const nextStatus = body.pass ? 6 : (order.shipTime ? 2 : 1)
+    run('UPDATE "order" SET status = ?, cancel_time = ? WHERE id = ?', nextStatus, body.pass ? now() : null, id)
+    if (body.pass) {
+      rollbackOrderCommissions(id, '订单退款')
+      restoreOrderStock(id)
+      recordFinanceFlow(5, -Number(order.payAmount), String(order.orderNo), '订单退款支出')
+    }
+    ok(res, null, body.pass ? '退款已同意' : '退款已驳回，订单已恢复')
   } catch (e) { next(e) }
 })
 

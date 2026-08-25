@@ -234,7 +234,7 @@ export const apiOrder = {
     }),
   getById: (id: number) => http.get<Order & { items: Row[] }>(`/orders/${id}`),
   ship: (id: number, logisticsCompany: string, logisticsNo: string) =>
-    http.patch(`/orders/${id}/status`, { status: 1, logisticsCompany, logisticsNo }),
+    http.patch(`/orders/${id}/status`, { status: 2, logisticsCompany, logisticsNo }),
   /** 批量发货 */
   batchShip: (ids: number[], logisticsCompany: string, logisticsNo: string) =>
     http.patch('/orders/ship', { ids, company: logisticsCompany, no: logisticsNo }),
@@ -259,6 +259,7 @@ export const apiResell = {
   /** 待匹配的零售订单（手动匹配弹窗用） */
   getPendingOrders: () => http.get<Row[]>('/resells/pending-orders'),
   manualMatch: (id: number, matchOrderId: number) => http.post(`/resells/${id}/match`, { matchOrderId }),
+  complete: (id: number) => http.post(`/resells/${id}/complete`),
   cancel: (id: number) => http.post(`/resells/${id}/cancel`),
 }
 
@@ -401,7 +402,7 @@ export const apiFinance = {
     return {
       totalRevenue: Number(o.orderIncome ?? 0),
       commissionPaid: Number(o.commissionOut ?? 0),
-      commissionPending: Number(o.pendingWithdraw ?? 0),
+      commissionPending: Number(o.commissionPending ?? 0),
       withdrawPaid: Number(o.withdrawOut ?? 0),
       resellServiceFee: Number(o.serviceFee ?? 0),
       grossProfit: Number(o.net ?? 0),

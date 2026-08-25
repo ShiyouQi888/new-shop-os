@@ -1,6 +1,8 @@
 import { all, get, run } from '../db/index.js'
 import { badRequest } from '../utils/response.js'
 import { genNo, now } from '../utils/index.js'
+import { createPendingCommissions, scheduleOrderCommissions } from './distribution.js'
+import { recordFinanceFlow } from './finance.js'
 
 export type PayType = 'wechat' | 'alipay'
 export type PaymentMode = 'mock' | 'real'
@@ -160,6 +162,18 @@ export function completeMockPayment(paymentNo: string, memberId: number) {
   if (Number(pay.status) !== 0) throw badRequest('支付单已处理')
   run('UPDATE payment_order SET status = 1, trade_no = ?, pay_time = ? WHERE id = ?',
     `MOCK${Date.now()}${Math.floor(Math.random() * 9000 + 1000)}`, now(), pay.id)
-  run('UPDATE "order" SET status = 1, pay_time = ? WHERE id = ?', now(), pay.orderId)
+  const order = get<{ orderType: number; orderNo: string; payAmount: number }>(
+    'SELECT order_type AS orderType, order_no AS orderNo, pay_amount AS payAmount FROM "order" WHERE id = ?',
+    pay.orderId,
+  )
+  const nextStatus = Number(order?.orderType) === 2 ? 3 : 1
+  if (nextStatus === 3) {
+    run('UPDATE "order" SET status = 3, pay_time = ?, finish_time = ? WHERE id = ?', now(), now(), pay.orderId)
+  } else {
+    run('UPDATE "order" SET status = 1, pay_time = ? WHERE id = ?', now(), pay.orderId)
+  }
+  if (order) recordFinanceFlow(1, Number(order.payAmount), order.orderNo, '订单支付收入')
+  createPendingCommissions(Number(pay.orderId))
+  if (nextStatus === 3) scheduleOrderCommissions(Number(pay.orderId))
   return { orderId: Number(pay.orderId), autoSuccess: config.mockAutoSuccess }
 }

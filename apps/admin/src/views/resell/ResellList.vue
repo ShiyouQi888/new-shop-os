@@ -47,6 +47,10 @@
                 <el-button v-if="row.status === 0" link type="primary" @click="openMatch(row as ResellOrder)">手动匹配</el-button>
                 <el-button link type="danger" @click="cancelResell(row as ResellOrder)">取消</el-button>
               </template>
+              <template v-else-if="row.status === 2">
+                <el-button link type="success" @click="completeResell(row as ResellOrder)">确认结算</el-button>
+                <el-button link type="danger" @click="cancelResell(row as ResellOrder)">取消</el-button>
+              </template>
               <el-button v-else link type="primary" @click="openDetail(row as ResellOrder)">详情</el-button>
             </template>
           </el-table-column>
@@ -175,6 +179,20 @@ const cancelResell = async (row: ResellOrder) => {
   try {
     await apiResell.cancel(row.id)
     ElMessage.success('已取消')
+    load()
+  } finally {
+    acting.value = false
+  }
+}
+
+const completeResell = async (row: ResellOrder) => {
+  try {
+    await ElMessageBox.confirm(`确认结算转卖单「${row.resellNo}」？结算金额将进入会员钱包。`, '确认结算', { type: 'warning' })
+  } catch { return }
+  acting.value = true
+  try {
+    await apiResell.complete(row.id)
+    ElMessage.success('转卖已完成结算')
     load()
   } finally {
     acting.value = false

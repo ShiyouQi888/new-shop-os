@@ -224,6 +224,7 @@ CREATE TABLE IF NOT EXISTS resell_order (
   resell_no      TEXT    NOT NULL UNIQUE,
   member_id      INTEGER NOT NULL REFERENCES member(id),
   member_name    TEXT    NOT NULL DEFAULT '',
+  credit_id      INTEGER REFERENCES credit_record(id),
   order_id       INTEGER REFERENCES "order"(id),
   order_no       TEXT    NOT NULL DEFAULT '',
   sku_name       TEXT    NOT NULL DEFAULT '',
@@ -234,6 +235,7 @@ CREATE TABLE IF NOT EXISTS resell_order (
   status         INTEGER NOT NULL DEFAULT 0,    -- 0 待匹配 1 匹配中 2 已匹配 3 已完成 4 已取消 5 匹配失败
   match_order_id INTEGER DEFAULT NULL,
   match_time     TEXT    DEFAULT NULL,
+  settle_time    TEXT    DEFAULT NULL,
   cancel_time    TEXT    DEFAULT NULL,
   create_time    TEXT    NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
@@ -251,6 +253,8 @@ CREATE TABLE IF NOT EXISTS commission (
   rate              REAL    NOT NULL DEFAULT 0,
   amount            REAL    NOT NULL DEFAULT 0,
   status            INTEGER NOT NULL DEFAULT 0,   -- 0 待结算 1 可提现 2 已提现 3 已冻结 4 已回滚
+  settlement_due_time TEXT DEFAULT NULL,
+  settle_time       TEXT    DEFAULT NULL,
   rollback_reason   TEXT    NOT NULL DEFAULT '',
   create_time       TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
   update_time       TEXT    NOT NULL DEFAULT (datetime('now', 'localtime'))

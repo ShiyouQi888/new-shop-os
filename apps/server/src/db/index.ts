@@ -34,6 +34,10 @@ ensureColumn('withdraw', 'pay_type', 'pay_type INTEGER NOT NULL DEFAULT 0')
 ensureColumn('withdraw', 'alipay_name', "alipay_name TEXT NOT NULL DEFAULT ''")
 ensureColumn('withdraw', 'alipay_account', "alipay_account TEXT NOT NULL DEFAULT ''")
 ensureColumn('withdraw', 'bank_holder', "bank_holder TEXT NOT NULL DEFAULT ''")
+ensureColumn('commission', 'settlement_due_time', 'settlement_due_time TEXT DEFAULT NULL')
+ensureColumn('commission', 'settle_time', 'settle_time TEXT DEFAULT NULL')
+ensureColumn('resell_order', 'settle_time', 'settle_time TEXT DEFAULT NULL')
+ensureColumn('resell_order', 'credit_id', 'credit_id INTEGER REFERENCES credit_record(id)')
 // 推广海报：二维码在海报上的排版布局（百分比，老库迁移补列）
 ensureColumn('promote_poster', 'qr_x', 'qr_x REAL NOT NULL DEFAULT 38')
 ensureColumn('promote_poster', 'qr_y', 'qr_y REAL NOT NULL DEFAULT 72')
@@ -94,6 +98,7 @@ function ensureSysConfig() {
     ['distribution.level_1', '1', 'distribution', '一级分销开关：1 开启 0 关闭'],
     ['distribution.level_2', '1', 'distribution', '二级分销开关：1 开启 0 关闭'],
     ['distribution.level_3', '1', 'distribution', '三级分销开关：1 开启 0 关闭'],
+    ['commission.settle_days', '7', 'distribution', '订单完成后佣金延迟结算天数'],
     ['site.domain', 'http://localhost:5174', 'basic', '站点访问域名（用于生成推广链接/海报二维码）'],
     ['payment.mode', 'mock', 'payment', '支付模式：mock 模拟 / real 真实网关'],
     ['payment.mock_auto_success', '1', 'payment', '模拟支付是否自动成功：1 是 / 0 否'],
@@ -192,6 +197,7 @@ function ensureResellOrderNullable() {
         resell_no      TEXT    NOT NULL UNIQUE,
         member_id      INTEGER NOT NULL REFERENCES member(id),
         member_name    TEXT    NOT NULL DEFAULT '',
+        credit_id      INTEGER REFERENCES credit_record(id),
         order_id       INTEGER REFERENCES "order"(id),
         order_no       TEXT    NOT NULL DEFAULT '',
         sku_name       TEXT    NOT NULL DEFAULT '',
@@ -202,11 +208,12 @@ function ensureResellOrderNullable() {
         status         INTEGER NOT NULL DEFAULT 0,
         match_order_id INTEGER DEFAULT NULL,
         match_time     TEXT    DEFAULT NULL,
+        settle_time    TEXT    DEFAULT NULL,
         cancel_time    TEXT    DEFAULT NULL,
         create_time    TEXT    NOT NULL DEFAULT (datetime('now', 'localtime'))
       );
-      INSERT INTO resell_order (id, resell_no, member_id, member_name, order_id, order_no, sku_name, goods_value, service_fee, shipping_fee, settle_amount, status, match_order_id, match_time, cancel_time, create_time)
-        SELECT id, resell_no, member_id, member_name, order_id, order_no, '', goods_value, service_fee, shipping_fee, settle_amount, status, match_order_id, match_time, cancel_time, create_time FROM resell_order_old;
+      INSERT INTO resell_order (id, resell_no, member_id, member_name, credit_id, order_id, order_no, sku_name, goods_value, service_fee, shipping_fee, settle_amount, status, match_order_id, match_time, settle_time, cancel_time, create_time)
+        SELECT id, resell_no, member_id, member_name, NULL, order_id, order_no, '', goods_value, service_fee, shipping_fee, settle_amount, status, match_order_id, match_time, NULL, cancel_time, create_time FROM resell_order_old;
       DROP TABLE resell_order_old;
       CREATE INDEX IF NOT EXISTS idx_resell_member ON resell_order(member_id);
       CREATE INDEX IF NOT EXISTS idx_resell_status ON resell_order(status);
@@ -214,6 +221,8 @@ function ensureResellOrderNullable() {
     console.log('[db] 迁移：resell_order.order_id 改为可空并新增 sku_name')
   } else {
     ensureColumn('resell_order', 'sku_name', "sku_name TEXT NOT NULL DEFAULT ''")
+    ensureColumn('resell_order', 'settle_time', 'settle_time TEXT DEFAULT NULL')
+    ensureColumn('resell_order', 'credit_id', 'credit_id INTEGER REFERENCES credit_record(id)')
   }
 }
 ensureResellOrderNullable()

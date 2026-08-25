@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { all, get, run } from '../db/index.js'
 import { ok, badRequest, notFound, conflict } from '../utils/response.js'
-import { now, int, genNo } from '../utils/index.js'
+import { now, int, genNo, monthOf } from '../utils/index.js'
 import { requireMember, signMemberToken } from '../middlewares/auth.js'
 import { config } from '../config.js'
 
@@ -103,8 +103,29 @@ router.post('/upgrade', requireMember, (req, res, next) => {
     const mid = req.member!.mid
     const body = z.object({ level: z.number().int().min(1) }).parse(req.body)
     if (!get('SELECT id FROM member WHERE id = ?', mid)) throw notFound('会员不存在')
-    if (!get('SELECT id FROM level_config WHERE level = ? AND status = 1', body.level)) throw badRequest('等级不存在或未启用')
+    const level = get<{ monthlyCredit: number }>('SELECT monthly_credit AS monthlyCredit FROM level_config WHERE level = ? AND status = 1', body.level)
+    if (!level) throw badRequest('等级不存在或未启用')
+    const paidGift = get(
+      `SELECT o.id
+       FROM "order" o JOIN order_item oi ON oi.order_id = o.id
+       WHERE o.member_id = ? AND o.order_type = 2 AND o.status = 3 AND oi.member_level = ?
+       ORDER BY o.id DESC LIMIT 1`,
+      mid, body.level,
+    )
+    if (!paidGift) throw badRequest('未找到已支付的对应等级入会礼包订单')
     run('UPDATE member SET level = ?, become_agent_time = ? WHERE id = ?', body.level, now(), mid)
+    const month = monthOf()
+    const credit = Number(level.monthlyCredit ?? 0)
+    if (credit > 0 && !get('SELECT id FROM credit_record WHERE member_id = ? AND month = ?', mid, month)) {
+      const rec = run(
+        'INSERT INTO credit_record (member_id, month, credit_amount, used_amount, remain_amount, status, remark, create_time) VALUES (?, ?, ?, 0, ?, 0, ?, ?)',
+        mid, month, credit, credit, '入会礼包支付后自动发放', now(),
+      )
+      run(
+        'INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, create_time) VALUES (?, ?, ?, ?, 1, ?, ?)',
+        Number(rec.lastInsertRowid), mid, credit, credit, '入会礼包支付后自动发放', now(),
+      )
+    }
     ok(res, memberDetail(mid), '代理商权益已开通')
   } catch (e) { next(e) }
 })
@@ -116,8 +137,9 @@ router.get('/me', requireMember, (req, res, next) => {
     const detail = memberDetail(id)
     if (!detail) throw notFound('会员不存在')
     const total = get<{ v: number }>('SELECT COALESCE(SUM(amount),0) AS v FROM commission WHERE member_id = ?', id)!.v
-    const available = get<{ v: number }>('SELECT COALESCE(SUM(amount),0) AS v FROM commission WHERE member_id = ? AND status IN (0,1)', id)!.v
-    const withdrawn = get<{ v: number }>('SELECT COALESCE(SUM(amount),0) AS v FROM commission WHERE member_id = ? AND status = 2', id)!.v
+    const available = get<{ v: number }>('SELECT COALESCE(SUM(amount),0) AS v FROM commission WHERE member_id = ? AND status = 1', id)!.v
+    const pending = get<{ v: number }>('SELECT COALESCE(SUM(amount),0) AS v FROM commission WHERE member_id = ? AND status = 0', id)!.v
+    const withdrawn = Number((detail.wallet as { totalWithdraw?: number } | undefined)?.totalWithdraw ?? 0)
     const l1 = get<{ c: number }>('SELECT COUNT(*) AS c FROM member WHERE inviter_id = ?', id)!.c
     const l2 = get<{ c: number }>('SELECT COUNT(*) AS c FROM member WHERE second_inviter_id = ?', id)!.c
     const l3 = get<{ c: number }>('SELECT COUNT(*) AS c FROM member WHERE third_inviter_id = ?', id)!.c
@@ -125,7 +147,7 @@ router.get('/me', requireMember, (req, res, next) => {
     const credit = get('SELECT id, member_id AS memberId, month, credit_amount AS creditAmount, used_amount AS usedAmount, remain_amount AS remainAmount, status FROM credit_record WHERE member_id = ? ORDER BY month DESC LIMIT 1', id)
     ok(res, {
       member: detail,
-      commission: { total, available, pending: Math.max(0, available - withdrawn), withdrawn },
+      commission: { total, available, pending, withdrawn },
       team: { level1: l1, level2: l2, level3: l3, total: l1 + l2 + l3 },
       resellActive,
       monthlyCredit: credit ?? null,
@@ -174,6 +196,7 @@ router.get('/resells', requireMember, (req, res, next) => {
     const list = all(
       `SELECT r.id, r.resell_no AS resellNo, r.goods_value AS goodsValue, r.service_fee AS serviceFee,
               r.shipping_fee AS shippingFee, r.settle_amount AS settleAmount, r.status, r.create_time AS createTime,
+              r.credit_id AS creditId, r.settle_time AS settleTime,
               COALESCE(r.sku_name, (SELECT oi.sku_name FROM order_item oi WHERE oi.order_id = r.order_id LIMIT 1)) AS skuName,
               (SELECT SUM(oi.quantity) FROM order_item oi WHERE oi.order_id = r.order_id) AS quantity
        FROM resell_order r WHERE r.member_id = ? ORDER BY r.id DESC`,
@@ -189,6 +212,7 @@ router.post('/resells', requireMember, (req, res, next) => {
     const mid = req.member!.mid
     const body = z.object({
       goodsValue: z.number().min(1),
+      creditId: z.number().int().optional(),
       serviceFee: z.number().min(0).optional(),
       shippingFee: z.number().min(0).optional(),
       settleAmount: z.number().min(0).optional(),
@@ -197,20 +221,30 @@ router.post('/resells', requireMember, (req, res, next) => {
     if (Number(body.settleAmount ?? 0) <= 0) throw badRequest('预计到账需大于 0')
     const member = get<{ nickname: string }>('SELECT nickname FROM member WHERE id = ?', mid)
     if (!member) throw notFound('会员不存在')
+    const credit = body.creditId
+      ? get<Record<string, unknown>>('SELECT * FROM credit_record WHERE id = ? AND member_id = ?', body.creditId, mid)
+      : get<Record<string, unknown>>('SELECT * FROM credit_record WHERE member_id = ? AND remain_amount >= ? AND status IN (0,1) ORDER BY month DESC, id DESC LIMIT 1', mid, body.goodsValue)
+    if (!credit) throw badRequest('可转卖月度领货额度不足')
+    if (Number(credit.remainAmount) < body.goodsValue) throw badRequest('可转卖月度领货额度不足')
     const ts = now()
     const d = new Date()
     const pad = (n: number) => String(n).padStart(2, '0')
     const resellNo = `RS${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}${String(Date.now()).slice(-6)}`
     const r = run(
-      `INSERT INTO resell_order (resell_no, member_id, member_name, order_id, order_no, goods_value, service_fee, shipping_fee, settle_amount, status, sku_name, create_time)
-       VALUES (?, ?, ?, NULL, '', ?, ?, ?, ?, 0, ?, ?)`,
-      resellNo, mid, member.nickname, body.goodsValue, body.serviceFee ?? 0, body.shippingFee ?? 0,
+      `INSERT INTO resell_order (resell_no, member_id, member_name, credit_id, order_id, order_no, goods_value, service_fee, shipping_fee, settle_amount, status, sku_name, create_time)
+       VALUES (?, ?, ?, ?, NULL, '', ?, ?, ?, ?, 0, ?, ?)`,
+      resellNo, mid, member.nickname, Number(credit.id), body.goodsValue, body.serviceFee ?? 0, body.shippingFee ?? 0,
       body.settleAmount ?? 0, body.skuName || '月度领货转卖商品', ts,
     )
+    const remain = Number(credit.remainAmount) - body.goodsValue
+    run('UPDATE credit_record SET used_amount = used_amount + ?, remain_amount = ?, status = ?, update_time = ? WHERE id = ?',
+      body.goodsValue, remain, remain <= 0 ? 4 : 1, ts, Number(credit.id))
+    run('INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, create_time) VALUES (?, ?, ?, ?, 2, ?, ?)',
+      Number(credit.id), mid, -body.goodsValue, remain, '发起转卖扣减月度额度', ts)
     const id = Number(r.lastInsertRowid)
     ok(res, get(
       `SELECT id, resell_no AS resellNo, goods_value AS goodsValue, service_fee AS serviceFee,
-              shipping_fee AS shippingFee, settle_amount AS settleAmount, status, sku_name AS skuName, create_time AS createTime
+              shipping_fee AS shippingFee, settle_amount AS settleAmount, status, credit_id AS creditId, sku_name AS skuName, create_time AS createTime
        FROM resell_order WHERE id = ?`, id,
     ), '转卖申请已提交，等待系统匹配', 201)
   } catch (e) { next(e) }
@@ -567,8 +601,8 @@ router.post('/withdraws', requireMember, (req, res, next) => {
       genNo('TX'), mid, member?.nickname || '', body.amount, body.amount, payType,
       bankName, bankCard, bankHolder, alipayName, alipayAccount, now(),
     )
-    run('UPDATE wallet SET balance = balance - ?, frozen = frozen + ?, total_withdraw = total_withdraw + ? WHERE member_id = ?',
-      body.amount, body.amount, body.amount, mid)
+    run('UPDATE wallet SET balance = balance - ?, frozen = frozen + ? WHERE member_id = ?',
+      body.amount, body.amount, mid)
     ok(res, { id: Number(r.lastInsertRowid) }, '提现申请已提交，等待审核')
   } catch (e) { next(e) }
 })

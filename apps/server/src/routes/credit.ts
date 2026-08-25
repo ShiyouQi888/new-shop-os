@@ -30,7 +30,7 @@ router.get('/', (req, res, next) => {
               c.remain_amount AS remainAmount, c.status, c.remark, c.create_time AS createTime,
               m.nickname, m.avatar, m.phone, m.level
        FROM credit_record c LEFT JOIN member m ON m.id = c.member_id ${where} ORDER BY c.id DESC`,
-      `SELECT COUNT(*) AS c FROM credit_record c ${where}`,
+      `SELECT COUNT(*) AS c FROM credit_record c LEFT JOIN member m ON m.id = c.member_id ${where}`,
       params, page, pageSize,
     )
     ok(res, data)

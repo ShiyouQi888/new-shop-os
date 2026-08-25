@@ -7,8 +7,14 @@
       <div class="card-title">转卖预估</div>
       <div class="estimate-form">
         <div class="est-item">
+          <span>可用额度</span>
+          <van-dropdown-menu class="credit-menu">
+            <van-dropdown-item v-model="selectedCreditId" :options="creditOptions" />
+          </van-dropdown-menu>
+        </div>
+        <div class="est-item">
           <span>商品价值</span>
-          <van-stepper v-model="goodsValue" :step="50" :min="50" />
+          <van-stepper v-model="goodsValue" :step="50" :min="50" :max="selectedCreditRemain || 50" />
         </div>
         <div class="est-result">
           <div class="est-line">
@@ -79,11 +85,19 @@ const router = useRouter()
 const userStore = useUserStore()
 const activeTab = ref(0)
 const goodsValue = ref(980)
+const credits = ref<Array<{ id: number; month: string; remainAmount: number; status: number }>>([])
+const selectedCreditId = ref<number | null>(null)
 const list = ref<ResellOrder[]>([])
 const submitting = ref(false)
 const serviceFee = computed(() => Number((goodsValue.value * 0.2).toFixed(2)))
 const shippingFee = 10
 const settleAmount = computed(() => Number(Math.max(goodsValue.value - serviceFee.value - shippingFee, 0).toFixed(2)))
+const usableCredits = computed(() => credits.value.filter(c => c.remainAmount > 0 && [0, 1].includes(Number(c.status))))
+const selectedCredit = computed(() => usableCredits.value.find(c => c.id === selectedCreditId.value) || usableCredits.value[0] || null)
+const selectedCreditRemain = computed(() => Number(selectedCredit.value?.remainAmount ?? 0))
+const creditOptions = computed(() => usableCredits.value.length
+  ? usableCredits.value.map(c => ({ text: `${c.month} 可转卖 ¥${c.remainAmount.toFixed(2)}`, value: c.id }))
+  : [{ text: '暂无可转卖额度', value: 0 }])
 
 const filteredList = computed(() => {
   if (activeTab.value === 0) return list.value
@@ -106,6 +120,10 @@ const confirmResell = async () => {
     showToast('预计到账需大于 0')
     return
   }
+  if (!selectedCredit.value || selectedCreditRemain.value < goodsValue.value) {
+    showToast('可转卖额度不足')
+    return
+  }
 
   try {
     await showConfirmDialog({
@@ -121,12 +139,13 @@ const confirmResell = async () => {
   try {
     await api.createResell({
       goodsValue: goodsValue.value,
+      creditId: selectedCredit.value.id,
       serviceFee: serviceFee.value,
       shippingFee,
       settleAmount: settleAmount.value,
       skuName: '月度领货转卖商品',
     })
-    list.value = await api.getResellOrders(userStore.member!.id)
+    await loadPageData()
     activeTab.value = 1
     showSuccessToast('转卖申请已提交，等待系统匹配')
   } finally {
@@ -136,8 +155,27 @@ const confirmResell = async () => {
 
 onMounted(async () => {
   if (!userStore.member) return
-  list.value = await api.getResellOrders(userStore.member.id)
+  await loadPageData()
 })
+
+const loadPageData = async () => {
+  if (!userStore.member) return
+  const [creditRows, resellRows] = await Promise.all([
+    api.getMonthlyCredit(userStore.member.id),
+    api.getResellOrders(userStore.member.id),
+  ])
+  credits.value = creditRows.map(c => ({
+    id: c.id,
+    month: c.month,
+    remainAmount: Number(c.remainAmount ?? 0),
+    status: Number(c.status ?? 0),
+  }))
+  list.value = resellRows
+  if (!selectedCredit.value && usableCredits.value[0]) selectedCreditId.value = usableCredits.value[0].id
+  if (selectedCreditRemain.value > 0 && goodsValue.value > selectedCreditRemain.value) {
+    goodsValue.value = Math.max(50, selectedCreditRemain.value)
+  }
+}
 </script>
 
 <style scoped>
@@ -146,6 +184,7 @@ onMounted(async () => {
 .card-title { color: #171A1F; font-size: 15px; font-weight: 800; margin-bottom: 12px; }
 .estimate-form { display: flex; flex-direction: column; gap: 12px; }
 .est-item { display: flex; justify-content: space-between; align-items: center; }
+.credit-menu { flex: 1; max-width: 230px; }
 .est-result { background: #F8F9FB; border-radius: 12px; padding: 16px; }
 .est-line { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; color: #626A73; }
 .est-line.danger span:last-child { color: #E5484D; }

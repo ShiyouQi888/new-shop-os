@@ -6,8 +6,20 @@ import { ok, notFound, badRequest, forbidden } from '../utils/response.js'
 import { int, str, now, genNo, parseJson, money } from '../utils/index.js'
 import { requireMember } from '../middlewares/auth.js'
 import { completeMockPayment, createPayment } from '../services/payment.js'
+import { createPendingCommissions, scheduleOrderCommissions, settleDueCommissions } from '../services/distribution.js'
+import { recordFinanceFlow } from '../services/finance.js'
+import { restoreOrderStock } from '../services/inventory.js'
 
 const router = Router()
+
+router.use((_req, _res, next) => {
+  try {
+    settleDueCommissions()
+  } catch {
+    // 到期佣金结算失败不影响商城接口读取，下一次请求会继续尝试。
+  }
+  next()
+})
 
 /** GET /shop/home 首页聚合（分类/热销/新品/礼包） */
 router.get('/home', (_req, res, next) => {
@@ -113,7 +125,7 @@ router.post('/orders', requireMember, (req, res, next) => {
 
     let orderType = 1
     let total = 0
-    const itemRows: { skuId: number; skuName: string; quantity: number; unitPrice: number; originalPrice: number; image: string }[] = []
+    const itemRows: { skuId: number; skuName: string; quantity: number; unitPrice: number; originalPrice: number; image: string; memberLevel?: number }[] = []
 
     if (body.giftPackageId) {
       const pkg = get<Record<string, unknown>>('SELECT * FROM gift_package WHERE id = ? AND status = 1', body.giftPackageId)
@@ -123,11 +135,17 @@ router.post('/orders', requireMember, (req, res, next) => {
       const pkgItems = all<{ skuId: number; skuName: string; quantity: number; unitPrice: number }>(
         'SELECT sku_id AS skuId, sku_name AS skuName, quantity, unit_price AS unitPrice FROM gift_package_item WHERE package_id = ?', body.giftPackageId,
       )
-      pkgItems.forEach((it) => itemRows.push({ ...it, originalPrice: it.unitPrice, image: '' }))
+      for (const it of pkgItems) {
+        const sku = get<Record<string, unknown>>('SELECT * FROM product_sku WHERE id = ? AND status = 1', it.skuId)
+        if (!sku) throw badRequest(`礼包内 SKU ${it.skuId} 不存在或已下架`)
+        if (Number(sku.stock) < it.quantity) throw badRequest(`${it.skuName} 库存不足`)
+        itemRows.push({ ...it, originalPrice: it.unitPrice, image: String(sku.image || ''), memberLevel: Number(pkg.level) })
+      }
     } else {
       for (const it of body.items || []) {
         const sku = get<Record<string, unknown>>('SELECT * FROM product_sku WHERE id = ? AND status = 1', it.skuId)
         if (!sku) throw badRequest(`SKU ${it.skuId} 不存在或已下架`)
+        if (Number(sku.stock) < it.quantity) throw badRequest(`${String(sku.skuName)} 库存不足`)
         total += Number(sku.price) * it.quantity
         itemRows.push({
           skuId: it.skuId, skuName: String(sku.skuName), quantity: it.quantity,
@@ -149,7 +167,7 @@ router.post('/orders', requireMember, (req, res, next) => {
     for (const it of itemRows) {
       run(
         'INSERT INTO order_item (order_id, sku_id, sku_name, spec_info, image, quantity, original_price, unit_price, total_price, member_level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        oid, it.skuId, it.skuName, '{}', it.image, it.quantity, it.originalPrice, it.unitPrice, money(it.unitPrice * it.quantity), member.level,
+        oid, it.skuId, it.skuName, '{}', it.image, it.quantity, it.originalPrice, it.unitPrice, money(it.unitPrice * it.quantity), it.memberLevel ?? member.level,
       )
       run('UPDATE product_sku SET stock = stock - ?, sales = sales + ? WHERE id = ?', it.quantity, it.quantity, it.skuId)
     }
@@ -259,7 +277,15 @@ router.post('/orders/:id/pay', requireMember, (req, res, next) => {
     if (!order) throw notFound('订单不存在')
     if (Number(order.memberId) !== req.member!.mid) throw forbidden('无权操作他人订单')
     if (Number(order.status) !== 0) throw badRequest('仅待支付订单可支付')
-    run('UPDATE "order" SET status = 1, pay_time = ? WHERE id = ?', now(), id)
+    const nextStatus = Number(order.orderType) === 2 ? 3 : 1
+    if (nextStatus === 3) {
+      run('UPDATE "order" SET status = 3, pay_time = ?, finish_time = ? WHERE id = ?', now(), now(), id)
+    } else {
+      run('UPDATE "order" SET status = 1, pay_time = ? WHERE id = ?', now(), id)
+    }
+    recordFinanceFlow(1, Number(order.payAmount), String(order.orderNo), '订单支付收入')
+    createPendingCommissions(id)
+    if (nextStatus === 3) scheduleOrderCommissions(id)
     ok(res, null, '支付成功')
   } catch (e) { next(e) }
 })
@@ -273,6 +299,7 @@ router.post('/orders/:id/confirm', requireMember, (req, res, next) => {
     if (Number(order.memberId) !== req.member!.mid) throw forbidden('无权操作他人订单')
     if (Number(order.status) !== 2) throw badRequest('仅已发货订单可确认收货')
     run('UPDATE "order" SET status = 3, finish_time = ? WHERE id = ?', now(), id)
+    scheduleOrderCommissions(id)
     ok(res, null, '已确认收货')
   } catch (e) { next(e) }
 })
@@ -286,6 +313,7 @@ router.post('/orders/:id/cancel', requireMember, (req, res, next) => {
     if (Number(order.memberId) !== req.member!.mid) throw forbidden('无权操作他人订单')
     if (Number(order.status) !== 0) throw badRequest('仅待支付订单可取消')
     run('UPDATE "order" SET status = 4, cancel_time = ? WHERE id = ?', now(), id)
+    restoreOrderStock(id)
     ok(res, null, '订单已取消')
   } catch (e) { next(e) }
 })
