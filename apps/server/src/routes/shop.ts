@@ -125,6 +125,8 @@ router.post('/orders', requireMember, (req, res, next) => {
 
     let orderType = 1
     let total = 0
+    let discountAmount = 0
+    let payAmount = 0
     const itemRows: { skuId: number; skuName: string; quantity: number; unitPrice: number; originalPrice: number; image: string; memberLevel?: number }[] = []
 
     if (body.giftPackageId) {
@@ -132,6 +134,7 @@ router.post('/orders', requireMember, (req, res, next) => {
       if (!pkg) throw notFound('礼包不存在')
       orderType = 2
       total = Number(pkg.price)
+      payAmount = total
       const pkgItems = all<{ skuId: number; skuName: string; quantity: number; unitPrice: number }>(
         'SELECT sku_id AS skuId, sku_name AS skuName, quantity, unit_price AS unitPrice FROM gift_package_item WHERE package_id = ?', body.giftPackageId,
       )
@@ -142,25 +145,37 @@ router.post('/orders', requireMember, (req, res, next) => {
         itemRows.push({ ...it, originalPrice: it.unitPrice, image: String(sku.image || ''), memberLevel: Number(pkg.level) })
       }
     } else {
+      const level = get<{ shopDiscount: number }>('SELECT shop_discount AS shopDiscount FROM level_config WHERE level = ? AND status = 1', member.level)
+      const shopDiscount = Number(level?.shopDiscount ?? 100)
       for (const it of body.items || []) {
-        const sku = get<Record<string, unknown>>('SELECT * FROM product_sku WHERE id = ? AND status = 1', it.skuId)
+        const sku = get<Record<string, unknown>>(
+          `SELECT s.*, p.exclude_discount AS excludeDiscount
+           FROM product_sku s JOIN product_spu p ON p.id = s.spu_id
+           WHERE s.id = ? AND s.status = 1 AND p.status = 1`,
+          it.skuId,
+        )
         if (!sku) throw badRequest(`SKU ${it.skuId} 不存在或已下架`)
         if (Number(sku.stock) < it.quantity) throw badRequest(`${String(sku.skuName)} 库存不足`)
-        total += Number(sku.price) * it.quantity
+        const originalPrice = Number(sku.price)
+        const unitPrice = Number(sku.excludeDiscount) === 1 ? originalPrice : money(originalPrice * shopDiscount / 100)
+        total += originalPrice * it.quantity
+        payAmount += unitPrice * it.quantity
         itemRows.push({
           skuId: it.skuId, skuName: String(sku.skuName), quantity: it.quantity,
-          unitPrice: Number(sku.price), originalPrice: Number(sku.originalPrice), image: String(sku.image || ''),
+          unitPrice, originalPrice, image: String(sku.image || ''),
         })
       }
     }
     if (!itemRows.length) throw badRequest('订单内容为空')
 
     total = money(total)
+    payAmount = money(payAmount || total)
+    discountAmount = money(Math.max(0, total - payAmount))
     const r = run(
       `INSERT INTO "order" (order_no, member_id, member_name, order_type, total_amount, discount_amount, shipping_fee, pay_amount, status,
         receiver_name, receiver_phone, receiver_address, remark, create_time, pay_time)
-       VALUES (?, ?, ?, ?, ?, 0, 0, ?, 0, ?, ?, ?, ?, ?, NULL)`,
-      genNo('SO'), member.id, member.nickname, orderType, total, total, body.receiverName, body.receiverPhone,
+       VALUES (?, ?, ?, ?, ?, ?, 0, ?, 0, ?, ?, ?, ?, ?, NULL)`,
+      genNo('SO'), member.id, member.nickname, orderType, total, discountAmount, payAmount, body.receiverName, body.receiverPhone,
       body.receiverAddress, body.remark || '', now(),
     )
     const oid = Number(r.lastInsertRowid)
@@ -171,7 +186,7 @@ router.post('/orders', requireMember, (req, res, next) => {
       )
       run('UPDATE product_sku SET stock = stock - ?, sales = sales + ? WHERE id = ?', it.quantity, it.quantity, it.skuId)
     }
-    ok(res, { orderId: oid, payAmount: total }, '下单成功', 201)
+    ok(res, { orderId: oid, payAmount }, '下单成功', 201)
   } catch (e) { next(e) }
 })
 

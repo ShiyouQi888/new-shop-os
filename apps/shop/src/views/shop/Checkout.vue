@@ -36,8 +36,9 @@
 
       <section class="discount-card premium-card">
         <div class="card-title">费用明细</div>
-        <div class="discount-row"><span>商品总额</span><span>¥{{ cartStore.totalPrice.toFixed(2) }}</span></div>
-        <div class="discount-row discount"><span>{{ levelLabel }}折扣</span><span>-¥{{ cartStore.discountAmount.toFixed(2) }}</span></div>
+        <div class="discount-row"><span>商品原价</span><span>{{ formatMoney(cartStore.totalPrice) }}</span></div>
+        <div class="discount-row discount"><span>{{ levelLabel }}优惠</span><span>-{{ formatMoney(cartStore.discountAmount) }}</span></div>
+        <div class="discount-row payable"><span>商品金额</span><span>{{ formatMoney(cartStore.memberTotalPrice) }}</span></div>
         <div class="discount-row"><span>运费</span><span>¥{{ shippingFee.toFixed(2) }}</span></div>
         <van-cell title="优惠券" is-link value="暂无可用" />
       </section>
@@ -199,6 +200,8 @@ const confirmPay = async () => {
 .goods-qty { margin-left: auto; color: #626A73; font-size: 13px; }
 .discount-row { display: flex; justify-content: space-between; padding: 7px 0; color: #626A73; font-size: 14px; }
 .discount-row.discount span:last-child { color: #18A66A; font-weight: 800; }
+.discount-row.payable { color: #171A1F; font-weight: 800; }
+.discount-row.payable span:last-child { color: #E85222; }
 .address-popup { padding: 16px; }
 .popup-title { font-size: 16px; font-weight: 800; margin-bottom: 12px; text-align: center; }
 .addr-list-item { padding: 12px 0; border-bottom: 1px solid #E7E9ED; }
