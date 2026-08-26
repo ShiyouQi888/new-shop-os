@@ -136,6 +136,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '月度领货', requiresAuth: true, requiresAgent: true },
   },
   {
+    path: '/agent/credit-pool',
+    name: 'AgentCreditPool',
+    component: () => import('@/views/agent/CreditRedeem.vue'),
+    meta: { title: '领取商品自用', requiresAuth: true, requiresAgent: true },
+  },
+  {
     path: '/agent/resell',
     name: 'AgentResell',
     component: () => import('@/views/agent/ResellCenter.vue'),

@@ -4,7 +4,7 @@
 import { http, MEMBER_TOKEN_KEY } from './http'
 import type {
   Member, ProductCategory, ProductSPU, ProductSKU, GiftPackage,
-  Order, MonthlyCredit, ResellOrder, Commission, MemberWallet, SiteBranding,
+  Order, MonthlyCredit, ResellOrder, Commission, MemberWallet, SiteBranding, CreditPoolProduct,
 } from '@shop-os/shared'
 
 export { MEMBER_TOKEN_KEY }
@@ -168,6 +168,11 @@ export const api = {
     }
   },
   getMonthlyCredit: (memberId: number) => http.get<MonthlyCredit[]>('/shop/member/credits', { memberId }),
+  /** 我的等级可兑换的领货商品池 */
+  getCreditPool: () => http.get<CreditPoolProduct[]>('/shop/member/credit-pool'),
+  /** 用领货额度兑换商品池内商品，生成待发货订单 */
+  redeemCredit: (creditId: number, payload: { skuId: number; quantity: number; receiverName: string; receiverPhone: string; receiverAddress: string }) =>
+    http.post<{ orderId: number; cost: number; remainAmount: number }>(`/shop/member/credits/${creditId}/redeem`, payload),
   getResellOrders: (memberId: number) => http.get<ResellOrder[]>('/shop/member/resells', { memberId }),
   /** 发起转卖（落库，后台可见） */
   createResell: (payload: { goodsValue: number; serviceFee: number; shippingFee: number; settleAmount: number; skuName?: string }) =>

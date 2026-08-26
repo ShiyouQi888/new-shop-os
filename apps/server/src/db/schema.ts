@@ -510,4 +510,15 @@ CREATE TABLE IF NOT EXISTS promote_poster (
   create_time TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
   update_time TEXT    NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
+
+-- 月度领货商品池（按等级配置：会员只能用领货额度兑换自己等级池内的商品）
+CREATE TABLE IF NOT EXISTS credit_pool_item (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  level       INTEGER NOT NULL,
+  spu_id      INTEGER NOT NULL REFERENCES product_spu(id),
+  sort        INTEGER NOT NULL DEFAULT 0,
+  create_time TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
+  UNIQUE (level, spu_id)
+);
+CREATE INDEX IF NOT EXISTS idx_credit_pool_level ON credit_pool_item(level);
 `

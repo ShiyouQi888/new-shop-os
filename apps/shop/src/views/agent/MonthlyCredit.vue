@@ -8,9 +8,8 @@
         <div class="current-header">
           <div>
             <div class="current-month">{{ currentCredit?.month }} 领货权益</div>
-            <div class="current-desc">截止 {{ formatDate(currentCredit?.expireTime) }}</div>
           </div>
-          <LevelBadge :level="currentCredit?.memberLevel || 1" />
+          <LevelBadge :level="userStore.level" />
         </div>
         <van-progress :percentage="usagePercent" color="#FF6B35" stroke-width="10" />
         <div class="current-stats">
@@ -19,11 +18,11 @@
             <div class="cs-label">剩余额度</div>
           </div>
           <div class="cs-item">
-            <div class="cs-val">¥{{ currentCredit?.usedAmount || 0 }}</div>
+            <div class="cs-val">{{ formatMoney(currentCredit?.usedAmount || 0) }}</div>
             <div class="cs-label">已使用</div>
           </div>
           <div class="cs-item">
-            <div class="cs-val">¥{{ currentCredit?.creditAmount || 0 }}</div>
+            <div class="cs-val">{{ formatMoney(currentCredit?.creditAmount || 0) }}</div>
             <div class="cs-label">本月总额度</div>
           </div>
         </div>
@@ -58,8 +57,8 @@
             <div class="hist-status">{{ CreditStatusLabels[credit.status] }}</div>
           </div>
           <div class="hist-right">
-            <div class="hist-amount">¥{{ credit.usedAmount }} / ¥{{ credit.creditAmount }}</div>
-            <div class="hist-desc">剩余 ¥{{ credit.remainAmount }}</div>
+            <div class="hist-amount">{{ formatMoney(credit.usedAmount) }} / {{ formatMoney(credit.creditAmount) }}</div>
+            <div class="hist-desc">剩余 {{ formatMoney(credit.remainAmount) }}</div>
           </div>
         </div>
       </div>
@@ -72,7 +71,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '@/api'
 import { useUserStore } from '@/stores/user'
-import { formatMoney, formatDate, CreditStatusLabels, type MonthlyCredit } from '@shop-os/shared'
+import { formatMoney, CreditStatusLabels, type MonthlyCredit } from '@shop-os/shared'
 import LevelBadge from '@/components/LevelBadge.vue'
 
 const router = useRouter()
@@ -89,7 +88,7 @@ const totalMonths = 10
 const usedMonths = computed(() => credits.value.length)
 
 const goPickProducts = () => {
-  router.push({ path: '/category', query: { monthly: 1 } })
+  router.push('/agent/credit-pool')
 }
 const goResell = () => router.push('/agent/resell')
 
@@ -104,7 +103,6 @@ onMounted(async () => {
 .current-card { padding: 16px; margin-bottom: 12px; }
 .current-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .current-month { color: #171A1F; font-size: 18px; font-weight: 800; }
-.current-desc { font-size: 12px; color: #626A73; margin-top: 4px; }
 .current-stats { display: flex; justify-content: space-around; margin-top: 16px; }
 .cs-item { text-align: center; }
 .cs-val { font-size: 18px; font-weight: 800; color: #171A1F; }

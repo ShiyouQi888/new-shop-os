@@ -9,7 +9,7 @@ import {
   type Member, type ProductSPU, type ProductSKU, type ProductCategory,
   type Order, type MonthlyCredit, type ResellOrder, type Commission,
   type Withdraw, type LevelBenefitConfig, type CommissionRuleConfig,
-  type SystemConfig, type SiteBranding, type DashboardStats, type FileAsset,
+  type SystemConfig, type SiteBranding, type CreditPoolItem, type DashboardStats, type FileAsset,
   type FileAssetQuery, type FileAssetGroup, type GiftPackage, type MemberWallet,
   type OrderType, type OrderStatus, type CreditStatus, type ResellStatus,
   type CommissionStatus, type WithdrawStatus, type MemberLevel,
@@ -346,6 +346,9 @@ export const apiConfig = {
     }),
   /** 站点品牌配置（公开接口，登录前也可读取） */
   getSiteConfig: () => http.get<SiteBranding>('/site/config'),
+  /** 月度领货商品池（全部等级，按 level 分组使用） */
+  getCreditPool: () => http.get<CreditPoolItem[]>('/config/credit-pool'),
+  saveCreditPool: (level: number, spuIds: number[]) => http.put(`/config/credit-pool/${level}`, { spuIds }),
 }
 
 // ============ 钱包 ============

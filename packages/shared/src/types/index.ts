@@ -384,6 +384,23 @@ export interface LevelBenefitConfig {
   status: ProductStatus
 }
 
+/** 月度领货商品池条目（后台按等级配置，`level` 对应 LevelBenefitConfig.level） */
+export interface CreditPoolItem {
+  level: number
+  spuId: number
+  name: string
+  mainImage: string
+}
+
+/** 会员端领货商品池商品（含可兑换 SKU） */
+export interface CreditPoolProduct {
+  id: number
+  name: string
+  mainImage: string
+  description: string
+  skus: { id: number; skuName: string; price: number; stock: number; image: string }[]
+}
+
 export interface CommissionRuleConfig {
   id: number
   packageLevel: MemberLevel.Silver | MemberLevel.Gold

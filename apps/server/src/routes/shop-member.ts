@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { all, get, run } from '../db/index.js'
 import { ok, badRequest, notFound, conflict } from '../utils/response.js'
-import { now, int, genNo, monthOf, parseJson } from '../utils/index.js'
+import { now, int, genNo, monthOf, parseJson, money } from '../utils/index.js'
 import { requireMember, signMemberToken } from '../middlewares/auth.js'
 import { config } from '../config.js'
 
@@ -186,6 +186,92 @@ router.get('/credits', requireMember, (req, res, next) => {
     const id = req.member!.mid
     const list = all('SELECT id, month, credit_amount AS creditAmount, used_amount AS usedAmount, remain_amount AS remainAmount, status, remark FROM credit_record WHERE member_id = ? ORDER BY month DESC', id)
     ok(res, list)
+  } catch (e) { next(e) }
+})
+
+/** GET /shop/member/credit-pool 我的等级可兑换的领货商品池（需登录） */
+router.get('/credit-pool', requireMember, (req, res, next) => {
+  try {
+    const member = get<{ level: number }>('SELECT level FROM member WHERE id = ?', req.member!.mid)
+    if (!member) throw notFound('会员不存在')
+    const spus = all<{ id: number; name: string; mainImage: string; description: string }>(
+      `SELECT p.id, p.name, p.main_image AS mainImage, p.description
+       FROM credit_pool_item c JOIN product_spu p ON p.id = c.spu_id
+       WHERE c.level = ? AND p.status = 1 ORDER BY c.sort, c.id`,
+      member.level,
+    )
+    const skus = spus.length
+      ? all<{ spuId: number; id: number; skuName: string; price: number; stock: number; image: string }>(
+          `SELECT spu_id AS spuId, id, sku_name AS skuName, price, stock, image FROM product_sku
+           WHERE spu_id IN (${spus.map(() => '?').join(',')}) AND status = 1`,
+          ...spus.map(s => s.id),
+        )
+      : []
+    const skuMap = new Map<number, typeof skus>()
+    skus.forEach(s => { const l = skuMap.get(s.spuId) || []; l.push(s); skuMap.set(s.spuId, l) })
+    const result = spus.map(s => ({ ...s, skus: skuMap.get(s.id) || [] })).filter(s => s.skus.length > 0)
+    ok(res, result)
+  } catch (e) { next(e) }
+})
+
+/** POST /shop/member/credits/:id/redeem 用月度领货额度兑换商品池内商品（需登录，生成待发货订单） */
+router.post('/credits/:id/redeem', requireMember, (req, res, next) => {
+  try {
+    const mid = req.member!.mid
+    const creditId = Number(req.params.id)
+    const body = z.object({
+      skuId: z.number().int(),
+      quantity: z.number().int().min(1),
+      receiverName: z.string().min(1).max(30),
+      receiverPhone: z.string().min(5).max(20),
+      receiverAddress: z.string().min(1).max(120),
+    }).parse(req.body)
+
+    const credit = get<Record<string, unknown>>('SELECT * FROM credit_record WHERE id = ? AND member_id = ?', creditId, mid)
+    if (!credit) throw notFound('领货额度不存在')
+    if (Number(credit.remainAmount) <= 0) throw badRequest('本月额度已用完')
+
+    const member = get<{ level: number; nickname: string }>('SELECT level, nickname FROM member WHERE id = ?', mid)
+    if (!member) throw notFound('会员不存在')
+
+    const sku = get<Record<string, unknown>>(
+      'SELECT s.*, p.status AS spuStatus FROM product_sku s JOIN product_spu p ON p.id = s.spu_id WHERE s.id = ?',
+      body.skuId,
+    )
+    if (!sku || Number(sku.status) !== 1 || Number(sku.spuStatus) !== 1) throw badRequest('商品不存在或已下架')
+    if (!get('SELECT id FROM credit_pool_item WHERE level = ? AND spu_id = ?', member.level, Number(sku.spuId))) {
+      throw badRequest('该商品不在你当前等级的领货商品池内')
+    }
+    if (Number(sku.stock) < body.quantity) throw badRequest('库存不足')
+
+    const cost = money(Number(sku.price) * body.quantity)
+    if (cost <= 0) throw badRequest('兑换金额异常')
+    if (cost > Number(credit.remainAmount)) throw badRequest('剩余额度不足')
+
+    const ts = now()
+    const orderRes = run(
+      `INSERT INTO "order" (order_no, member_id, member_name, order_type, total_amount, discount_amount, shipping_fee, pay_amount, status,
+        receiver_name, receiver_phone, receiver_address, remark, create_time, pay_time)
+       VALUES (?, ?, ?, 3, ?, ?, 0, 0, 1, ?, ?, ?, ?, ?, ?)`,
+      genNo('CR'), mid, member.nickname, cost, cost, body.receiverName, body.receiverPhone, body.receiverAddress,
+      '月度领货兑换', ts, ts,
+    )
+    const orderId = Number(orderRes.lastInsertRowid)
+    run(
+      `INSERT INTO order_item (order_id, sku_id, sku_name, spec_info, image, quantity, original_price, unit_price, total_price, member_level)
+       VALUES (?, ?, ?, '{}', ?, ?, ?, ?, ?, ?)`,
+      orderId, body.skuId, String(sku.skuName), String(sku.image || ''), body.quantity, Number(sku.price), Number(sku.price), cost, member.level,
+    )
+    run('UPDATE product_sku SET stock = stock - ?, sales = sales + ? WHERE id = ?', body.quantity, body.quantity, body.skuId)
+
+    const remain = money(Number(credit.remainAmount) - cost)
+    const used = money(Number(credit.usedAmount) + cost)
+    run('UPDATE credit_record SET used_amount = ?, remain_amount = ?, status = ?, update_time = ? WHERE id = ?',
+      used, remain, remain <= 0 ? 2 : 1, ts, creditId)
+    run('INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, create_time) VALUES (?, ?, ?, ?, 2, ?, ?)',
+      creditId, mid, -cost, remain, `领取商品自用：${String(sku.skuName)} x${body.quantity}`, ts)
+
+    ok(res, { orderId, cost, remainAmount: remain }, '兑换成功，等待发货', 201)
   } catch (e) { next(e) }
 })
 
