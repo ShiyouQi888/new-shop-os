@@ -2,6 +2,7 @@
   "name": "shop-os",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "pnpm@8.15.9",
   "description": "电商代理商系统 - 零售商城 + 大礼包入会 + 月度领货权益 + 站内转卖 + 三级分销佣金",
   "scripts": {
     "dev:admin": "pnpm --filter @shop-os/admin dev",
@@ -9,7 +10,10 @@
     "dev": "pnpm run dev:admin & pnpm run dev:shop",
     "build:admin": "pnpm --filter @shop-os/admin build",
     "build:shop": "pnpm --filter @shop-os/shop build",
-    "build:all": "pnpm --filter @shop-os/admin build && pnpm --filter @shop-os/shop build",
+    "build:server": "pnpm --filter @shop-os/server build",
+    "build:all": "pnpm --filter @shop-os/server build && pnpm --filter @shop-os/admin build && pnpm --filter @shop-os/shop build",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
     "lint": "pnpm -r --parallel lint"
   },
   "engines": {

@@ -4,7 +4,7 @@
  */
 import { showToast } from 'vant'
 
-export const BASE_URL = 'http://localhost:3000/api/v1'
+export const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1'
 
 /** 会员 token 存储 key（user store 同步使用） */
 export const MEMBER_TOKEN_KEY = 'shop_os_member_token'

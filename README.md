@@ -76,6 +76,47 @@ pnpm dev:shop
 pnpm build:all
 ```
 
+## Docker 部署
+
+项目已内置 Docker Compose 部署：
+
+- `server`：Express + SQLite 后端，默认映射 `http://localhost:3000`
+- `admin`：后台管理端 nginx 静态站点，默认映射 `http://localhost:5173`
+- `shop`：前台商城 H5 nginx 静态站点，默认映射 `http://localhost:5176`
+- SQLite 数据库持久化到 `shop_os_data` volume
+- 上传文件持久化到 `shop_os_uploads` volume
+
+```bash
+# 可选：复制环境变量模板后按需修改端口、域名、JWT_SECRET
+cp .env.docker.example .env
+
+# 构建并启动
+docker compose up -d --build
+
+# 查看日志
+docker compose logs -f
+
+# 停止服务
+docker compose down
+```
+
+默认访问地址：
+
+| 服务 | 地址 |
+|------|------|
+| 前台商城 | http://localhost:5176 |
+| 管理后台 | http://localhost:5173 |
+| 后端健康检查 | http://localhost:3000/api/v1/health |
+
+前后台静态站点通过 nginx 将 `/api/*` 与 `/uploads/*` 反向代理到 `server` 容器。生产环境如果使用独立域名，请在 `.env` 中调整：
+
+```bash
+SERVER_BASE_URL=https://api.example.com
+JWT_SECRET=请替换为足够长的随机密钥
+```
+
+`AUTO_SEED=1` 会在后端容器启动时幂等初始化演示数据；已有 `seed.done` 标记时会自动跳过。
+
 ## 标准化设计系统
 
 ### 设计令牌 (packages/shared/src/tokens/)
