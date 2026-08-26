@@ -24,7 +24,7 @@
         </div>
         <div class="package-rights">
           <div class="right-item"><div class="right-value">{{ discountOf(pkg) }}</div><div class="right-label">商城折扣</div></div>
-          <div class="right-item"><div class="right-value">¥{{ creditOf(pkg) }}</div><div class="right-label">月度领货</div></div>
+          <div class="right-item"><div class="right-value">{{ creditOf(pkg) }}</div><div class="right-label">月度领货</div></div>
           <div class="right-item"><div class="right-value">{{ monthsOf(pkg) }}</div><div class="right-label">领货周期</div></div>
           <div class="right-item"><div class="right-value">{{ commissionText(pkg.level) }}</div><div class="right-label">分享佣金</div></div>
         </div>
@@ -123,7 +123,7 @@ const discountOf = (pkg: GiftPackage) => {
 
 const creditOf = (pkg: GiftPackage) => {
   const lv = levels.value.find((l) => l.level === pkg.level)
-  return lv ? String(lv.monthlyCredit) : '-'
+  return lv ? formatMoney(lv.monthlyCredit, 0) : '-'
 }
 
 const monthsOf = (pkg: GiftPackage) => {
@@ -143,9 +143,9 @@ const compareRows = computed(() => [
 
 const cellOf = (lv: LevelRow, key: string) => {
   switch (key) {
-    case 'entry': return `¥${lv.entryAmount.toLocaleString()}`
+    case 'entry': return formatMoney(lv.entryAmount, 0)
     case 'discount': return `${lv.shopDiscount / 10}折`
-    case 'credit': return `¥${lv.monthlyCredit}/月`
+    case 'credit': return `${formatMoney(lv.monthlyCredit, 0)}/月`
     case 'months': return `${lv.creditMonths}个月`
     case 'resell': return '可用'
     case 'commission': return commissionText(lv.level)

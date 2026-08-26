@@ -28,7 +28,7 @@
         <div v-if="showReferencePrice" class="reference-price-line">参考原价 {{ formatMoney(referenceOriginalPrice) }}</div>
         <div class="member-price-tag" v-if="savingAmount > 0">
           <van-icon name="medal-o" />
-          <span>{{ levelLabel }} 专享价，已省 ¥{{ savingAmount.toFixed(2) }}</span>
+          <span>{{ levelLabel }} 专享价，已省 {{ formatMoney(savingAmount) }}</span>
         </div>
       </section>
 
@@ -44,7 +44,7 @@
           </div>
           <div class="benefit-item">
             <van-icon name="balance-list-o" />
-            <span>每月领货额度 ¥{{ monthlyCredit }}/月，共 10 个月</span>
+            <span>每月领货额度 {{ formatMoney(monthlyCredit, 0) }}/月，共 10 个月</span>
           </div>
           <div class="benefit-item">
             <van-icon name="discount" />

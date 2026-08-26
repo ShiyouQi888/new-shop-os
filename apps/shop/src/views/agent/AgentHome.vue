@@ -24,7 +24,7 @@
         <div class="asset-row">
           <div>
             <span>可提现余额</span>
-            <strong>¥{{ stats.commission.available.toFixed(2) }}</strong>
+            <strong>{{ formatMoney(stats.commission.available) }}</strong>
           </div>
           <van-button class="withdraw-action" round color="#ffffff" size="small" @click="router.push('/agent/commission')">
             申请提现
@@ -33,7 +33,7 @@
 
         <div class="rights-row">
           <span>{{ stats.member.level === 2 ? 8 : 9 }}折商城</span>
-          <span>月领 ¥{{ userStore.monthlyCredit }}</span>
+          <span>月领 {{ formatMoney(userStore.monthlyCredit) }}</span>
           <span>权益周期 10 个月</span>
         </div>
       </section>
@@ -41,11 +41,11 @@
       <section class="metric-grid" aria-label="经营指标">
         <button class="metric-card" type="button" @click="router.push('/agent/commission')">
           <span>累计佣金</span>
-          <strong>¥{{ stats.commission.total.toFixed(0) }}</strong>
+          <strong>{{ formatMoney(stats.commission.total, 0) }}</strong>
         </button>
         <button class="metric-card" type="button" @click="router.push('/agent/credit')">
           <span>本月待领</span>
-          <strong>¥{{ stats.monthlyCredit?.remainAmount || 0 }}</strong>
+          <strong>{{ formatMoney(stats.monthlyCredit?.remainAmount || 0) }}</strong>
         </button>
         <button class="metric-card" type="button" @click="router.push('/agent/team')">
           <span>团队人数</span>
@@ -107,7 +107,7 @@
         </div>
         <div class="todo-item">
           <van-icon name="balance-o" color="#18A66A" />
-          <span>佣金 ¥{{ stats.commission.available.toFixed(0) }} 可提现，提现前请确认账号</span>
+          <span>佣金 {{ formatMoney(stats.commission.available, 0) }} 可提现，提现前请确认账号</span>
         </div>
       </section>
     </main>
@@ -119,6 +119,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '@/api'
 import { useUserStore } from '@/stores/user'
+import { formatMoney } from '@shop-os/shared'
 import LevelBadge from '@/components/LevelBadge.vue'
 
 const router = useRouter()

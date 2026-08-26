@@ -31,7 +31,7 @@
           </div>
         </div>
         <div class="ti-contribution">
-          <div class="ti-amount price">¥{{ getContribution(m.id) }}</div>
+          <div class="ti-amount price">{{ formatMoney(getContribution(m.id)) }}</div>
           <div class="ti-label">贡献佣金</div>
         </div>
       </div>
@@ -49,7 +49,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '@/api'
-import { maskName, formatDate, type Member } from '@shop-os/shared'
+import { maskName, formatDate, formatMoney, type Member } from '@shop-os/shared'
 import { useUserStore } from '@/stores/user'
 import LevelBadge from '@/components/LevelBadge.vue'
 

@@ -91,22 +91,22 @@
           <div class="stat-label">成交订单</div>
         </div>
         <div class="stat-item">
-          <div class="stat-val price">¥{{ promoteStats.commissionTotal.toFixed(0) }}</div>
+          <div class="stat-val price">{{ formatMoney(promoteStats.commissionTotal, 0) }}</div>
           <div class="stat-label">累计佣金</div>
         </div>
       </div>
       <div class="commission-stats">
         <div class="cs-row">
           <span>一级佣金</span>
-          <span class="price">¥{{ levelCommission(1) }}</span>
+          <span class="price">{{ formatMoney(levelCommission(1)) }}</span>
         </div>
         <div class="cs-row">
           <span>二级佣金</span>
-          <span class="price">¥{{ levelCommission(2) }}</span>
+          <span class="price">{{ formatMoney(levelCommission(2)) }}</span>
         </div>
         <div class="cs-row">
           <span>三级佣金</span>
-          <span class="price">¥{{ levelCommission(3) }}</span>
+          <span class="price">{{ formatMoney(levelCommission(3)) }}</span>
         </div>
       </div>
     </div>

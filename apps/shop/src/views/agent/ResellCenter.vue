@@ -19,20 +19,20 @@
         <div class="est-result">
           <div class="est-line">
             <span>商品价值</span>
-            <span>¥{{ goodsValue.toFixed(2) }}</span>
+            <span>{{ formatMoney(goodsValue) }}</span>
           </div>
           <div class="est-line danger">
             <span>服务费 (20%)</span>
-            <span>-¥{{ serviceFee.toFixed(2) }}</span>
+            <span>-{{ formatMoney(serviceFee) }}</span>
           </div>
           <div class="est-line danger">
             <span>快递费</span>
-            <span>-¥{{ shippingFee.toFixed(2) }}</span>
+            <span>-{{ formatMoney(shippingFee) }}</span>
           </div>
           <van-divider margin="8px 0" />
           <div class="est-line result">
             <span>预计到账</span>
-            <span class="result-price">¥{{ settleAmount.toFixed(2) }}</span>
+            <span class="result-price">{{ formatMoney(settleAmount) }}</span>
           </div>
         </div>
         <van-button block round color="#FF6B35" :loading="submitting" loading-text="提交中..." @click="confirmResell">
@@ -64,7 +64,7 @@
           <div class="rec-meta">{{ item.resellNo }}</div>
         </div>
         <div class="rec-right">
-          <div class="rec-amount price">+¥{{ item.settleAmount.toFixed(2) }}</div>
+          <div class="rec-amount price">+{{ formatMoney(item.settleAmount) }}</div>
           <div class="rec-status" :class="statusClass(item.status)">{{ ResellStatusLabels[item.status] }}</div>
         </div>
       </div>
@@ -78,7 +78,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showConfirmDialog, showSuccessToast, showToast } from 'vant'
 import { api } from '@/api'
-import { ResellStatus, ResellStatusLabels, type ResellOrder } from '@shop-os/shared'
+import { ResellStatus, ResellStatusLabels, formatMoney, type ResellOrder } from '@shop-os/shared'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
@@ -96,7 +96,7 @@ const usableCredits = computed(() => credits.value.filter(c => c.remainAmount > 
 const selectedCredit = computed(() => usableCredits.value.find(c => c.id === selectedCreditId.value) || usableCredits.value[0] || null)
 const selectedCreditRemain = computed(() => Number(selectedCredit.value?.remainAmount ?? 0))
 const creditOptions = computed(() => usableCredits.value.length
-  ? usableCredits.value.map(c => ({ text: `${c.month} 可转卖 ¥${c.remainAmount.toFixed(2)}`, value: c.id }))
+  ? usableCredits.value.map(c => ({ text: `${c.month} 可转卖 ${formatMoney(c.remainAmount)}`, value: c.id }))
   : [{ text: '暂无可转卖额度', value: 0 }])
 
 const filteredList = computed(() => {
@@ -128,7 +128,7 @@ const confirmResell = async () => {
   try {
     await showConfirmDialog({
       title: '确认转卖',
-      message: `提交后系统将按 ¥${goodsValue.value.toFixed(2)} 商品价值进入匹配，预计到账 ¥${settleAmount.value.toFixed(2)}。`,
+      message: `提交后系统将按 ${formatMoney(goodsValue.value)} 商品价值进入匹配，预计到账 ${formatMoney(settleAmount.value)}。`,
       confirmButtonText: '发起转卖',
     })
   } catch {

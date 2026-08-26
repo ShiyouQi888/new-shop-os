@@ -23,7 +23,7 @@
           <span>购物折扣</span>
         </div>
         <div>
-          <strong>¥{{ userStore.monthlyCredit }}</strong>
+          <strong>{{ formatMoney(userStore.monthlyCredit) }}</strong>
           <span>月度额度</span>
         </div>
         <div>
@@ -38,7 +38,7 @@
         <van-icon name="medal-o" size="24" color="#FF6B35" />
         <div>
           <div class="entry-title">会员工作台</div>
-          <div class="entry-desc">可提现 ¥{{ userStore.wallet?.balance.toFixed(2) || '0' }}，管理团队与收益</div>
+          <div class="entry-desc">可提现 {{ formatMoney(userStore.wallet?.balance || 0) }}，管理团队与收益</div>
         </div>
       </div>
       <van-icon name="arrow" />
@@ -59,15 +59,15 @@
 
     <section v-if="userStore.isAgent" class="wallet-card">
       <div class="wallet-item">
-        <div class="wallet-value">¥{{ userStore.wallet?.balance.toFixed(2) || '0' }}</div>
+        <div class="wallet-value">{{ formatMoney(userStore.wallet?.balance || 0) }}</div>
         <div class="wallet-label">可提现</div>
       </div>
       <div class="wallet-item">
-        <div class="wallet-value">¥{{ userStore.wallet?.frozen.toFixed(2) || '0' }}</div>
+        <div class="wallet-value">{{ formatMoney(userStore.wallet?.frozen || 0) }}</div>
         <div class="wallet-label">待结算</div>
       </div>
       <div class="wallet-item">
-        <div class="wallet-value">¥{{ userStore.wallet?.totalIncome.toFixed(2) || '0' }}</div>
+        <div class="wallet-value">{{ formatMoney(userStore.wallet?.totalIncome || 0) }}</div>
         <div class="wallet-label">累计收入</div>
       </div>
     </section>
@@ -92,6 +92,7 @@ import { useRouter } from 'vue-router'
 import { showConfirmDialog, showSuccessToast } from 'vant'
 import { useUserStore } from '@/stores/user'
 import { api } from '@/api'
+import { formatMoney } from '@shop-os/shared'
 import LevelBadge from '@/components/LevelBadge.vue'
 
 const router = useRouter()

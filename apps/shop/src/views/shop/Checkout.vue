@@ -39,7 +39,7 @@
         <div class="discount-row"><span>销售价合计</span><span>{{ formatMoney(cartStore.totalPrice) }}</span></div>
         <div class="discount-row discount"><span>{{ levelLabel }}会员优惠</span><span>-{{ formatMoney(cartStore.discountAmount) }}</span></div>
         <div class="discount-row payable"><span>商品金额</span><span>{{ formatMoney(cartStore.memberTotalPrice) }}</span></div>
-        <div class="discount-row"><span>运费</span><span>¥{{ shippingFee.toFixed(2) }}</span></div>
+        <div class="discount-row"><span>运费</span><span>{{ formatMoney(shippingFee) }}</span></div>
         <van-cell title="优惠券" is-link value="暂无可用" />
       </section>
 

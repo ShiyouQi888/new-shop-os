@@ -6,22 +6,22 @@
     <div class="overview-card premium-card">
       <div class="overview-row">
         <div class="ov-item">
-          <div class="ov-val price-lg">¥{{ stats.available.toFixed(2) }}</div>
+          <div class="ov-val price-lg">{{ formatMoney(stats.available) }}</div>
           <div class="ov-label">可提现</div>
         </div>
         <van-button color="#FF6B35" size="small" round @click="showWithdraw = true">申请提现</van-button>
       </div>
       <div class="overview-stats">
         <div class="os-item">
-          <div class="os-val">¥{{ stats.total.toFixed(2) }}</div>
+          <div class="os-val">{{ formatMoney(stats.total) }}</div>
           <div class="os-label">累计佣金</div>
         </div>
         <div class="os-item">
-          <div class="os-val">¥{{ stats.pending.toFixed(2) }}</div>
+          <div class="os-val">{{ formatMoney(stats.pending) }}</div>
           <div class="os-label">待结算</div>
         </div>
         <div class="os-item">
-          <div class="os-val">¥{{ stats.withdrawn.toFixed(2) }}</div>
+          <div class="os-val">{{ formatMoney(stats.withdrawn) }}</div>
           <div class="os-label">已提现</div>
         </div>
       </div>
@@ -40,7 +40,7 @@
             {{ ['一', '二', '三'][item.distributionLevel - 1] }}级
           </div>
           <div class="ci-info">
-            <div class="ci-amount price">+¥{{ item.amount.toFixed(2) }}</div>
+            <div class="ci-amount price">+{{ formatMoney(item.amount) }}</div>
             <div class="ci-meta">来自会员#{{ item.sourceMemberId }} · {{ item.rate }}% 佣金</div>
             <div class="ci-time">{{ item.createTime }}</div>
           </div>
@@ -56,7 +56,7 @@
         <div class="popup-title">申请提现</div>
         <div class="withdraw-balance">
           <span>可提现余额</span>
-          <span class="price">¥{{ stats.available.toFixed(2) }}</span>
+          <span class="price">{{ formatMoney(stats.available) }}</span>
         </div>
         <van-field v-model="withdrawAmount" type="number" label="提现金额" placeholder="请输入提现金额" />
         <van-cell title="收款方式" :border="false">
@@ -85,7 +85,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showSuccessToast } from 'vant'
 import { api } from '@/api'
-import { CommissionStatusLabels, type Commission, type CommissionStatus } from '@shop-os/shared'
+import { CommissionStatusLabels, formatMoney, type Commission, type CommissionStatus } from '@shop-os/shared'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
