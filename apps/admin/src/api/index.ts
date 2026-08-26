@@ -147,9 +147,46 @@ export const apiMember = {
 }
 
 // ============ 商品 ============
+const boolFromFlag = (value: unknown) => value === true || value === 1 || value === '1'
+const normalizeProduct = (row: Row): ProductSPU & { skuCount?: number; totalStock?: number } => ({
+  ...(row as unknown as ProductSPU),
+  id: Number(row.id),
+  name: String(row.name || ''),
+  categoryId: row.categoryId !== undefined ? Number(row.categoryId) : Number(row.category_id ?? 0),
+  mainImage: String(row.mainImage ?? row.main_image ?? ''),
+  images: Array.isArray(row.images) ? row.images as string[] : [],
+  description: String(row.description || ''),
+  isGiftPackage: boolFromFlag(row.isGiftPackage ?? row.is_gift_package),
+  isMonthlyProduct: boolFromFlag(row.isMonthlyProduct ?? row.is_monthly_product),
+  excludeDiscount: boolFromFlag(row.excludeDiscount ?? row.exclude_discount),
+  status: Number(row.status ?? 1),
+  sort: Number(row.sort ?? 0),
+  createTime: String(row.createTime ?? row.create_time ?? ''),
+  skuCount: Number(row.skuCount ?? 0),
+  totalStock: Number(row.totalStock ?? 0),
+})
+
+const toProductPayload = (product: Partial<ProductSPU>) => {
+  const row = product as Row
+  return {
+    name: product.name,
+    categoryId: product.categoryId ?? (row.category_id !== undefined ? Number(row.category_id) : null),
+    mainImage: product.mainImage || String(row.main_image || ''),
+    images: product.images || (Array.isArray(row.images) ? row.images as string[] : []),
+    description: product.description || '',
+    isGiftPackage: boolFromFlag(product.isGiftPackage ?? row.is_gift_package),
+    isMonthlyProduct: boolFromFlag(product.isMonthlyProduct ?? row.is_monthly_product),
+    excludeDiscount: boolFromFlag(product.excludeDiscount ?? row.exclude_discount),
+    status: product.status,
+    sort: product.sort ?? Number(row.sort ?? 0),
+  }
+}
+
 export const apiProduct = {
-  getList: (params: { page: number; pageSize: number; keyword?: string; categoryId?: number | '' }) =>
-    http.get<{ list: (ProductSPU & { skuCount: number; totalStock: number })[]; total: number }>('/products', params as unknown as Record<string, unknown>),
+  getList: async (params: { page: number; pageSize: number; keyword?: string; categoryId?: number | '' }) => {
+    const res = await http.get<{ list: Row[]; total: number }>('/products', params as unknown as Record<string, unknown>)
+    return { ...res, list: res.list.map(normalizeProduct) }
+  },
   getSkus: async (spuId: number) => {
     const skus = await http.get<Array<ProductSKU & { originalPrice?: number; image?: string; specInfo?: Record<string, string> | string }>>(`/products/${spuId}/skus`)
     return skus.map(sku => ({
@@ -161,11 +198,12 @@ export const apiProduct = {
   },
   getById: (id: number) => http.get<ProductSPU & { skus: ProductSKU[] }>(`/products/${id}`),
   save: async (product: Partial<ProductSPU>): Promise<ProductSPU> => {
+    const payload = toProductPayload(product)
     if (product.id) {
-      const data = await http.put<Row>(`/products/${product.id}`, product)
+      const data = await http.put<Row>(`/products/${product.id}`, payload)
       return { ...product, id: product.id } as ProductSPU
     }
-    const data = await http.post<{ id: number }>('/products', product)
+    const data = await http.post<{ id: number }>('/products', payload)
     return { ...product, id: data.id, createTime: new Date().toISOString() } as ProductSPU
   },
   toggleStatus: async (id: number) => {
