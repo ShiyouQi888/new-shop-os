@@ -268,7 +268,7 @@ export async function seed() {
 
   // ===== 系统配置 =====
   const syscfg: [string, string, string, string][] = [
-    ['site.name', 'Shop-OS 电商代理商系统', 'basic', '站点名称'],
+    ['site.name', '橙选电商代理商系统', 'basic', '站点名称'],
     ['site.kf_phone', '400-888-0000', 'basic', '客服电话'],
     ['site.domain', 'http://localhost:5174', 'basic', '站点访问域名（用于生成推广链接/海报二维码）'],
     ['order.auto_finish_days', '7', 'order', '确认收货后自动完成天数'],

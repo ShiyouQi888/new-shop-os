@@ -37,7 +37,7 @@
       <div class="poster-preview" v-else>
         <div class="poster-inner" @click="savePoster">
           <div class="poster-top">
-            <div class="poster-brand">Shop-OS</div>
+            <img class="poster-brand-logo" src="/logo.png" alt="橙选" />
             <div class="poster-slogan">加入代理商 开启分享之路</div>
           </div>
           <div class="poster-content">
@@ -327,7 +327,10 @@ const savePoster = () => {
       ctx.fillRect(0, 0, 400, 140)
       ctx.fillStyle = '#FF6B35'
       ctx.font = 'bold 34px sans-serif'
-      ctx.fillText('Shop-OS', 28, 62)
+      ctx.fillText('橙选', 28, 62)
+      ctx.fillStyle = 'rgba(255,255,255,.62)'
+      ctx.font = 'bold 14px sans-serif'
+      ctx.fillText('CHENGXUAN', 30, 84)
       ctx.fillStyle = 'rgba(255,255,255,.85)'
       ctx.font = '18px sans-serif'
       ctx.fillText('加入代理商 开启分享之路', 28, 100)
@@ -493,7 +496,15 @@ const savePoster = () => {
   opacity: 0.85;
 }
 
-.poster-brand { font-size: 22px; font-weight: 800; color: var(--color-ink); }
+.poster-brand-logo {
+  width: 142px;
+  height: 54px;
+  padding: 5px 9px;
+  border-radius: 15px;
+  object-fit: contain;
+  background: #050505;
+  display: inline-block;
+}
 .poster-slogan { font-size: 12px; color: var(--color-muted); margin-top: 4px; }
 .poster-content { margin: 16px 0; }
 .poster-name { font-size: 14px; font-weight: 700; margin: 8px 0 12px; color: var(--color-ink); }

@@ -3,10 +3,10 @@
     <!-- 侧边栏 -->
     <el-aside :width="collapsed ? '64px' : '220px'" class="admin-aside">
       <div class="logo-area">
-        <div class="logo-icon">
-          <el-icon :size="22" color="#fff"><ShoppingBag /></el-icon>
+        <div class="logo-icon" aria-hidden="true">
+          <img src="/logo.png" alt="" />
         </div>
-        <span v-show="!collapsed" class="logo-text">Shop-OS 管理后台</span>
+        <img v-show="!collapsed" class="logo-wordmark" src="/logo.png" alt="橙选管理后台" />
       </div>
       <el-scrollbar class="menu-scrollbar">
         <el-menu
@@ -107,7 +107,7 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter, type RouteRecordRaw } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
-import { Fold, Expand, Refresh, FullScreen, ArrowDown, SwitchButton, ShoppingBag } from '@element-plus/icons-vue'
+import { Fold, Expand, Refresh, FullScreen, ArrowDown, SwitchButton } from '@element-plus/icons-vue'
 import { adminRoutes } from '@/router/routes'
 import { getUser, getPermissions, clearAuth } from '@/utils/auth'
 import { apiAuth } from '@/api'
@@ -231,20 +231,31 @@ const toggleFullscreen = () => {
   white-space: nowrap;
 }
 .logo-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
-  background: linear-gradient(135deg, #FF6B35, #E85222);
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: #050505;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   box-shadow: 0 10px 24px rgba(255, 107, 53, 0.34);
+  overflow: hidden;
 }
-.logo-text {
-  color: #fff;
-  font-size: 15px;
-  font-weight: 600;
+.logo-icon img {
+  height: 100%;
+  width: 118px;
+  object-fit: cover;
+  object-position: left center;
+}
+.logo-wordmark {
+  width: 138px;
+  height: 36px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  object-fit: contain;
+  background: #050505;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
 }
 .menu-scrollbar {
   height: calc(100vh - 60px);

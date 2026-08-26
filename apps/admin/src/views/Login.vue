@@ -6,11 +6,11 @@
       <section class="brand-panel">
         <div class="brand-head">
           <div class="brand-logo" aria-hidden="true">
-            <el-icon :size="26" color="#fff"><ShoppingBag /></el-icon>
+            <img src="/logo.png" alt="" />
           </div>
           <div>
             <div class="brand-kicker">ADMIN CONSOLE</div>
-            <h1>Shop-OS</h1>
+            <h1>橙选</h1>
           </div>
         </div>
 
@@ -109,7 +109,7 @@
 import { ref, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance } from 'element-plus'
-import { Lock, ShoppingBag, User } from '@element-plus/icons-vue'
+import { Lock, User } from '@element-plus/icons-vue'
 import { apiAuth } from '@/api'
 import { setAuth } from '@/utils/auth'
 
@@ -229,14 +229,20 @@ const handleLogin = async () => {
   gap: 16px;
 }
 .brand-logo {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #FF6B35, #E85222);
+  width: 150px;
+  height: 58px;
+  padding: 5px 10px;
+  border-radius: 16px;
+  background: #050505;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 8px 24px rgba(255, 107, 53, 0.4);
+}
+.brand-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 .brand-kicker {
   color: rgba(255, 255, 255, 0.48);

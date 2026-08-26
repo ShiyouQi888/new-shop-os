@@ -1,6 +1,12 @@
 <template>
   <div class="home-page page-shell">
-    <van-nav-bar title="Shop-OS 精品商城" fixed safe-area-inset-top />
+    <van-nav-bar fixed safe-area-inset-top>
+      <template #title>
+        <div class="home-brand">
+          <img src="/logo.png" alt="橙选商城" class="home-brand-logo" />
+        </div>
+      </template>
+    </van-nav-bar>
 
     <main class="home-body">
       <van-swipe class="banner-swipe hero-swipe" :autoplay="3600" indicator-color="#FF6B35">
@@ -97,6 +103,21 @@ onMounted(async () => {
 <style scoped>
 .home-page {
   padding-top: 46px;
+}
+.home-brand {
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.home-brand-logo {
+  width: 142px;
+  height: 30px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  object-fit: contain;
+  background: #050505;
+  display: block;
 }
 .home-body {
   padding: 10px 12px 18px;

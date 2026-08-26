@@ -10,11 +10,8 @@
 
       <section class="brand-stage">
         <div class="brand-lockup">
-          <div class="brand-mark">S</div>
-          <div>
-            <div class="brand-name">Shop-OS</div>
-            <div class="brand-subtitle">邀请制会员准入</div>
-          </div>
+          <img class="brand-logo" src="/logo.png" alt="橙选" />
+          <div class="brand-subtitle">邀请制会员准入</div>
         </div>
 
         <div class="stage-copy">
@@ -197,27 +194,24 @@ const onSubmit = async () => {
 }
 .brand-lockup {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
 }
-.brand-mark {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, #FF6B35, #E85222);
-  font-size: 24px;
-  font-weight: 800;
-}
-.brand-name {
-  font-size: 18px;
-  font-weight: 800;
+.brand-logo {
+  width: 152px;
+  height: 58px;
+  padding: 5px 9px;
+  border-radius: 16px;
+  object-fit: contain;
+  background: #050505;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
 }
 .brand-subtitle {
-  margin-top: 2px;
+  padding-left: 2px;
   color: rgba(255, 255, 255, 0.68);
   font-size: 12px;
+  font-weight: 700;
 }
 .stage-copy {
   padding: 18px 0 6px;
