@@ -27,7 +27,7 @@
             <div class="goods-name">{{ item.skuName }}</div>
             <div class="goods-price-row">
               <span class="price">{{ formatMoney(item.memberPrice) }}</span>
-              <span v-if="item.memberPrice < item.price" class="price-old">¥{{ item.price }}</span>
+              <span v-if="item.memberPrice < item.price" class="price-old">{{ formatMoney(item.price) }}</span>
               <span class="goods-qty">×{{ item.quantity }}</span>
             </div>
           </div>
@@ -36,8 +36,8 @@
 
       <section class="discount-card premium-card">
         <div class="card-title">费用明细</div>
-        <div class="discount-row"><span>商品原价</span><span>{{ formatMoney(cartStore.totalPrice) }}</span></div>
-        <div class="discount-row discount"><span>{{ levelLabel }}优惠</span><span>-{{ formatMoney(cartStore.discountAmount) }}</span></div>
+        <div class="discount-row"><span>销售价合计</span><span>{{ formatMoney(cartStore.totalPrice) }}</span></div>
+        <div class="discount-row discount"><span>{{ levelLabel }}会员优惠</span><span>-{{ formatMoney(cartStore.discountAmount) }}</span></div>
         <div class="discount-row payable"><span>商品金额</span><span>{{ formatMoney(cartStore.memberTotalPrice) }}</span></div>
         <div class="discount-row"><span>运费</span><span>¥{{ shippingFee.toFixed(2) }}</span></div>
         <van-cell title="优惠券" is-link value="暂无可用" />

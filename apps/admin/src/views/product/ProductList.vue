@@ -162,7 +162,7 @@
                   <el-input-number v-model="row.price" :min="0" :precision="2" :controls="false" style="width: 100%" />
                 </template>
               </el-table-column>
-              <el-table-column label="原价/成本" width="120">
+              <el-table-column label="成本/参考原价" width="138">
                 <template #default="{ row }">
                   <el-input-number v-model="row.costPrice" :min="0" :precision="2" :controls="false" style="width: 100%" />
                 </template>

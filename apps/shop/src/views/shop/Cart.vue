@@ -17,7 +17,7 @@
             <div class="cart-name">{{ item.skuName }}</div>
             <div class="cart-price-row">
               <span class="price">{{ formatMoney(item.memberPrice) }}</span>
-              <span v-if="item.memberPrice < item.price" class="price-old">¥{{ item.price }}</span>
+              <span v-if="item.memberPrice < item.price" class="price-old">{{ formatMoney(item.price) }}</span>
             </div>
             <div class="cart-actions">
               <van-stepper v-model="item.quantity" :min="1" :max="99" @change="updateQuantity(item.skuId, item.quantity)" />

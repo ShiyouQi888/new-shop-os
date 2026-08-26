@@ -100,7 +100,7 @@
       <el-table :data="currentOrder?.items || []" style="margin-top: 16px" border>
         <el-table-column label="商品" prop="skuName" min-width="200" />
         <el-table-column label="数量" prop="quantity" width="80" align="center" />
-        <el-table-column label="原价" min-width="100">
+        <el-table-column label="销售价" min-width="100">
           <template #default="{ row }"><span class="price-nowrap">¥{{ row.originalPrice }}</span></template>
         </el-table-column>
         <el-table-column label="成交价" min-width="100">
