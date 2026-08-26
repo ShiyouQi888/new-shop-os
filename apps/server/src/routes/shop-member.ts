@@ -411,6 +411,15 @@ router.post('/cart', requireMember, (req, res, next) => {
   } catch (e) { next(e) }
 })
 
+/** PUT /shop/member/cart/select-all 全选/全不选（body: { selected }） */
+router.put('/cart/select-all', requireMember, (req, res, next) => {
+  try {
+    const selected = z.object({ selected: z.boolean() }).parse(req.body).selected
+    run('UPDATE member_cart SET selected = ?, update_time = ? WHERE member_id = ?', selected ? 1 : 0, now(), req.member!.mid)
+    ok(res, null, '已更新')
+  } catch (e) { next(e) }
+})
+
 /** PUT /shop/member/cart/:skuId 更新数量/选中（body: { quantity?, selected? }） */
 router.put('/cart/:skuId', requireMember, (req, res, next) => {
   try {
@@ -421,15 +430,6 @@ router.put('/cart/:skuId', requireMember, (req, res, next) => {
     const body = z.object({ quantity: z.number().int().min(1).optional(), selected: z.boolean().optional() }).parse(req.body)
     run('UPDATE member_cart SET quantity = ?, selected = ?, update_time = ? WHERE id = ?',
       body.quantity ?? item.quantity, body.selected !== undefined ? (body.selected ? 1 : 0) : item.selected, now(), item.id)
-    ok(res, null, '已更新')
-  } catch (e) { next(e) }
-})
-
-/** PUT /shop/member/cart/select-all 全选/全不选（body: { selected }） */
-router.put('/cart/select-all', requireMember, (req, res, next) => {
-  try {
-    const selected = z.object({ selected: z.boolean() }).parse(req.body).selected
-    run('UPDATE member_cart SET selected = ?, update_time = ? WHERE member_id = ?', selected ? 1 : 0, now(), req.member!.mid)
     ok(res, null, '已更新')
   } catch (e) { next(e) }
 })

@@ -81,9 +81,11 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   const selectOnly = async (skuId: number) => {
+    if (!items.value.some(i => i.skuId === skuId)) await load()
     await api.setCartSelectAll(false)
     items.value.forEach(i => i.selected = i.skuId === skuId)
     await api.updateCartItem(skuId, { selected: true })
+    await load()
   }
 
   return { items, totalCount, selectedItems, totalPrice, memberTotalPrice, discountAmount, load,
