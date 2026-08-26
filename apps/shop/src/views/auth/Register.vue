@@ -71,7 +71,7 @@
             maxlength="50"
             :rules="[
               { required: true, message: '请再次输入密码' },
-              { validator: (v: string) => v === password.value, message: '两次输入的密码不一致' },
+              { validator: passwordsMatch, message: '两次输入的密码不一致' },
             ]"
           />
           <van-field
@@ -121,6 +121,7 @@ const confirmPassword = ref('')
 /** 来自推广链接的邀请码（/r/xxx 进入时自动带出并锁定） */
 const inviteFromLink = typeof route.query.invite === 'string' ? route.query.invite.trim().toUpperCase() : ''
 const inviteCode = ref(inviteFromLink)
+const passwordsMatch = (v: string) => v === password.value
 
 onMounted(() => {
   // 已登录用户无需注册：从推广链接进入时直接跳回首页
