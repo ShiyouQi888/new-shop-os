@@ -10,7 +10,7 @@
 
       <section class="brand-stage">
         <div class="brand-lockup">
-          <img class="brand-logo" src="/logo.png" alt="橙选" />
+          <img class="brand-logo" :src="siteBranding.logo || '/logo.png'" alt="橙选" />
           <div class="brand-subtitle">邀请制会员准入</div>
         </div>
 
@@ -108,10 +108,12 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showFailToast, showSuccessToast } from 'vant'
 import { useUserStore } from '@/stores/user'
+import { siteBranding, ensureSiteBranding } from '@/utils/site'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+ensureSiteBranding()
 const nickname = ref('')
 const phone = ref('')
 const password = ref('')
@@ -201,11 +203,7 @@ const onSubmit = async () => {
 .brand-logo {
   width: 152px;
   height: 58px;
-  padding: 5px 9px;
-  border-radius: 16px;
   object-fit: contain;
-  background: #050505;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
 }
 .brand-subtitle {
   padding-left: 2px;

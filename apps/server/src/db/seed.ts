@@ -15,7 +15,23 @@ function markSeed(key: string) {
   )
 }
 
+/**
+ * 新增系统配置项的补丁列表：即使已完成初次播种（seed.done），也在每次启动时补齐，
+ * 避免存量数据库缺失新增配置键（同一份列表在新库初始化时同样生效，无需重复维护）。
+ */
+function patchConfigDefaults() {
+  const patches: [string, string, string, string][] = [
+    ['site.logo', '', 'basic', '站点Logo（登录页/侧边栏展示，留空使用默认）'],
+    ['site.icon', '', 'basic', '站点图标/Favicon（留空使用默认）'],
+  ]
+  for (const c of patches) {
+    run('INSERT OR IGNORE INTO system_config (config_key, config_value, config_group, description, update_time) VALUES (?, ?, ?, ?, ?)', c[0], c[1], c[2], c[3], now())
+  }
+}
+
 export async function seed() {
+  patchConfigDefaults()
+
   if (seeded('seed.done')) {
     console.log('[seed] 已存在种子数据，跳过')
     return

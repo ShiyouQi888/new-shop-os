@@ -4,7 +4,7 @@
 import { http, MEMBER_TOKEN_KEY } from './http'
 import type {
   Member, ProductCategory, ProductSPU, ProductSKU, GiftPackage,
-  Order, MonthlyCredit, ResellOrder, Commission, MemberWallet,
+  Order, MonthlyCredit, ResellOrder, Commission, MemberWallet, SiteBranding,
 } from '@shop-os/shared'
 
 export { MEMBER_TOKEN_KEY }
@@ -113,6 +113,8 @@ export const api = {
   }>('/shop/distribution-config'),
   /** 推广配置（公开：站点域名，用于生成推广链接） */
   getPromoteConfig: () => http.get<{ domain: string; registerPath: string }>('/shop/promote-config'),
+  /** 站点品牌配置（公开：Logo、图标、站点名） */
+  getSiteConfig: () => http.get<SiteBranding>('/site/config'),
   /** 推广数据统计（需登录：直属/团队/成交/佣金，真实数据） */
   getPromoteStats: () => http.get<{
     directCount: number; teamCount: number; orderCount: number; commissionTotal: number

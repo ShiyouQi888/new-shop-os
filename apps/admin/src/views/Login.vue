@@ -6,11 +6,7 @@
       <section class="brand-panel">
         <div class="brand-head">
           <div class="brand-logo" aria-hidden="true">
-            <img src="/logo.png" alt="" />
-          </div>
-          <div>
-            <div class="brand-kicker">ADMIN CONSOLE</div>
-            <h1>橙选</h1>
+            <img :src="siteBranding.logo || '/logo.png'" alt="橙选管理后台" />
           </div>
         </div>
 
@@ -112,12 +108,14 @@ import { ElMessage, type FormInstance } from 'element-plus'
 import { Lock, User } from '@element-plus/icons-vue'
 import { apiAuth } from '@/api'
 import { setAuth } from '@/utils/auth'
+import { siteBranding, ensureSiteBranding } from '@/utils/site'
 
 const router = useRouter()
 const route = useRoute()
 const formRef = ref<FormInstance>()
 const loading = ref(false)
 const remember = ref(true)
+ensureSiteBranding()
 
 const form = reactive({
   username: 'admin',
@@ -226,35 +224,19 @@ const handleLogin = async () => {
 .brand-head {
   display: flex;
   align-items: center;
-  gap: 16px;
+  justify-content: center;
 }
 .brand-logo {
-  width: 150px;
-  height: 58px;
-  padding: 5px 10px;
-  border-radius: 16px;
-  background: #050505;
+  width: 260px;
+  height: 130px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 24px rgba(255, 107, 53, 0.4);
 }
 .brand-logo img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-}
-.brand-kicker {
-  color: rgba(255, 255, 255, 0.48);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0;
-}
-.brand-head h1 {
-  margin: 4px 0 0;
-  font-size: 32px;
-  line-height: 1;
-  letter-spacing: 0;
 }
 .brand-copy {
   max-width: 430px;

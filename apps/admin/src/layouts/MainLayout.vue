@@ -3,10 +3,10 @@
     <!-- 侧边栏 -->
     <el-aside :width="collapsed ? '64px' : '220px'" class="admin-aside">
       <div class="logo-area">
-        <div class="logo-icon" aria-hidden="true">
-          <img src="/logo.png" alt="" />
+        <div v-show="collapsed" class="logo-icon" aria-hidden="true">
+          <img :src="siteBranding.icon || '/icon.png'" alt="" />
         </div>
-        <img v-show="!collapsed" class="logo-wordmark" src="/logo.png" alt="橙选管理后台" />
+        <img v-show="!collapsed" class="logo-wordmark" :src="siteBranding.logo || '/logo.png'" alt="橙选管理后台" />
       </div>
       <el-scrollbar class="menu-scrollbar">
         <el-menu
@@ -110,11 +110,13 @@ import { ElMessageBox, ElMessage } from 'element-plus'
 import { Fold, Expand, Refresh, FullScreen, ArrowDown, SwitchButton } from '@element-plus/icons-vue'
 import { adminRoutes } from '@/router/routes'
 import { getUser, getPermissions, clearAuth } from '@/utils/auth'
+import { siteBranding, ensureSiteBranding } from '@/utils/site'
 import { apiAuth } from '@/api'
 
 const route = useRoute()
 const router = useRouter()
 const collapsed = ref(false)
+ensureSiteBranding()
 const user = getUser()
 /** 权限码数组；null = 超管全部可见 */
 const perms = getPermissions()
@@ -221,7 +223,7 @@ const toggleFullscreen = () => {
   overflow: hidden;
 }
 .logo-area {
-  height: 60px;
+  height: 68px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -233,32 +235,23 @@ const toggleFullscreen = () => {
 .logo-icon {
   width: 38px;
   height: 38px;
-  border-radius: 12px;
-  background: #050505;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 10px 24px rgba(255, 107, 53, 0.34);
-  overflow: hidden;
 }
 .logo-icon img {
+  width: 100%;
   height: 100%;
-  width: 118px;
-  object-fit: cover;
-  object-position: left center;
+  object-fit: contain;
 }
 .logo-wordmark {
-  width: 138px;
-  height: 36px;
-  padding: 4px 8px;
-  border-radius: 12px;
+  width: 180px;
+  height: 52px;
   object-fit: contain;
-  background: #050505;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
 }
 .menu-scrollbar {
-  height: calc(100vh - 60px);
+  height: calc(100vh - 68px);
 }
 .admin-menu {
   border-right: none;

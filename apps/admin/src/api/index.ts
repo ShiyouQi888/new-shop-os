@@ -9,7 +9,7 @@ import {
   type Member, type ProductSPU, type ProductSKU, type ProductCategory,
   type Order, type MonthlyCredit, type ResellOrder, type Commission,
   type Withdraw, type LevelBenefitConfig, type CommissionRuleConfig,
-  type SystemConfig, type DashboardStats, type FileAsset,
+  type SystemConfig, type SiteBranding, type DashboardStats, type FileAsset,
   type FileAssetQuery, type FileAssetGroup, type GiftPackage, type MemberWallet,
   type OrderType, type OrderStatus, type CreditStatus, type ResellStatus,
   type CommissionStatus, type WithdrawStatus, type MemberLevel,
@@ -344,6 +344,8 @@ export const apiConfig = {
     http.put(`/config/system/${config.id}`, {
       configValue: config.configValue, configGroup: config.configGroup, description: config.description,
     }),
+  /** 站点品牌配置（公开接口，登录前也可读取） */
+  getSiteConfig: () => http.get<SiteBranding>('/site/config'),
 }
 
 // ============ 钱包 ============

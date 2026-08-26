@@ -15,7 +15,13 @@
           </el-table-column>
           <el-table-column label="配置值" min-width="200">
             <template #default="{ row }">
-              <el-input v-model="row.configValue" style="width: 100%" />
+              <SfFilePicker
+                v-if="row.configKey === 'site.logo' || row.configKey === 'site.icon'"
+                v-model="row.configValue"
+                accept="image"
+                :placeholder="row.configKey === 'site.icon' ? '上传图标' : '上传Logo'"
+              />
+              <el-input v-else v-model="row.configValue" style="width: 100%" />
             </template>
           </el-table-column>
         </el-table>
@@ -31,6 +37,7 @@ import { ElMessage } from 'element-plus'
 import { apiConfig } from '@/api'
 import { type SystemConfig } from '@shop-os/shared'
 import SfPageContainer from '@/components/SfPageContainer.vue'
+import SfFilePicker from '@/components/SfFilePicker.vue'
 
 const configs = ref<SystemConfig[]>([])
 

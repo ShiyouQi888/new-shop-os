@@ -37,7 +37,7 @@
       <div class="poster-preview" v-else>
         <div class="poster-inner" @click="savePoster">
           <div class="poster-top">
-            <img class="poster-brand-logo" src="/logo.png" alt="橙选" />
+            <img class="poster-brand-logo" src="/logo-dark.png" alt="橙选" />
             <div class="poster-slogan">加入代理商 开启分享之路</div>
           </div>
           <div class="poster-content">
@@ -499,10 +499,7 @@ const savePoster = () => {
 .poster-brand-logo {
   width: 142px;
   height: 54px;
-  padding: 5px 9px;
-  border-radius: 15px;
   object-fit: contain;
-  background: #050505;
   display: inline-block;
 }
 .poster-slogan { font-size: 12px; color: var(--color-muted); margin-top: 4px; }

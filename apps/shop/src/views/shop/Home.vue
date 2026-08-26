@@ -1,34 +1,29 @@
 <template>
   <div class="home-page page-shell">
-    <van-nav-bar fixed safe-area-inset-top>
-      <template #title>
-        <div class="home-brand">
-          <img src="/logo.png" alt="橙选商城" class="home-brand-logo" />
-        </div>
-      </template>
-    </van-nav-bar>
-
     <main class="home-body">
-      <van-swipe class="banner-swipe hero-swipe" :autoplay="3600" indicator-color="#FF6B35">
-        <van-swipe-item>
-          <section class="hero-panel">
-            <div class="hero-copy">
-              <div class="premium-pill">MEMBER CURATED</div>
-              <h1>精选商品与分享权益的一体化商城</h1>
-              <p>会员价、月度领货、入会礼包与三级佣金路径统一管理。</p>
-            </div>
-            <button class="hero-cta" type="button" @click="router.push('/gift-zone')">
-              <span>查看入会方案</span>
-              <van-icon name="arrow" />
-            </button>
-          </section>
-        </van-swipe-item>
-        <template v-if="data">
-          <van-swipe-item v-for="(banner, idx) in data.banners" :key="idx" @click="banner.link && router.push(banner.link)">
-            <img :src="banner.image" class="banner-img" alt="商城精选活动" />
+      <div class="hero-stage">
+        <van-swipe class="banner-swipe hero-swipe" :autoplay="3600" indicator-color="#FF6B35">
+          <van-swipe-item>
+            <section class="hero-panel">
+              <div class="hero-copy">
+                <div class="premium-pill">MEMBER CURATED</div>
+                <h1>精选商品与分享权益的一体化商城</h1>
+                <p>会员价、月度领货、入会礼包与三级佣金路径统一管理。</p>
+              </div>
+              <button class="hero-cta" type="button" @click="router.push('/gift-zone')">
+                <span>查看入会方案</span>
+                <van-icon name="arrow" />
+              </button>
+            </section>
           </van-swipe-item>
-        </template>
-      </van-swipe>
+          <template v-if="data">
+            <van-swipe-item v-for="(banner, idx) in data.banners" :key="idx" @click="banner.link && router.push(banner.link)">
+              <img :src="banner.image" class="banner-img" alt="商城精选活动" />
+            </van-swipe-item>
+          </template>
+        </van-swipe>
+        <img :src="siteBranding.logo || '/logo.png'" alt="橙选商城" class="hero-brand-logo" />
+      </div>
 
       <button class="search-bar" type="button" @click="router.push('/category')">
         <van-icon name="search" size="17" />
@@ -80,8 +75,10 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '@/api'
 import ProductCard from '@/components/ProductCard.vue'
+import { siteBranding, ensureSiteBranding } from '@/utils/site'
 
 const router = useRouter()
+ensureSiteBranding()
 const data = ref<Awaited<ReturnType<typeof api.getHomeData>> | null>(null)
 const categoryIconMeta: Record<number, { icon: string; tone: string }> = {
   1: { icon: 'flower-o', tone: 'tone-beauty' },
@@ -102,22 +99,7 @@ onMounted(async () => {
 
 <style scoped>
 .home-page {
-  padding-top: 46px;
-}
-.home-brand {
-  height: 46px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.home-brand-logo {
-  width: 142px;
-  height: 30px;
-  padding: 2px 6px;
-  border-radius: 10px;
-  object-fit: contain;
-  background: #050505;
-  display: block;
+  padding-top: env(safe-area-inset-top);
 }
 .home-body {
   padding: 10px 12px 18px;
@@ -178,11 +160,21 @@ onMounted(async () => {
   color: #626A73;
   box-shadow: 0 8px 20px rgba(17, 24, 39, 0.045);
 }
-.banner-swipe {
+.hero-stage {
+  position: relative;
   border-radius: 16px;
   overflow: hidden;
-  margin-bottom: 0;
   box-shadow: 0 16px 40px rgba(23, 32, 42, 0.13);
+}
+.hero-brand-logo {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  height: 24px;
+  width: auto;
+  z-index: 5;
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.45));
+  pointer-events: none;
 }
 .hero-swipe {
   height: 194px;
