@@ -15,7 +15,15 @@
     </div>
 
     <!-- 选择器弹窗 -->
-    <el-dialog v-model="visible" :title="title" width="920px" align-center destroy-on-close>
+    <el-dialog
+      v-model="visible"
+      :title="title"
+      width="920px"
+      align-center
+      append-to-body
+      destroy-on-close
+      class="sf-file-picker-dialog"
+    >
       <div class="picker-toolbar">
         <el-radio-group v-model="filterType" size="small">
           <el-radio-button label="">全部</el-radio-button>
@@ -399,5 +407,11 @@ onMounted(() => {
 .picker-tip {
   font-size: 13px;
   color: #626A73;
+}
+</style>
+
+<style>
+.sf-file-picker-dialog {
+  max-width: calc(100vw - 48px);
 }
 </style>
