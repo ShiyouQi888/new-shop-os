@@ -26,7 +26,8 @@ const favorites = ref<Awaited<ReturnType<typeof api.getFavorites>>>([])
 /** 后端收藏行 → ProductCard 所需 ProductSPU */
 const toSPU = (item: Awaited<ReturnType<typeof api.getFavorites>>[number]): ProductSPU => ({
   id: item.spuId, name: item.name, mainImage: item.mainImage, description: item.description,
-  minPrice: item.minPrice, status: 1, isGiftPackage: false,
+  price: item.minPrice, minPrice: item.minPrice, originalPrice: item.minOriginalPrice, minOriginalPrice: item.minOriginalPrice,
+  status: 1, isGiftPackage: false,
 } as ProductSPU)
 
 onMounted(async () => {

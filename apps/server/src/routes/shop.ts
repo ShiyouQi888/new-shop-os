@@ -25,8 +25,18 @@ router.use((_req, _res, next) => {
 router.get('/home', (_req, res, next) => {
   try {
     const categories = all('SELECT id, name, icon, is_gift_zone AS isGiftZone FROM category WHERE status = 1 AND parent_id = 0 ORDER BY sort, id')
-    const hotProducts = all('SELECT id, name, main_image AS mainImage, description, is_gift_package AS isGiftPackage FROM product_spu WHERE status = 1 ORDER BY sort, id DESC LIMIT 6')
-    const newProducts = all('SELECT id, name, main_image AS mainImage, description FROM product_spu WHERE status = 1 AND is_gift_package = 0 ORDER BY id DESC LIMIT 4')
+    const hotProducts = all(
+      `SELECT id, name, main_image AS mainImage, description, is_gift_package AS isGiftPackage,
+              (SELECT MIN(price) FROM product_sku s WHERE s.spu_id = product_spu.id AND s.status = 1) AS minPrice,
+              (SELECT MIN(CASE WHEN original_price > price THEN original_price ELSE NULL END) FROM product_sku s WHERE s.spu_id = product_spu.id AND s.status = 1) AS minOriginalPrice
+       FROM product_spu WHERE status = 1 ORDER BY sort, id DESC LIMIT 6`,
+    )
+    const newProducts = all(
+      `SELECT id, name, main_image AS mainImage, description,
+              (SELECT MIN(price) FROM product_sku s WHERE s.spu_id = product_spu.id AND s.status = 1) AS minPrice,
+              (SELECT MIN(CASE WHEN original_price > price THEN original_price ELSE NULL END) FROM product_sku s WHERE s.spu_id = product_spu.id AND s.status = 1) AS minOriginalPrice
+       FROM product_spu WHERE status = 1 AND is_gift_package = 0 ORDER BY id DESC LIMIT 4`,
+    )
     const giftPackages = all(
       `SELECT g.id, g.name, g.price, g.level, l.level_name AS levelName,
               l.shop_discount AS shopDiscount, l.monthly_credit AS monthlyCredit, l.credit_months AS creditMonths
@@ -78,7 +88,8 @@ router.get('/products', (req, res, next) => {
     const total = (get(`SELECT COUNT(*) AS c FROM product_spu p ${where}`, ...params) as { c: number }).c
     const rows = all(
       `SELECT p.id, p.name, p.main_image AS mainImage, p.description, p.sort, p.is_gift_package AS isGiftPackage,
-              (SELECT MIN(price) FROM product_sku s WHERE s.spu_id = p.id AND s.status = 1) AS minPrice
+              (SELECT MIN(price) FROM product_sku s WHERE s.spu_id = p.id AND s.status = 1) AS minPrice,
+              (SELECT MIN(CASE WHEN original_price > price THEN original_price ELSE NULL END) FROM product_sku s WHERE s.spu_id = p.id AND s.status = 1) AS minOriginalPrice
        FROM product_spu p ${where} ORDER BY p.sort, p.id DESC LIMIT ? OFFSET ?`,
       ...params, pageSize, (page - 1) * pageSize,
     )

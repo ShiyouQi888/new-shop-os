@@ -27,6 +27,11 @@ const toSPU = (r: Row): ProductSPU => ({
   createTime: String(r.createTime || r.create_time || ''),
   brand: '',
   minPrice: r.minPrice !== null && r.minPrice !== undefined ? Number(r.minPrice) : undefined,
+  price: Number(r.price ?? r.minPrice ?? 0),
+  minOriginalPrice: r.minOriginalPrice !== null && r.minOriginalPrice !== undefined ? Number(r.minOriginalPrice) : undefined,
+  originalPrice: r.originalPrice !== null && r.originalPrice !== undefined ? Number(r.originalPrice) : (
+    r.minOriginalPrice !== null && r.minOriginalPrice !== undefined ? Number(r.minOriginalPrice) : undefined
+  ),
 })
 
 export const api = {
@@ -217,7 +222,7 @@ export const api = {
   removeCartItem: (skuId: number) => http.delete(`/shop/member/cart/${skuId}`),
 
   // ===== 收藏 =====
-  getFavorites: () => http.get<Array<{ id: number; spuId: number; name: string; mainImage: string; description: string; minPrice: number; createTime: string }>>('/shop/member/favorites'),
+  getFavorites: () => http.get<Array<{ id: number; spuId: number; name: string; mainImage: string; description: string; minPrice: number; minOriginalPrice?: number; createTime: string }>>('/shop/member/favorites'),
   addFavorite: (spuId: number) => http.post('/shop/member/favorites', { spuId }),
   removeFavorite: (spuId: number) => http.delete(`/shop/member/favorites/${spuId}`),
 

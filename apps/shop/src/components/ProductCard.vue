@@ -9,15 +9,16 @@
       <div class="product-brand">{{ product.brand }}</div>
       <div class="product-name">{{ product.name }}</div>
       <div class="product-price">
-        <template v-if="showMemberPrice && memberPrice < product.price">
+        <template v-if="showMemberPrice && memberPrice < salePrice">
           <div class="price-now price">{{ formatMoney(memberPrice) }}</div>
-          <div class="price-old">¥{{ product.price }}</div>
+          <div class="price-old">{{ formatMoney(salePrice) }}</div>
         </template>
         <template v-else>
-          <div class="price-now price">{{ formatMoney(product.price) }}</div>
-          <div v-if="memberPrice < product.price && memberPrice > 0" class="member-tag">会员价 ¥{{ memberPrice }}</div>
+          <div class="price-now price">{{ formatMoney(salePrice) }}</div>
+          <div v-if="memberPrice < salePrice && memberPrice > 0" class="member-tag">会员价 {{ formatMoney(memberPrice) }}</div>
         </template>
       </div>
+      <div v-if="showReferencePrice" class="reference-price">参考原价 {{ formatMoney(referenceOriginalPrice) }}</div>
     </div>
   </div>
 </template>
@@ -38,11 +39,14 @@ const props = withDefaults(defineProps<{
 const router = useRouter()
 const userStore = useUserStore()
 
-// 假设最低SKU价格
+const salePrice = computed(() => Number(props.product.price ?? props.product.minPrice ?? 0))
+const referenceOriginalPrice = computed(() => Number(props.product.originalPrice ?? props.product.minOriginalPrice ?? 0))
+const showReferencePrice = computed(() => referenceOriginalPrice.value > salePrice.value)
+
 const memberPrice = computed(() => {
-  if (props.product.excludeDiscount) return props.product.price
-  if (userStore.level === MemberLevel.Normal) return props.product.price
-  return calcDiscountPrice(props.product.price, userStore.shopDiscount)
+  if (props.product.excludeDiscount) return salePrice.value
+  if (userStore.level === MemberLevel.Normal) return salePrice.value
+  return calcDiscountPrice(salePrice.value, userStore.shopDiscount)
 })
 
 const onClick = () => {
@@ -132,5 +136,11 @@ const onClick = () => {
   padding: 2px 5px;
   border-radius: 999px;
   white-space: nowrap;
+}
+.reference-price {
+  margin-top: 4px;
+  font-size: 10px;
+  line-height: 1.3;
+  color: #9AA1AA;
 }
 </style>

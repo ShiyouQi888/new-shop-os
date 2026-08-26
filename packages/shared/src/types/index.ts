@@ -78,6 +78,10 @@ export interface ProductSPU {
   mainImage: string
   images: string[]
   description: string
+  price?: number
+  minPrice?: number
+  originalPrice?: number
+  minOriginalPrice?: number
   isGiftPackage: boolean
   isMonthlyProduct: boolean
   excludeDiscount: boolean
@@ -93,6 +97,7 @@ export interface ProductSKU {
   specInfo: Record<string, string>
   price: number
   costPrice: number
+  originalPrice?: number
   stock: number
   stockLocked: number
   status: ProductStatus

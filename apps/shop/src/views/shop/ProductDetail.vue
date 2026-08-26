@@ -23,8 +23,9 @@
         <h1>{{ data.spu.name }}</h1>
         <div class="price-row">
           <div class="price-main price-lg">{{ formatMoney(memberPrice) }}</div>
-          <div v-if="memberPrice < skuPrice" class="price-old">{{ formatMoney(skuPrice) }}</div>
+          <div v-if="memberPrice < skuPrice" class="price-old">销售价 {{ formatMoney(skuPrice) }}</div>
         </div>
+        <div v-if="showReferencePrice" class="reference-price-line">参考原价 {{ formatMoney(referenceOriginalPrice) }}</div>
         <div class="member-price-tag" v-if="savingAmount > 0">
           <van-icon name="medal-o" />
           <span>{{ levelLabel }} 专享价，已省 ¥{{ savingAmount.toFixed(2) }}</span>
@@ -133,6 +134,8 @@ const quantity = ref(1)
 const currentSku = computed(() => data.value?.skus.find(s => s.id === selectedSkuId.value) || data.value?.skus[0])
 
 const skuPrice = computed(() => currentSku.value?.price || 0)
+const referenceOriginalPrice = computed(() => Number(currentSku.value?.originalPrice ?? currentSku.value?.costPrice ?? 0))
+const showReferencePrice = computed(() => referenceOriginalPrice.value > skuPrice.value)
 
 const memberPrice = computed(() => {
   if (!data.value || !currentSku.value) return 0
@@ -298,6 +301,11 @@ h1 {
 .price-old {
   color: #9AA1AA;
   text-decoration: line-through;
+}
+.reference-price-line {
+  margin-top: 4px;
+  color: #9AA1AA;
+  font-size: 12px;
 }
 .member-price-tag {
   gap: 6px;

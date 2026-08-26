@@ -449,7 +449,8 @@ router.get('/favorites', requireMember, (req, res, next) => {
     const list = all(
       `SELECT f.id, f.spu_id AS spuId, f.create_time AS createTime,
               p.name, p.main_image AS mainImage, p.description,
-              (SELECT MIN(price) FROM product_sku s WHERE s.spu_id = p.id AND s.status = 1) AS minPrice
+              (SELECT MIN(price) FROM product_sku s WHERE s.spu_id = p.id AND s.status = 1) AS minPrice,
+              (SELECT MIN(CASE WHEN original_price > price THEN original_price ELSE NULL END) FROM product_sku s WHERE s.spu_id = p.id AND s.status = 1) AS minOriginalPrice
        FROM member_favorite f JOIN product_spu p ON p.id = f.spu_id
        WHERE f.member_id = ? ORDER BY f.id DESC`,
       req.member!.mid,
