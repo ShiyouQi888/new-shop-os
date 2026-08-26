@@ -132,13 +132,44 @@ function initRevenueChart() {
   const trends = apiDashboard.getTrends()
   trends.then(data => {
     revenueChart!.setOption({
-      tooltip: { trigger: 'axis' },
-      legend: { data: ['营收(¥)', '订单数'], top: 0 },
-      grid: { left: '3%', right: '4%', bottom: '3%', top: 40, containLabel: true },
-      xAxis: { type: 'category', data: data.map(d => d.date), boundaryGap: false },
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'cross', crossStyle: { color: '#9AA1AA' } },
+      },
+      legend: {
+        data: ['营收(¥)', '订单数'],
+        top: 0,
+        itemWidth: 18,
+        itemHeight: 10,
+        textStyle: { color: '#171A1F' },
+      },
+      grid: { left: 22, right: 52, bottom: 18, top: 48, containLabel: true },
+      xAxis: {
+        type: 'category',
+        data: data.map(d => d.date),
+        boundaryGap: true,
+        axisTick: { alignWithLabel: true },
+        axisLabel: { color: '#626A73', margin: 10 },
+        axisLine: { lineStyle: { color: '#E7E9ED' } },
+      },
       yAxis: [
-        { type: 'value', name: '营收(¥)', position: 'left' },
-        { type: 'value', name: '订单数', position: 'right' },
+        {
+          type: 'value',
+          name: '营收(¥)',
+          position: 'left',
+          boundaryGap: [0, '15%'],
+          axisLabel: { color: '#626A73' },
+          splitLine: { lineStyle: { color: '#E7E9ED' } },
+        },
+        {
+          type: 'value',
+          name: '订单数',
+          position: 'right',
+          boundaryGap: [0, '15%'],
+          minInterval: 1,
+          axisLabel: { color: '#626A73' },
+          splitLine: { show: false },
+        },
       ],
       series: [
         {
@@ -147,6 +178,7 @@ function initRevenueChart() {
           smooth: true,
           data: data.map(d => d.revenue),
           itemStyle: { color: '#FF6B35' },
+          symbolSize: 6,
           areaStyle: { color: 'rgba(255, 107, 53, 0.1)' },
         },
         {
@@ -154,6 +186,8 @@ function initRevenueChart() {
           type: 'bar',
           yAxisIndex: 1,
           data: data.map(d => d.orders),
+          barMaxWidth: 52,
+          barCategoryGap: '42%',
           itemStyle: { color: '#FF6B35', borderRadius: [4, 4, 0, 0] },
         },
       ],
