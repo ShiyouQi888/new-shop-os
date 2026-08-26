@@ -26,9 +26,9 @@
     >
       <div class="picker-toolbar">
         <el-radio-group v-model="filterType" size="small">
-          <el-radio-button label="">全部</el-radio-button>
-          <el-radio-button :label="FileAssetType.Image">图片</el-radio-button>
-          <el-radio-button :label="FileAssetType.Video">视频</el-radio-button>
+          <el-radio-button value="">全部</el-radio-button>
+          <el-radio-button :value="FileAssetType.Image">图片</el-radio-button>
+          <el-radio-button :value="FileAssetType.Video">视频</el-radio-button>
         </el-radio-group>
         <el-input v-model="keyword" placeholder="搜索文件名" clearable style="width: 200px" size="small" @keyup.enter="load">
           <template #append>

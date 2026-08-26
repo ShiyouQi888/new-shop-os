@@ -96,8 +96,8 @@
             <div class="asset-toolbar">
               <div class="toolbar-left">
                 <el-radio-group v-model="filters.type" size="small" @change="search">
-                  <el-radio-button label="">全部类型</el-radio-button>
-                  <el-radio-button v-for="(label, val) in FileAssetTypeLabels" :key="val" :label="val">{{ label }}</el-radio-button>
+                  <el-radio-button value="">全部类型</el-radio-button>
+                  <el-radio-button v-for="(label, val) in FileAssetTypeLabels" :key="val" :value="val">{{ label }}</el-radio-button>
                 </el-radio-group>
               </div>
               <div class="toolbar-right">

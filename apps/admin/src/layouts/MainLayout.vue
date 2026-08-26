@@ -2,7 +2,7 @@
   <el-container class="admin-layout">
     <!-- 侧边栏 -->
     <el-aside :width="collapsed ? '64px' : '220px'" class="admin-aside">
-      <div class="logo-area">
+      <div class="logo-area" :class="{ collapsed }">
         <div v-show="collapsed" class="logo-icon" aria-hidden="true">
           <img :src="siteBranding.icon || '/icon.png'" alt="" />
         </div>
@@ -232,6 +232,10 @@ const toggleFullscreen = () => {
   overflow: hidden;
   white-space: nowrap;
 }
+.logo-area.collapsed {
+  padding: 0;
+  justify-content: center;
+}
 .logo-icon {
   width: 38px;
   height: 38px;
@@ -268,6 +272,11 @@ const toggleFullscreen = () => {
   margin: 4px 10px;
   border-radius: 10px;
   color: rgba(255, 255, 255, 0.68);
+}
+:deep(.el-menu--collapse .el-menu-tooltip__trigger),
+:deep(.el-menu--collapse .el-sub-menu__title) {
+  justify-content: center;
+  padding: 0;
 }
 :deep(.el-menu-item:hover),
 :deep(.el-sub-menu__title:hover) {
