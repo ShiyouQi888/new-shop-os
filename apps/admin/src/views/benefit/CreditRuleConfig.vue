@@ -27,6 +27,17 @@
               <el-radio value="autoresell">自动转卖</el-radio>
             </el-radio-group>
           </el-form-item>
+          <el-form-item label="领取/转卖方式">
+            <el-radio-group v-model="form.claimMode">
+              <el-radio value="lump_sum">一次性用完（推荐）</el-radio>
+              <el-radio value="flexible">自由任意额度</el-radio>
+            </el-radio-group>
+            <div class="claim-mode-hint">
+              {{ form.claimMode === 'lump_sum'
+                ? '会员每次领取或转卖必须用完当月剩余额度，不能拆分为任意金额（如剩余¥980，需一次性领取或转卖满¥980的商品）'
+                : '会员可任意选择金额领取或转卖，允许分多次用完当月额度' }}
+            </div>
+          </el-form-item>
         </el-form>
       </div>
 
@@ -89,6 +100,7 @@ const form = reactive({
   validType: 'month',
   validDays: 30,
   expirePolicy: 'void',
+  claimMode: 'lump_sum',
 })
 
 const saveAll = async () => {
@@ -98,6 +110,7 @@ const saveAll = async () => {
     for (const config of configs) {
       if (config.configKey === 'credit.start_day') config.configValue = String(form.startDay)
       if (config.configKey === 'credit.expire_policy') config.configValue = form.expirePolicy
+      if (config.configKey === 'credit.claim_mode') config.configValue = form.claimMode
       await apiConfig.saveSystemConfig(config)
     }
     for (const level of levelConfigs.value) {
@@ -126,8 +139,10 @@ onMounted(async () => {
 
   const startDayCfg = sysConfigs.find(c => c.configKey === 'credit.start_day')
   const expireCfg = sysConfigs.find(c => c.configKey === 'credit.expire_policy')
+  const claimModeCfg = sysConfigs.find(c => c.configKey === 'credit.claim_mode')
   if (startDayCfg) form.startDay = Number(startDayCfg.configValue) || 1
   if (expireCfg) form.expirePolicy = expireCfg.configValue || 'void'
+  if (claimModeCfg) form.claimMode = claimModeCfg.configValue || 'lump_sum'
 })
 </script>
 
@@ -147,5 +162,11 @@ onMounted(async () => {
 .pool-hint {
   font-size: 13px;
   color: #626A73;
+}
+.claim-mode-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.6;
 }
 </style>

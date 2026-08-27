@@ -41,6 +41,7 @@ export const useUserStore = defineStore('user', () => {
     wallet: MemberWallet | null
     shopDiscount: number
     monthlyCredit: number
+    claimMode: 'lump_sum' | 'flexible'
   } | null>(null)
 
   const isLoggedIn = computed(() => !!member.value)
@@ -55,6 +56,8 @@ export const useUserStore = defineStore('user', () => {
     return fallback[level.value] ?? 100
   })
   const monthlyCredit = computed(() => meData.value?.monthlyCredit ?? 0)
+  /** 领货/转卖模式：lump_sum 必须一次性用完剩余额度（默认） / flexible 自由任意额度 */
+  const claimMode = computed(() => meData.value?.claimMode ?? 'lump_sum')
 
   /** 拉取会员聚合信息（钱包/折扣/额度；折扣以后端等级配置为准） */
   const refreshMe = async () => {
@@ -66,6 +69,7 @@ export const useUserStore = defineStore('user', () => {
         wallet: stats.wallet,
         shopDiscount: stats.shopDiscount ?? 100,
         monthlyCredit: stats.monthlyCredit ? Number((stats.monthlyCredit as { creditAmount?: number }).creditAmount ?? 0) : 0,
+        claimMode: stats.claimMode ?? 'lump_sum',
       }
     } catch {
       /* 网络异常时保留缓存 */
@@ -124,6 +128,7 @@ export const useUserStore = defineStore('user', () => {
     wallet,
     shopDiscount,
     monthlyCredit,
+    claimMode,
     login,
     register,
     logout,

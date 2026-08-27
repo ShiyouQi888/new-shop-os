@@ -14,8 +14,10 @@
         </div>
         <div class="est-item">
           <span>商品价值</span>
-          <van-stepper v-model="goodsValue" :step="50" :min="50" :max="selectedCreditRemain || 50" />
+          <van-stepper v-if="!isLumpSum" v-model="goodsValue" :step="50" :min="50" :max="selectedCreditRemain || 50" />
+          <strong v-else class="fixed-value">{{ formatMoney(goodsValue) }}</strong>
         </div>
+        <div class="mode-hint" v-if="isLumpSum">当前为一次性转卖模式，需一次性转卖完剩余额度</div>
         <div class="est-result">
           <div class="est-line">
             <span>商品价值</span>
@@ -74,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showConfirmDialog, showSuccessToast, showToast } from 'vant'
 import { api } from '@/api'
@@ -83,6 +85,8 @@ import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
 const userStore = useUserStore()
+/** 一次性模式：转卖金额锁定为剩余额度；自由模式：允许任意部分额度 */
+const isLumpSum = computed(() => userStore.claimMode === 'lump_sum')
 const activeTab = ref(0)
 const goodsValue = ref(980)
 const credits = ref<Array<{ id: number; month: string; remainAmount: number; status: number }>>([])
@@ -95,6 +99,10 @@ const settleAmount = computed(() => Number(Math.max(goodsValue.value - serviceFe
 const usableCredits = computed(() => credits.value.filter(c => c.remainAmount > 0 && [0, 1].includes(Number(c.status))))
 const selectedCredit = computed(() => usableCredits.value.find(c => c.id === selectedCreditId.value) || usableCredits.value[0] || null)
 const selectedCreditRemain = computed(() => Number(selectedCredit.value?.remainAmount ?? 0))
+
+watch(selectedCreditRemain, (remain) => {
+  if (isLumpSum.value && remain > 0) goodsValue.value = remain
+}, { immediate: true })
 const creditOptions = computed(() => usableCredits.value.length
   ? usableCredits.value.map(c => ({ text: `${c.month} 可转卖 ${formatMoney(c.remainAmount)}`, value: c.id }))
   : [{ text: '暂无可转卖额度', value: 0 }])
@@ -184,6 +192,8 @@ const loadPageData = async () => {
 .card-title { color: #171A1F; font-size: 15px; font-weight: 800; margin-bottom: 12px; }
 .estimate-form { display: flex; flex-direction: column; gap: 12px; }
 .est-item { display: flex; justify-content: space-between; align-items: center; }
+.fixed-value { color: #171A1F; font-size: 16px; }
+.mode-hint { margin-top: -6px; font-size: 12px; color: #9AA1AA; }
 .credit-menu { flex: 1; max-width: 230px; }
 .est-result { background: #F8F9FB; border-radius: 12px; padding: 16px; }
 .est-line { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; color: #626A73; }

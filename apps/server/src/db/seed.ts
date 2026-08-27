@@ -23,6 +23,7 @@ function patchConfigDefaults() {
   const patches: [string, string, string, string][] = [
     ['site.logo', '', 'basic', '站点Logo（登录页/侧边栏展示，留空使用默认）'],
     ['site.icon', '', 'basic', '站点图标/Favicon（留空使用默认）'],
+    ['credit.claim_mode', 'lump_sum', 'credit', '领货/转卖模式：lump_sum 一次性用完剩余额度 / flexible 自由任意额度'],
   ]
   for (const c of patches) {
     run('INSERT OR IGNORE INTO system_config (config_key, config_value, config_group, description, update_time) VALUES (?, ?, ?, ?, ?)', c[0], c[1], c[2], c[3], now())

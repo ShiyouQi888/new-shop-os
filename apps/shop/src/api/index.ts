@@ -156,6 +156,8 @@ export const api = {
       /** 商城折扣率（90=9折），来自后端等级配置 */
       shopDiscount: Number(m.shopDiscount ?? 100),
       monthlyCredit: (d.monthlyCredit as Row | null) ?? null,
+      /** 领货/转卖模式：lump_sum 一次性用完剩余额度 / flexible 自由任意额度 */
+      claimMode: (d.claimMode === 'flexible' ? 'flexible' : 'lump_sum') as 'lump_sum' | 'flexible',
       commission: {
         total: Number(comm.total ?? 0), available: Number(comm.available ?? 0),
         pending: Number(comm.pending ?? 0), withdrawn: Number(comm.withdrawn ?? 0),
@@ -170,12 +172,12 @@ export const api = {
   getMonthlyCredit: (memberId: number) => http.get<MonthlyCredit[]>('/shop/member/credits', { memberId }),
   /** 我的等级可兑换的领货商品池 */
   getCreditPool: () => http.get<CreditPoolProduct[]>('/shop/member/credit-pool'),
-  /** 用领货额度兑换商品池内商品，生成待发货订单 */
-  redeemCredit: (creditId: number, payload: { skuId: number; quantity: number; receiverName: string; receiverPhone: string; receiverAddress: string }) =>
+  /** 用领货额度兑换商品池内商品，生成待发货订单（一次性模式下 items 合计须等于剩余额度） */
+  redeemCredit: (creditId: number, payload: { items: { skuId: number; quantity: number }[]; receiverName: string; receiverPhone: string; receiverAddress: string }) =>
     http.post<{ orderId: number; cost: number; remainAmount: number }>(`/shop/member/credits/${creditId}/redeem`, payload),
   getResellOrders: (memberId: number) => http.get<ResellOrder[]>('/shop/member/resells', { memberId }),
   /** 发起转卖（落库，后台可见） */
-  createResell: (payload: { goodsValue: number; serviceFee: number; shippingFee: number; settleAmount: number; skuName?: string }) =>
+  createResell: (payload: { goodsValue: number; creditId?: number; serviceFee: number; shippingFee: number; settleAmount: number; skuName?: string }) =>
     http.post<ResellOrder>('/shop/member/resells', payload),
   getCommissions: (memberId: number, level?: number) =>
     http.get<Commission[]>('/shop/member/commissions', { memberId, level }),

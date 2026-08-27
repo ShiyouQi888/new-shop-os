@@ -37,6 +37,12 @@ function withToken(detail: Record<string, unknown> | null) {
   return { token, ...detail }
 }
 
+/** 领货/转卖模式：lump_sum 必须一次性用完剩余额度 / flexible 允许任意部分额度 */
+function claimMode(): 'lump_sum' | 'flexible' {
+  const v = get<{ v: string }>('SELECT config_value AS v FROM system_config WHERE config_key = ?', 'credit.claim_mode')?.v
+  return v === 'flexible' ? 'flexible' : 'lump_sum'
+}
+
 /** POST /shop/member/login 手机号 + 密码登录 */
 router.post('/login', (req, res, next) => {
   try {
@@ -151,6 +157,7 @@ router.get('/me', requireMember, (req, res, next) => {
       team: { level1: l1, level2: l2, level3: l3, total: l1 + l2 + l3 },
       resellActive,
       monthlyCredit: credit ?? null,
+      claimMode: claimMode(),
     })
   } catch (e) { next(e) }
 })
@@ -214,14 +221,17 @@ router.get('/credit-pool', requireMember, (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-/** POST /shop/member/credits/:id/redeem 用月度领货额度兑换商品池内商品（需登录，生成待发货订单） */
+/** POST /shop/member/credits/:id/redeem 用月度领货额度兑换商品池内商品（需登录，生成待发货订单）
+ * 一次性模式（lump_sum）：兑换总额必须等于剩余额度；自由模式（flexible）：允许部分兑换 */
 router.post('/credits/:id/redeem', requireMember, (req, res, next) => {
   try {
     const mid = req.member!.mid
     const creditId = Number(req.params.id)
     const body = z.object({
-      skuId: z.number().int(),
-      quantity: z.number().int().min(1),
+      items: z.array(z.object({
+        skuId: z.number().int(),
+        quantity: z.number().int().min(1),
+      })).min(1),
       receiverName: z.string().min(1).max(30),
       receiverPhone: z.string().min(5).max(20),
       receiverAddress: z.string().min(1).max(120),
@@ -234,44 +244,64 @@ router.post('/credits/:id/redeem', requireMember, (req, res, next) => {
     const member = get<{ level: number; nickname: string }>('SELECT level, nickname FROM member WHERE id = ?', mid)
     if (!member) throw notFound('会员不存在')
 
-    const sku = get<Record<string, unknown>>(
-      'SELECT s.*, p.status AS spuStatus FROM product_sku s JOIN product_spu p ON p.id = s.spu_id WHERE s.id = ?',
-      body.skuId,
-    )
-    if (!sku || Number(sku.status) !== 1 || Number(sku.spuStatus) !== 1) throw badRequest('商品不存在或已下架')
-    if (!get('SELECT id FROM credit_pool_item WHERE level = ? AND spu_id = ?', member.level, Number(sku.spuId))) {
-      throw badRequest('该商品不在你当前等级的领货商品池内')
-    }
-    if (Number(sku.stock) < body.quantity) throw badRequest('库存不足')
+    // 合并重复 SKU，逐个校验商品池归属、上下架状态与库存
+    const merged = new Map<number, number>()
+    for (const item of body.items) merged.set(item.skuId, (merged.get(item.skuId) || 0) + item.quantity)
 
-    const cost = money(Number(sku.price) * body.quantity)
-    if (cost <= 0) throw badRequest('兑换金额异常')
-    if (cost > Number(credit.remainAmount)) throw badRequest('剩余额度不足')
+    let totalCost = 0
+    const lines: { sku: Record<string, unknown>; quantity: number; lineCost: number }[] = []
+    for (const [skuId, quantity] of merged) {
+      const sku = get<Record<string, unknown>>(
+        'SELECT s.*, p.status AS spuStatus FROM product_sku s JOIN product_spu p ON p.id = s.spu_id WHERE s.id = ?',
+        skuId,
+      )
+      if (!sku || Number(sku.status) !== 1 || Number(sku.spuStatus) !== 1) throw badRequest('商品不存在或已下架')
+      if (!get('SELECT id FROM credit_pool_item WHERE level = ? AND spu_id = ?', member.level, Number(sku.spuId))) {
+        throw badRequest('该商品不在你当前等级的领货商品池内')
+      }
+      if (Number(sku.stock) < quantity) throw badRequest(`${String(sku.skuName)} 库存不足`)
+      const lineCost = money(Number(sku.price) * quantity)
+      totalCost = money(totalCost + lineCost)
+      lines.push({ sku, quantity, lineCost })
+    }
+    if (totalCost <= 0) throw badRequest('兑换金额异常')
+
+    const remainAmount = money(Number(credit.remainAmount))
+    if (claimMode() === 'lump_sum') {
+      if (totalCost !== remainAmount) {
+        throw badRequest(`当前为一次性领取模式，需一次性兑换完剩余额度（¥${remainAmount.toFixed(2)}），当前合计 ¥${totalCost.toFixed(2)}`)
+      }
+    } else if (totalCost > remainAmount) {
+      throw badRequest('剩余额度不足')
+    }
 
     const ts = now()
     const orderRes = run(
       `INSERT INTO "order" (order_no, member_id, member_name, order_type, total_amount, discount_amount, shipping_fee, pay_amount, status,
         receiver_name, receiver_phone, receiver_address, remark, create_time, pay_time)
        VALUES (?, ?, ?, 3, ?, ?, 0, 0, 1, ?, ?, ?, ?, ?, ?)`,
-      genNo('CR'), mid, member.nickname, cost, cost, body.receiverName, body.receiverPhone, body.receiverAddress,
+      genNo('CR'), mid, member.nickname, totalCost, totalCost, body.receiverName, body.receiverPhone, body.receiverAddress,
       '月度领货兑换', ts, ts,
     )
     const orderId = Number(orderRes.lastInsertRowid)
-    run(
-      `INSERT INTO order_item (order_id, sku_id, sku_name, spec_info, image, quantity, original_price, unit_price, total_price, member_level)
-       VALUES (?, ?, ?, '{}', ?, ?, ?, ?, ?, ?)`,
-      orderId, body.skuId, String(sku.skuName), String(sku.image || ''), body.quantity, Number(sku.price), Number(sku.price), cost, member.level,
-    )
-    run('UPDATE product_sku SET stock = stock - ?, sales = sales + ? WHERE id = ?', body.quantity, body.quantity, body.skuId)
+    for (const { sku, quantity, lineCost } of lines) {
+      run(
+        `INSERT INTO order_item (order_id, sku_id, sku_name, spec_info, image, quantity, original_price, unit_price, total_price, member_level)
+         VALUES (?, ?, ?, '{}', ?, ?, ?, ?, ?, ?)`,
+        orderId, Number(sku.id), String(sku.skuName), String(sku.image || ''), quantity, Number(sku.price), Number(sku.price), lineCost, member.level,
+      )
+      run('UPDATE product_sku SET stock = stock - ?, sales = sales + ? WHERE id = ?', quantity, quantity, Number(sku.id))
+    }
 
-    const remain = money(Number(credit.remainAmount) - cost)
-    const used = money(Number(credit.usedAmount) + cost)
+    const remain = money(remainAmount - totalCost)
+    const used = money(Number(credit.usedAmount) + totalCost)
     run('UPDATE credit_record SET used_amount = ?, remain_amount = ?, status = ?, update_time = ? WHERE id = ?',
       used, remain, remain <= 0 ? 2 : 1, ts, creditId)
+    const summary = lines.map(l => `${String(l.sku.skuName)} x${l.quantity}`).join('、')
     run('INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, create_time) VALUES (?, ?, ?, ?, 2, ?, ?)',
-      creditId, mid, -cost, remain, `领取商品自用：${String(sku.skuName)} x${body.quantity}`, ts)
+      creditId, mid, -totalCost, remain, `领取商品自用：${summary}`, ts)
 
-    ok(res, { orderId, cost, remainAmount: remain }, '兑换成功，等待发货', 201)
+    ok(res, { orderId, cost: totalCost, remainAmount: remain }, '兑换成功，等待发货', 201)
   } catch (e) { next(e) }
 })
 
@@ -311,7 +341,14 @@ router.post('/resells', requireMember, (req, res, next) => {
       ? get<Record<string, unknown>>('SELECT * FROM credit_record WHERE id = ? AND member_id = ?', body.creditId, mid)
       : get<Record<string, unknown>>('SELECT * FROM credit_record WHERE member_id = ? AND remain_amount >= ? AND status IN (0,1) ORDER BY month DESC, id DESC LIMIT 1', mid, body.goodsValue)
     if (!credit) throw badRequest('可转卖月度领货额度不足')
-    if (Number(credit.remainAmount) < body.goodsValue) throw badRequest('可转卖月度领货额度不足')
+    const remainAmount = money(Number(credit.remainAmount))
+    if (claimMode() === 'lump_sum') {
+      if (money(body.goodsValue) !== remainAmount) {
+        throw badRequest(`当前为一次性转卖模式，需一次性转卖剩余额度（¥${remainAmount.toFixed(2)}）`)
+      }
+    } else if (remainAmount < body.goodsValue) {
+      throw badRequest('可转卖月度领货额度不足')
+    }
     const ts = now()
     const d = new Date()
     const pad = (n: number) => String(n).padStart(2, '0')
