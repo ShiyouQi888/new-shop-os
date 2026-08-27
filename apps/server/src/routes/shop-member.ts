@@ -108,7 +108,10 @@ router.post('/upgrade', requireMember, (req, res, next) => {
   try {
     const mid = req.member!.mid
     const body = z.object({ level: z.number().int().min(1) }).parse(req.body)
-    if (!get('SELECT id FROM member WHERE id = ?', mid)) throw notFound('会员不存在')
+    const member = get<{ level: number }>('SELECT level FROM member WHERE id = ?', mid)
+    if (!member) throw notFound('会员不存在')
+    // 防止对同一等级重复调用重复领取额度：必须严格高于当前等级才允许"升级"
+    if (Number(member.level) >= body.level) throw badRequest('已是该等级或更高等级，无需重复开通')
     const level = get<{ monthlyCredit: number }>('SELECT monthly_credit AS monthlyCredit FROM level_config WHERE level = ? AND status = 1', body.level)
     if (!level) throw badRequest('等级不存在或未启用')
     const paidGift = get(
@@ -780,11 +783,17 @@ router.get('/withdraws', requireMember, (req, res, next) => {
 /** POST /shop/member/withdraws 申请提现（body: { amount, payType?: 0银行卡 1支付宝 }） */
 router.post('/withdraws', requireMember, (req, res, next) => {
   try {
-    const body = z.object({ amount: z.number().min(10), payType: z.union([z.literal(0), z.literal(1)]).optional() }).parse(req.body)
+    const body = z.object({ amount: z.number().min(0.01), payType: z.union([z.literal(0), z.literal(1)]).optional() }).parse(req.body)
     const mid = req.member!.mid
     const wallet = get('SELECT balance FROM wallet WHERE member_id = ?', mid)
     if (!wallet) throw notFound('钱包不存在')
     if (Number(wallet.balance) < body.amount) throw badRequest('余额不足')
+    const minAmount = Number(get<{ v: string }>('SELECT config_value AS v FROM system_config WHERE config_key = ?', 'withdraw.min_amount')?.v ?? 100)
+    if (body.amount < minAmount) throw badRequest(`最低提现金额为 ¥${minAmount}`)
+    const feeRate = Number(get<{ v: string }>('SELECT config_value AS v FROM system_config WHERE config_key = ?', 'withdraw.fee_rate')?.v ?? 0)
+    const fee = money(body.amount * feeRate / 100)
+    const actualAmount = money(body.amount - fee)
+    if (actualAmount <= 0) throw badRequest('提现金额过低，扣除手续费后实际到账为 0')
     const acc = get<Record<string, unknown>>('SELECT * FROM payout_account WHERE member_id = ?', mid)
     // 选择收款方式：默认银行卡；选支付宝则用支付宝账号
     const payType = body.payType === 1 ? 1 : 0
@@ -798,8 +807,8 @@ router.post('/withdraws', requireMember, (req, res, next) => {
     const member = get<{ nickname: string }>('SELECT nickname FROM member WHERE id = ?', mid)
     const r = run(
       `INSERT INTO withdraw (withdraw_no, member_id, member_name, amount, fee, actual_amount, pay_type, bank_name, bank_card, bank_holder, alipay_name, alipay_account, status, create_time)
-       VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
-      genNo('TX'), mid, member?.nickname || '', body.amount, body.amount, payType,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+      genNo('TX'), mid, member?.nickname || '', body.amount, fee, actualAmount, payType,
       bankName, bankCard, bankHolder, alipayName, alipayAccount, now(),
     )
     run('UPDATE wallet SET balance = balance - ?, frozen = frozen + ? WHERE member_id = ?',

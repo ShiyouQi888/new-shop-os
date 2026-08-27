@@ -1,4 +1,4 @@
-import { all, get, run } from '../db/index.js'
+import { all, get, run, transaction } from '../db/index.js'
 import { money, now } from '../utils/index.js'
 import { recordFinanceFlow } from './finance.js'
 
@@ -62,7 +62,7 @@ export function createPendingCommissions(orderId: number) {
       'SELECT rate FROM commission_rule WHERE package_level = ? AND distribution_level = ? AND status = 1',
       order.packageLevel, item.level,
     )
-    const rate = Number(rule?.rate ?? 0)
+    const rate = Math.min(100, Math.max(0, Number(rule?.rate ?? 0)))
     const amount = money(Number(order.payAmount) * rate / 100)
     if (amount <= 0) continue
     run(
@@ -83,13 +83,19 @@ export function settleOrderCommissions(orderId: number) {
   )
   const ts = now()
   for (const row of rows) {
-    run('UPDATE commission SET status = 1, settle_time = ?, update_time = ? WHERE id = ?', ts, ts, row.id)
-    run(
-      'UPDATE wallet SET balance = balance + ?, total_income = total_income + ?, update_time = ? WHERE member_id = ?',
-      Number(row.amount), Number(row.amount), ts, row.memberId,
-    )
-    recordFinanceFlow(3, -Number(row.amount), row.orderNo, `佣金结算支出：会员 ${row.memberId}`)
+    transaction(() => {
+      run('UPDATE commission SET status = 1, settle_time = ?, update_time = ? WHERE id = ?', ts, ts, row.id)
+      creditWallet(row.memberId, Number(row.amount), ts)
+      recordFinanceFlow(3, -Number(row.amount), row.orderNo, `佣金结算支出：会员 ${row.memberId}`)
+    })
   }
+}
+
+/** 钱包余额/累计收入统一走 money() 取整再写库，避免多笔结算/回滚长期累加产生浮点漂移（与 services/finance.ts 的口径保持一致） */
+function creditWallet(memberId: number, amount: number, ts: string) {
+  const wallet = get<{ balance: number; totalIncome: number }>('SELECT balance, total_income AS totalIncome FROM wallet WHERE member_id = ?', memberId)
+  run('UPDATE wallet SET balance = ?, total_income = ?, updated_at = ? WHERE member_id = ?',
+    money(Number(wallet?.balance ?? 0) + amount), money(Number(wallet?.totalIncome ?? 0) + amount), ts, memberId)
 }
 
 export function scheduleOrderCommissions(orderId: number) {
@@ -123,12 +129,11 @@ export function forceSettleOrderCommissions(orderId: number) {
   )
   const ts = now()
   for (const row of rows) {
-    run('UPDATE commission SET status = 1, settle_time = ?, update_time = ? WHERE id = ?', ts, ts, row.id)
-    run(
-      'UPDATE wallet SET balance = balance + ?, total_income = total_income + ?, update_time = ? WHERE member_id = ?',
-      Number(row.amount), Number(row.amount), ts, row.memberId,
-    )
-    recordFinanceFlow(3, -Number(row.amount), row.orderNo, `佣金强制结算支出：会员 ${row.memberId}`)
+    transaction(() => {
+      run('UPDATE commission SET status = 1, settle_time = ?, update_time = ? WHERE id = ?', ts, ts, row.id)
+      creditWallet(row.memberId, Number(row.amount), ts)
+      recordFinanceFlow(3, -Number(row.amount), row.orderNo, `佣金强制结算支出：会员 ${row.memberId}`)
+    })
   }
 }
 
@@ -141,17 +146,27 @@ export function rollbackOrderCommissions(orderId: number, reason: string) {
   )
   for (const row of rows) {
     const ts = now()
-    if (Number(row.status) === 1) {
-      run(
-        `UPDATE wallet
-         SET balance = CASE WHEN balance >= ? THEN balance - ? ELSE 0 END,
-             total_income = CASE WHEN total_income >= ? THEN total_income - ? ELSE 0 END,
-             update_time = ?
-         WHERE member_id = ?`,
-        Number(row.amount), Number(row.amount), Number(row.amount), Number(row.amount), ts, row.memberId,
-      )
-      recordFinanceFlow(3, Number(row.amount), row.orderNo, `佣金回滚冲正：${reason}`)
-    }
-    run('UPDATE commission SET status = 4, rollback_reason = ?, update_time = ? WHERE id = ?', reason, ts, row.id)
+    transaction(() => {
+      if (Number(row.status) === 1) {
+        // 若会员已将这笔佣金提现走，balance 可能已不足以扣回全额——账本只能按"实际追回"记账，
+        // 否则会出现"账面显示全额冲正、实际平台资金已经付出去追不回来"的资金黑洞且无迹可查
+        const wallet = get<{ balance: number }>('SELECT balance FROM wallet WHERE member_id = ?', row.memberId)
+        const recovered = Math.min(Number(row.amount), Number(wallet?.balance ?? 0))
+        run(
+          `UPDATE wallet
+           SET balance = balance - ?,
+               total_income = CASE WHEN total_income >= ? THEN total_income - ? ELSE 0 END,
+               updated_at = ?
+           WHERE member_id = ?`,
+          recovered, Number(row.amount), Number(row.amount), ts, row.memberId,
+        )
+        const shortfall = money(Number(row.amount) - recovered)
+        const note = shortfall > 0 ? `${reason}（该会员余额不足，实际仅追回 ${recovered}，欠款 ${shortfall} 未收回）` : reason
+        if (recovered > 0) recordFinanceFlow(3, recovered, row.orderNo, `佣金回滚冲正：${note}`)
+        run('UPDATE commission SET status = 4, rollback_reason = ?, update_time = ? WHERE id = ?', note, ts, row.id)
+      } else {
+        run('UPDATE commission SET status = 4, rollback_reason = ?, update_time = ? WHERE id = ?', reason, ts, row.id)
+      }
+    })
   }
 }

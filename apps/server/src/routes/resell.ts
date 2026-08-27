@@ -1,7 +1,7 @@
 // ===== 转卖单 /api/v1/resells =====
 import { Router } from 'express'
 import { z } from 'zod'
-import { all, get, run, paginate } from '../db/index.js'
+import { all, get, run, paginate, transaction } from '../db/index.js'
 import { ok, notFound, badRequest } from '../utils/response.js'
 import { parsePagination, int, str, now } from '../utils/index.js'
 import { requireAuth, requirePermission } from '../middlewares/auth.js'
@@ -80,13 +80,15 @@ router.post('/:id/complete', requirePermission('resell:match'), (req, res, next)
     const settleAmount = Number(rs.settleAmount)
     if (settleAmount <= 0) throw badRequest('结算金额异常，不能完成结算')
     const ts = now()
-    run('UPDATE resell_order SET status = 3, settle_time = ? WHERE id = ?', ts, id)
-    run(
-      'UPDATE wallet SET balance = balance + ?, total_income = total_income + ?, update_time = ? WHERE member_id = ?',
-      settleAmount, settleAmount, ts, Number(rs.memberId),
-    )
-    recordFinanceFlow(2, Number(rs.serviceFee || 0), String(rs.resellNo), '转卖服务费收入')
-    recordFinanceFlow(5, -settleAmount, String(rs.resellNo), `转卖结算给会员 ${String(rs.memberId)}`)
+    transaction(() => {
+      run('UPDATE resell_order SET status = 3, settle_time = ? WHERE id = ?', ts, id)
+      run(
+        'UPDATE wallet SET balance = balance + ?, total_income = total_income + ?, updated_at = ? WHERE member_id = ?',
+        settleAmount, settleAmount, ts, Number(rs.memberId),
+      )
+      recordFinanceFlow(2, Number(rs.serviceFee || 0), String(rs.resellNo), '转卖服务费收入')
+      recordFinanceFlow(5, -settleAmount, String(rs.resellNo), `转卖结算给会员 ${String(rs.memberId)}`)
+    })
     ok(res, null, '转卖已完成结算')
   } catch (e) { next(e) }
 })

@@ -33,6 +33,8 @@ export function grantConsumptionCredit(orderId: number) {
     orderId,
   )
   if (!order || Number(order.orderType) !== 1 || Number(order.payAmount) <= 0) return
+  // 防止同一订单被重复发放（如支付新旧两条路径先后各触发一次支付完成逻辑）
+  if (get('SELECT id FROM credit_flow WHERE order_id = ? AND type = 1 LIMIT 1', orderId)) return
 
   const member = get<{ level: number }>('SELECT level FROM member WHERE id = ?', order.memberId)
   if (!member) return
@@ -70,7 +72,7 @@ export function grantConsumptionCredit(orderId: number) {
     remain = bonus
   }
   run(
-    'INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, create_time) VALUES (?, ?, ?, ?, 1, ?, ?)',
-    recordId, order.memberId, bonus, remain, `购物消费返还：订单 ${order.orderNo}`, ts,
+    'INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, order_id, create_time) VALUES (?, ?, ?, ?, 1, ?, ?, ?)',
+    recordId, order.memberId, bonus, remain, `购物消费返还：订单 ${order.orderNo}`, orderId, ts,
   )
 }

@@ -59,6 +59,8 @@ if (ensureColumn('credit_record', 'resellable_amount', 'resellable_amount REAL N
   db.exec('UPDATE credit_record SET resellable_amount = remain_amount WHERE remain_amount > 0')
   console.log('[db] 迁移：历史领货额度回填 resellable_amount（视为可转卖）')
 }
+// 消费返还额度发放记录需要关联订单号，用于防止同一订单被重复发放（支付双路径竞态等场景）
+ensureColumn('credit_flow', 'order_id', 'order_id INTEGER DEFAULT NULL')
 // 消费返还额度已独立成页，早期版本种下的两个 key 曾归在 credit 分组下，这里归位到 consumption_credit（幂等）
 db.exec(
   "UPDATE system_config SET config_group = 'consumption_credit' " +
@@ -262,6 +264,23 @@ export function get<T = Record<string, unknown>>(sql: string, ...params: unknown
 /** 执行写操作 */
 export function run(sql: string, ...params: unknown[]) {
   return db.prepare(sql).run(...toSqlParams(params))
+}
+
+/**
+ * 事务：多条写语句要么全部生效要么全部回滚。
+ * 用于"先删子表再删主表"这类会撞外键约束、且第一条语句本身没有约束保护的多步写操作，
+ * 避免约束失败时前面已提交的语句造成无法回滚的数据损坏。
+ */
+export function transaction<T>(fn: () => T): T {
+  db.exec('BEGIN')
+  try {
+    const result = fn()
+    db.exec('COMMIT')
+    return result
+  } catch (e) {
+    db.exec('ROLLBACK')
+    throw e
+  }
 }
 
 /** 分页查询：自动拼 LIMIT/OFFSET，返回 { list, total, page, pageSize } */

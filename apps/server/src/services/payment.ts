@@ -161,12 +161,15 @@ export function completeMockPayment(paymentNo: string, memberId: number) {
   if (!pay) throw badRequest('支付单不存在')
   if (Number(pay.memberId) !== memberId) throw badRequest('无权操作')
   if (Number(pay.status) !== 0) throw badRequest('支付单已处理')
-  run('UPDATE payment_order SET status = 1, trade_no = ?, pay_time = ? WHERE id = ?',
-    `MOCK${Date.now()}${Math.floor(Math.random() * 9000 + 1000)}`, now(), pay.id)
-  const order = get<{ orderType: number; orderNo: string; payAmount: number }>(
-    'SELECT order_type AS orderType, order_no AS orderNo, pay_amount AS payAmount FROM "order" WHERE id = ?',
+  const order = get<{ status: number; orderType: number; orderNo: string; payAmount: number }>(
+    'SELECT status, order_type AS orderType, order_no AS orderNo, pay_amount AS payAmount FROM "order" WHERE id = ?',
     pay.orderId,
   )
+  // 订单可能已经通过旧版 /orders/:id/pay 路径完成支付：这里必须再校验订单自身状态，
+  // 否则一张滞留在 status=0 的支付单会被重复处理，导致收入与消费返还额度被二次记账
+  if (!order || Number(order.status) !== 0) throw badRequest('订单已处理，无需重复支付')
+  run('UPDATE payment_order SET status = 1, trade_no = ?, pay_time = ? WHERE id = ?',
+    `MOCK${Date.now()}${Math.floor(Math.random() * 9000 + 1000)}`, now(), pay.id)
   const nextStatus = Number(order?.orderType) === 2 ? 3 : 1
   if (nextStatus === 3) {
     run('UPDATE "order" SET status = 3, pay_time = ?, finish_time = ? WHERE id = ?', now(), now(), pay.orderId)

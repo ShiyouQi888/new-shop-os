@@ -1,10 +1,10 @@
 // ===== 提现管理 /api/v1/withdraws =====
 import { Router } from 'express'
 import { z } from 'zod'
-import { get, run, paginate } from '../db/index.js'
+import { get, run, paginate, transaction } from '../db/index.js'
 import { ok, notFound, badRequest } from '../utils/response.js'
 import { parsePagination, int, str, now, genNo } from '../utils/index.js'
-import { requireAuth, requirePermission } from '../middlewares/auth.js'
+import { requireAuth, requirePermission, requireAnyPermission } from '../middlewares/auth.js'
 import { logOperation } from './log.js'
 import { recordFinanceFlow } from '../services/finance.js'
 
@@ -12,7 +12,7 @@ const router = Router()
 router.use(requireAuth)
 
 /** GET /withdraws?page=&pageSize=&status=&keyword= */
-router.get('/', (req, res, next) => {
+router.get('/', requireAnyPermission('withdraw:view', 'withdraw:audit'), (req, res, next) => {
   try {
     const { page, pageSize } = parsePagination(req.query)
     const status = req.query.status === undefined || req.query.status === '' ? null : int(req.query.status)
@@ -49,13 +49,19 @@ router.post('/:id/audit', requirePermission('withdraw:audit'), (req, res, next) 
     const body = z.object({ pass: z.boolean(), remark: z.string().max(200).optional() }).parse(req.body)
     if (!body.pass && !body.remark) throw badRequest('驳回时必须填写原因')
     const nextStatus = body.pass ? 1 : 3
-    run('UPDATE withdraw SET status = ?, audit_time = ?, audit_remark = ? WHERE id = ?', nextStatus, now(), body.remark || '', id)
-    if (!body.pass) {
-      run(
-        'UPDATE wallet SET balance = balance + ?, frozen = CASE WHEN frozen >= ? THEN frozen - ? ELSE 0 END, update_time = ? WHERE member_id = ?',
-        Number(w.amount), Number(w.amount), Number(w.amount), now(), Number(w.memberId),
-      )
-    }
+    // 提现单状态与钱包回退必须同生共死：任何一步失败都不能只落地一半，否则会出现"单已驳回但钱没退"的悬空状态
+    transaction(() => {
+      run('UPDATE withdraw SET status = ?, audit_time = ?, audit_remark = ? WHERE id = ?', nextStatus, now(), body.remark || '', id)
+      if (!body.pass) {
+        // 退回余额与扣减冻结必须对称：只退回真正从冻结里扣掉的部分，避免 frozen 异常偏低时凭空多退
+        const wallet = get<{ frozen: number }>('SELECT frozen FROM wallet WHERE member_id = ?', Number(w.memberId))
+        const restored = Math.min(Number(w.amount), Number(wallet?.frozen ?? 0))
+        run(
+          'UPDATE wallet SET balance = balance + ?, frozen = frozen - ?, updated_at = ? WHERE member_id = ?',
+          restored, restored, now(), Number(w.memberId),
+        )
+      }
+    })
     logOperation(String(req.auth?.username || ''), '提现管理', body.pass ? '审核通过' : '驳回',
       `${body.pass ? '通过' : '驳回'}提现单 ${String(w.withdrawNo)}${body.remark ? '（' + body.remark + '）' : ''}`, String(req.ip || ''))
     ok(res, null, body.pass ? '审核通过，等待打款' : '已驳回')
@@ -71,12 +77,17 @@ router.post('/:id/pay', requirePermission('withdraw:audit'), (req, res, next) =>
     if (Number(w.status) !== 1) throw badRequest('仅审核通过待打款的提现单可打款')
     const body = z.object({ transactionNo: z.string().max(50).optional() }).parse(req.body)
     const txNo = body.transactionNo || genNo('LSH')
-    run('UPDATE withdraw SET status = 2, pay_time = ?, transaction_no = ? WHERE id = ?', now(), txNo, id)
-    run(
-      'UPDATE wallet SET frozen = CASE WHEN frozen >= ? THEN frozen - ? ELSE 0 END, total_withdraw = total_withdraw + ?, update_time = ? WHERE member_id = ?',
-      Number(w.amount), Number(w.amount), Number(w.amount), now(), Number(w.memberId),
-    )
-    recordFinanceFlow(4, -Number(w.actualAmount), String(w.withdrawNo), `提现打款：会员 ${String(w.memberId)}`)
+    transaction(() => {
+      run('UPDATE withdraw SET status = 2, pay_time = ?, transaction_no = ? WHERE id = ?', now(), txNo, id)
+      // 冻结释放同样只按实际冻结余额封顶，total_withdraw 累计口径仍按本单名义金额计
+      const wallet = get<{ frozen: number }>('SELECT frozen FROM wallet WHERE member_id = ?', Number(w.memberId))
+      const released = Math.min(Number(w.amount), Number(wallet?.frozen ?? 0))
+      run(
+        'UPDATE wallet SET frozen = frozen - ?, total_withdraw = total_withdraw + ?, updated_at = ? WHERE member_id = ?',
+        released, Number(w.amount), now(), Number(w.memberId),
+      )
+      recordFinanceFlow(4, -Number(w.actualAmount), String(w.withdrawNo), `提现打款：会员 ${String(w.memberId)}`)
+    })
     logOperation(String(req.auth?.username || ''), '提现管理', '打款',
       `打款提现单 ${String(w.withdrawNo)}（交易号 ${txNo}）`, String(req.ip || ''))
     ok(res, null, '打款完成')

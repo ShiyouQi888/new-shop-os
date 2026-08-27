@@ -2,7 +2,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { all, get, run } from '../db/index.js'
-import { ok, notFound, conflict } from '../utils/response.js'
+import { ok, notFound, conflict, badRequest } from '../utils/response.js'
 import { now } from '../utils/index.js'
 import { requireAnyPermission, requireAuth, requirePermission } from '../middlewares/auth.js'
 
@@ -140,12 +140,17 @@ router.get('/system', (req, res, next) => {
 router.put('/system/:id', requireAnyPermission('benefit:config', 'system:admin'), (req, res, next) => {
   try {
     const id = Number(req.params.id)
-    if (!get('SELECT id FROM system_config WHERE id = ?', id)) throw notFound('配置项不存在')
+    const existing = get<{ configKey: string }>('SELECT config_key AS configKey FROM system_config WHERE id = ?', id)
+    if (!existing) throw notFound('配置项不存在')
     const body = z.object({
       configValue: z.string(),
       configGroup: z.string().optional(),
       description: z.string().optional(),
     }).parse(req.body)
+    // 真实支付网关尚未接入回调/notify 实现，切换到 real 会导致所有订单永远无法完成支付，禁止直接开启
+    if (existing.configKey === 'payment.mode' && body.configValue === 'real') {
+      throw badRequest('真实支付网关尚未开发完成（缺少回调通知接口），暂不支持切换，请保持模拟支付模式')
+    }
     run('UPDATE system_config SET config_value = ?, config_group = ?, description = ?, update_operator = ?, update_time = ? WHERE id = ?',
       body.configValue, body.configGroup ?? '', body.description ?? '', req.auth!.username, now(), id)
     ok(res, null, '已更新')
