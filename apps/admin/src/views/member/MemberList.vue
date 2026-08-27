@@ -84,8 +84,8 @@
           <el-input v-model="createForm.realName" placeholder="选填" maxlength="20" />
         </el-form-item>
         <el-form-item label="登录密码">
-          <el-input v-model="createForm.password" type="password" show-password placeholder="留空默认 123456" maxlength="50" />
-          <div class="create-tip">设置后会员可用「手机号 + 密码」登录商城；留空则默认 123456</div>
+          <el-input v-model="createForm.password" type="password" show-password placeholder="留空则随机生成" maxlength="50" />
+          <div class="create-tip">设置后会员可用「手机号 + 密码」登录商城；留空将随机生成密码，创建后展示一次，请及时告知会员</div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -210,7 +210,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { Search, RefreshLeft, Plus } from '@element-plus/icons-vue'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { apiMember, apiWallet, apiConfig } from '@/api'
 import {
   type Member, type MemberWallet, type Order, type Commission,
@@ -256,16 +256,24 @@ const createMember = async () => {
   await createFormRef.value?.validate()
   creating.value = true
   try {
-    await apiMember.create({
+    const created = await apiMember.create({
       nickname: createForm.nickname.trim(),
       phone: createForm.phone.trim(),
       level: createForm.level,
       realName: createForm.realName.trim(),
       password: createForm.password || undefined,
     })
-    ElMessage.success('会员创建成功')
     createVisible.value = false
     load()
+    if (created.generatedPassword) {
+      await ElMessageBox.alert(
+        `初始密码：${created.generatedPassword}\n请立即告知会员，此密码仅显示一次。`,
+        '会员创建成功',
+        { confirmButtonText: '我已记录', type: 'success' },
+      )
+    } else {
+      ElMessage.success('会员创建成功')
+    }
   } finally {
     creating.value = false
   }

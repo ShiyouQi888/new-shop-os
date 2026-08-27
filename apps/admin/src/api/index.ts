@@ -123,9 +123,9 @@ export const apiLog = {
 export const apiMember = {
   getList: (params: { page: number; pageSize: number; keyword?: string; level?: MemberLevel | '' }) =>
     http.get<{ list: Member[]; total: number }>('/members', params as unknown as Record<string, unknown>),
-  /** 自定义创建会员（后台录入，可选登录密码，留空默认 123456） */
+  /** 自定义创建会员（后台录入，可选登录密码；留空则由服务端随机生成并在返回值中一次性携带） */
   create: (payload: { nickname: string; phone: string; level: number; realName?: string; password?: string }) =>
-    http.post<Member>('/members', payload),
+    http.post<Member & { generatedPassword: string | null }>('/members', payload),
   getById: (id: number) => http.get<Member & { stats: Row; recentOrders: Order[]; recentCommissions: Commission[] }>(`/members/${id}`),
   toggleStatus: (id: number, status: number) =>
     http.patch(`/members/${id}/status`, { status }),

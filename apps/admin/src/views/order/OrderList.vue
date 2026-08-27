@@ -308,7 +308,7 @@ const openRefund = (row: Order) => {
 const confirmRefund = async (pass: boolean) => {
   if (!pass) {
     try {
-      await ElMessageBox.confirm('驳回后订单将变为已取消状态，且不可恢复，确认驳回？', '驳回退款', { type: 'warning' })
+      await ElMessageBox.confirm('驳回后订单将恢复为发货前的状态（待发货/待收货），并非取消，确认驳回？', '驳回退款', { type: 'warning' })
     } catch { return }
   }
   await apiOrder.auditRefund(refundForm.orderId, pass, refundForm.remark)
