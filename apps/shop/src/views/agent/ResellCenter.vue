@@ -8,9 +8,7 @@
       <div class="estimate-form">
         <div class="est-item">
           <span>可用额度</span>
-          <van-dropdown-menu class="credit-menu">
-            <van-dropdown-item v-model="selectedCreditId" :options="creditOptions" />
-          </van-dropdown-menu>
+          <strong class="credit-value">{{ creditLabel }}</strong>
         </div>
         <div class="est-item">
           <span>商品价值</span>
@@ -93,23 +91,22 @@ const isLumpSum = computed(() => userStore.claimMode === 'lump_sum')
 const activeTab = ref(0)
 const goodsValue = ref(980)
 const credits = ref<Array<{ id: number; month: string; remainAmount: number; resellableAmount: number; status: number }>>([])
-const selectedCreditId = ref<number | null>(null)
 const list = ref<ResellOrder[]>([])
 const submitting = ref(false)
 const serviceFee = computed(() => Number((goodsValue.value * 0.2).toFixed(2)))
 const shippingFee = 10
 const settleAmount = computed(() => Number(Math.max(goodsValue.value - serviceFee.value - shippingFee, 0).toFixed(2)))
-// 消费返还所得额度不支持转卖，仅 resellableAmount（入会礼包发放部分）可转卖
+// 消费返还所得额度不支持转卖，仅 resellableAmount（入会礼包发放部分）可转卖；固定取最近一笔可转卖额度，无需手动选择
 const usableCredits = computed(() => credits.value.filter(c => c.resellableAmount > 0 && [0, 1].includes(Number(c.status))))
-const selectedCredit = computed(() => usableCredits.value.find(c => c.id === selectedCreditId.value) || usableCredits.value[0] || null)
+const selectedCredit = computed(() => usableCredits.value[0] || null)
 const selectedCreditRemain = computed(() => Number(selectedCredit.value?.resellableAmount ?? 0))
+const creditLabel = computed(() => selectedCredit.value
+  ? `${selectedCredit.value.month} 可转卖 ${formatMoney(selectedCredit.value.resellableAmount)}`
+  : '暂无可转卖额度')
 
 watch(selectedCreditRemain, (remain) => {
   if (isLumpSum.value && remain > 0) goodsValue.value = remain
 }, { immediate: true })
-const creditOptions = computed(() => usableCredits.value.length
-  ? usableCredits.value.map(c => ({ text: `${c.month} 可转卖 ${formatMoney(c.resellableAmount)}`, value: c.id }))
-  : [{ text: '暂无可转卖额度', value: 0 }])
 
 const filteredList = computed(() => {
   if (activeTab.value === 0) return list.value
@@ -184,7 +181,6 @@ const loadPageData = async () => {
     status: Number(c.status ?? 0),
   }))
   list.value = resellRows
-  if (selectedCreditId.value === null && usableCredits.value[0]) selectedCreditId.value = usableCredits.value[0].id
   if (selectedCreditRemain.value > 0 && goodsValue.value > selectedCreditRemain.value) {
     goodsValue.value = Math.max(50, selectedCreditRemain.value)
   }
@@ -199,7 +195,7 @@ const loadPageData = async () => {
 .est-item { display: flex; justify-content: space-between; align-items: center; }
 .fixed-value { color: #171A1F; font-size: 16px; }
 .mode-hint { margin-top: -6px; font-size: 12px; color: #9AA1AA; }
-.credit-menu { flex: 1; max-width: 230px; }
+.credit-value { color: #171A1F; font-size: 14px; font-weight: 700; }
 .est-result { background: #F8F9FB; border-radius: 12px; padding: 16px; }
 .est-line { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; color: #626A73; }
 .est-line.danger span:last-child { color: #E5484D; }
