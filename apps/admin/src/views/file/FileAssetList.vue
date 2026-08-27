@@ -17,6 +17,37 @@
         </div>
       </template>
 
+      <div class="asset-overview">
+        <div class="overview-card primary">
+          <div class="overview-icon"><el-icon><Files /></el-icon></div>
+          <div>
+            <span>全部资产</span>
+            <strong>{{ allCount }}</strong>
+          </div>
+        </div>
+        <div class="overview-card">
+          <div class="overview-icon"><el-icon><FolderOpened /></el-icon></div>
+          <div>
+            <span>资产分组</span>
+            <strong>{{ groups.length }}</strong>
+          </div>
+        </div>
+        <div class="overview-card">
+          <div class="overview-icon"><el-icon><Files /></el-icon></div>
+          <div>
+            <span>当前页图片</span>
+            <strong>{{ currentPageImageCount }}</strong>
+          </div>
+        </div>
+        <div class="overview-card">
+          <div class="overview-icon"><el-icon><VideoPlay /></el-icon></div>
+          <div>
+            <span>当前页视频</span>
+            <strong>{{ currentPageVideoCount }}</strong>
+          </div>
+        </div>
+      </div>
+
       <!-- 上传目标分组提示 -->
       <div class="sf-card" v-if="currentGroup !== undefined">
         <div class="upload-hint">
@@ -92,6 +123,18 @@
         <!-- 右侧内容 -->
         <div class="asset-main">
           <div class="sf-card">
+            <div class="content-head">
+              <div>
+                <div class="content-kicker">ASSET LIBRARY</div>
+                <h3>{{ currentScopeTitle }}</h3>
+                <p>{{ currentScopeDesc }}</p>
+              </div>
+              <div class="content-meta">
+                <span>{{ total }} 个文件</span>
+                <span>{{ selectedIds.length }} 已选</span>
+              </div>
+            </div>
+
             <!-- 工具条 -->
             <div class="asset-toolbar">
               <div class="toolbar-left">
@@ -109,8 +152,8 @@
             </div>
 
             <!-- 文件网格 -->
-            <el-row :gutter="16" v-loading="loading">
-              <el-col v-for="item in list" :key="item.id" :xs="12" :sm="8" :md="6" :lg="4" :xl="3" class="asset-col">
+            <div class="asset-grid" v-loading="loading">
+              <div v-for="item in list" :key="item.id" class="asset-col">
                 <div class="asset-card" :class="{ selected: selectedIds.includes(item.id) }" @click="toggleSelect(item.id)">
                   <div class="asset-preview">
                     <el-image v-if="item.type === FileAssetType.Image" :src="item.thumbUrl || item.url" fit="cover" class="asset-image" @click.stop="preview(item)" />
@@ -143,10 +186,21 @@
                     </div>
                   </div>
                 </div>
-              </el-col>
-            </el-row>
+              </div>
+            </div>
 
-            <el-empty v-if="!loading && list.length === 0" description="暂无文件" />
+            <div v-if="!loading && list.length === 0" class="asset-empty">
+              <el-empty description="暂无文件" />
+              <el-upload
+                action="#"
+                :auto-upload="false"
+                :show-file-list="false"
+                :on-change="handleFileChange"
+                accept="image/*,video/*"
+              >
+                <el-button type="primary" :icon="Upload">上传第一个文件</el-button>
+              </el-upload>
+            </div>
 
             <div class="sf-pagination">
               <el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total"
@@ -213,7 +267,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { Search, RefreshLeft, Upload, VideoPlay, FolderAdd, FolderOpened, FolderDelete, Files, Plus, MoreFilled, Close } from '@element-plus/icons-vue'
+import { Search, Upload, VideoPlay, FolderAdd, FolderOpened, FolderDelete, Files, Plus, MoreFilled, Close } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox, ElUpload } from 'element-plus'
 import { apiFile, apiFileGroup } from '@/api'
 import { FileAsset, FileAssetType, FileAssetTypeLabels, FileAssetGroup } from '@shop-os/shared'
@@ -266,6 +320,18 @@ const formatDuration = (s: number) => {
 }
 
 const currentGroup = computed(() => filters.groupId)
+const currentPageImageCount = computed(() => list.value.filter(item => item.type === FileAssetType.Image).length)
+const currentPageVideoCount = computed(() => list.value.filter(item => item.type === FileAssetType.Video).length)
+const currentScopeTitle = computed(() => {
+  if (filters.groupId === undefined) return '全部文件'
+  if (filters.groupId === null) return '未分组文件'
+  return groupName(filters.groupId)
+})
+const currentScopeDesc = computed(() => {
+  if (filters.groupId === undefined) return '查看所有图片、视频与素材，可按类型筛选、移动分组或批量管理。'
+  if (filters.groupId === null) return '这些文件还没有归属分组，建议移动到对应业务素材库，便于商品和海报复用。'
+  return '当前分组中的素材会优先用于对应业务场景，也可继续调整自动归组规则。'
+})
 
 const groupName = (id: number) => groups.value.find(g => g.id === id)?.name || '未命名分组'
 const currentGroupName = (item: FileAsset) => item.groupId !== null ? groupName(item.groupId) : ''
@@ -432,6 +498,57 @@ onMounted(async () => {
 .header-actions {
   display: flex;
   gap: 8px;
+  align-items: center;
+}
+.asset-overview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.overview-card {
+  min-height: 92px;
+  padding: 18px;
+  border: 1px solid #E7E9ED;
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 241, 235, 0.62), rgba(255, 255, 255, 0) 72%),
+    #fff;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 12px 30px rgba(17, 24, 39, 0.04);
+}
+.overview-card.primary {
+  border-color: #FFD5C5;
+  background:
+    radial-gradient(circle at 0 0, rgba(255, 107, 53, 0.16), transparent 42%),
+    #fff;
+}
+.overview-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  color: #FF6B35;
+  background: #FFF1EB;
+  border: 1px solid #FFD5C5;
+  font-size: 18px;
+}
+.overview-card span {
+  display: block;
+  color: #626A73;
+  font-size: 12px;
+  line-height: 1;
+}
+.overview-card strong {
+  display: block;
+  margin-top: 8px;
+  color: #171A1F;
+  font-size: 26px;
+  line-height: 1;
+  font-weight: 800;
 }
 .upload-hint {
   display: flex;
@@ -452,17 +569,20 @@ onMounted(async () => {
   align-items: flex-start;
 }
 .asset-sidebar {
-  width: 220px;
+  width: 236px;
   flex-shrink: 0;
-  background: #fff;
-  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(255, 241, 235, 0.72), rgba(255, 255, 255, 0) 28%),
+    #fff;
+  border-radius: 16px;
   border: 1px solid #E7E9ED;
-  padding: 12px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   position: sticky;
-  top: 0;
+  top: 12px;
+  box-shadow: 0 18px 42px rgba(17, 24, 39, 0.05);
 }
 .side-search {
   margin-bottom: 4px;
@@ -495,8 +615,9 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 38px;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
   font-size: 13px;
   color: #626A73;
@@ -510,7 +631,8 @@ onMounted(async () => {
 .side-item.active {
   background: #FFF1EB;
   color: #FF6B35;
-  font-weight: 500;
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 #FF6B35;
 }
 .side-icon {
   font-size: 15px;
@@ -546,6 +668,51 @@ onMounted(async () => {
   flex: 1;
   min-width: 0;
 }
+.content-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #E7E9ED;
+}
+.content-kicker {
+  color: #E85222;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+.content-head h3 {
+  margin: 7px 0 6px;
+  color: #171A1F;
+  font-size: 22px;
+  line-height: 1.2;
+}
+.content-head p {
+  max-width: 620px;
+  margin: 0;
+  color: #626A73;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.content-meta {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.content-meta span {
+  min-height: 30px;
+  padding: 0 11px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  color: #626A73;
+  background: #F8F9FB;
+  border: 1px solid #E7E9ED;
+  font-size: 12px;
+  font-weight: 700;
+}
 
 /* 工具条 */
 .asset-toolbar {
@@ -560,21 +727,33 @@ onMounted(async () => {
   display: flex;
   align-items: center;
 }
+.toolbar-right {
+  min-height: 28px;
+}
 
 /* 资产卡片 */
+.asset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 16px;
+  min-height: 160px;
+}
 .asset-col {
-  margin-bottom: 16px;
+  min-width: 0;
 }
 .asset-card {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 14px;
   overflow: hidden;
   border: 1px solid #E7E9ED;
   transition: all 0.2s;
   cursor: pointer;
+  height: 100%;
+  box-shadow: 0 12px 30px rgba(17, 24, 39, 0.04);
 }
 .asset-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+  box-shadow: 0 18px 42px rgba(17, 24, 39, 0.09);
   border-color: #FF6B35;
 }
 .asset-card.selected {
@@ -621,24 +800,30 @@ onMounted(async () => {
   position: absolute;
   top: 8px;
   left: 8px;
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
   font-size: 12px;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(23, 26, 31, 0.72);
   color: #fff;
+  backdrop-filter: blur(10px);
 }
 .asset-group-badge {
   position: absolute;
   top: 8px;
   right: 8px;
-  padding: 2px 8px;
-  border-radius: 4px;
+  max-width: calc(100% - 80px);
+  padding: 3px 8px;
+  border-radius: 999px;
   font-size: 12px;
   background: rgba(255, 107, 53, 0.85);
   color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  backdrop-filter: blur(10px);
 }
 .asset-info {
-  padding: 12px;
+  padding: 12px 12px 10px;
 }
 .asset-name {
   font-size: 13px;
@@ -654,12 +839,30 @@ onMounted(async () => {
   color: #626A73;
   display: flex;
   gap: 12px;
+  min-height: 18px;
   margin-bottom: 10px;
+  white-space: nowrap;
+  overflow: hidden;
 }
 .asset-actions {
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px solid #F0F1F3;
+}
+.asset-actions :deep(.el-button) {
+  padding: 0;
+  height: 22px;
+  font-weight: 700;
+}
+.asset-empty {
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
 }
 .preview-body {
   display: flex;
@@ -684,5 +887,36 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+@media (max-width: 1100px) {
+  .asset-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .asset-layout {
+    flex-direction: column;
+  }
+  .asset-sidebar {
+    position: static;
+    width: 100%;
+  }
+  .side-scroll {
+    max-height: 220px;
+  }
+}
+@media (max-width: 720px) {
+  .asset-overview {
+    grid-template-columns: 1fr;
+  }
+  .content-head,
+  .asset-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .content-meta {
+    flex-wrap: wrap;
+  }
+  .asset-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 </style>
