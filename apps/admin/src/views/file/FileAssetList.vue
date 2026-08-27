@@ -176,6 +176,7 @@
                     </div>
                     <div class="asset-actions">
                       <el-button link type="primary" size="small" @click.stop="preview(item)">预览</el-button>
+                      <el-button v-if="item.type === FileAssetType.Image" link type="primary" size="small" @click.stop="openCrop(item)">裁剪</el-button>
                       <el-button link type="primary" size="small" @click.stop="openMoveDialog([item.id])">移动</el-button>
                       <el-button link type="primary" size="small" @click.stop="rename(item)">重命名</el-button>
                       <el-popconfirm title="确定删除该文件？" confirm-button-text="删除" cancel-button-text="取消" @confirm.stop="remove(item)">
@@ -212,10 +213,89 @@
     </SfPageContainer>
 
     <!-- 预览弹窗 -->
-    <el-dialog v-model="previewVisible" :title="previewAsset?.name" width="800px" align-center destroy-on-close>
-      <div class="preview-body">
-        <el-image v-if="previewAsset?.type === FileAssetType.Image" :src="previewAsset?.url" fit="contain" style="width: 100%; max-height: 500px" />
-        <video v-else-if="previewAsset" :src="previewAsset.url" controls style="width: 100%; max-height: 500px" />
+    <el-dialog
+      v-model="previewVisible"
+      :title="previewAsset?.name"
+      width="1080px"
+      align-center
+      destroy-on-close
+      class="asset-preview-dialog"
+    >
+      <div class="preview-shell" v-if="previewAsset">
+        <aside class="preview-panel">
+          <div class="preview-panel-title">素材信息</div>
+          <div class="preview-meta-list">
+            <div><span>类型</span><b>{{ FileAssetTypeLabels[previewAsset.type] }}</b></div>
+            <div><span>大小</span><b>{{ formatSize(previewAsset.size) }}</b></div>
+            <div v-if="previewAsset.width && previewAsset.height"><span>尺寸</span><b>{{ previewAsset.width }}×{{ previewAsset.height }}</b></div>
+            <div v-else-if="imageNatural.width && imageNatural.height"><span>尺寸</span><b>{{ imageNatural.width }}×{{ imageNatural.height }}</b></div>
+            <div v-if="previewAsset.groupId !== null"><span>分组</span><b>{{ currentGroupName(previewAsset) }}</b></div>
+          </div>
+
+          <template v-if="previewAsset.type === FileAssetType.Image">
+            <div class="preview-panel-title with-gap">查看方式</div>
+            <el-segmented v-model="previewMode" :options="previewModeOptions" block />
+
+            <template v-if="previewMode === 'crop'">
+              <div class="preview-panel-title with-gap">裁剪预设</div>
+              <div class="crop-presets">
+                <button
+                  v-for="preset in cropPresets"
+                  :key="preset.key"
+                  type="button"
+                  class="crop-preset"
+                  :class="{ active: activeCropPreset.key === preset.key }"
+                  @click="selectCropPreset(preset.key)"
+                >
+                  <strong>{{ preset.label }}</strong>
+                  <span>{{ preset.width }}×{{ preset.height }}</span>
+                  <small>{{ preset.desc }}</small>
+                </button>
+              </div>
+
+              <div class="crop-controls">
+                <label>
+                  <span>缩放</span>
+                  <el-slider v-model="cropZoom" :min="1" :max="3" :step="0.05" />
+                </label>
+                <label>
+                  <span>水平位置</span>
+                  <el-slider v-model="cropOffsetX" :min="-50" :max="50" :step="1" />
+                </label>
+                <label>
+                  <span>垂直位置</span>
+                  <el-slider v-model="cropOffsetY" :min="-50" :max="50" :step="1" />
+                </label>
+              </div>
+
+              <div class="crop-actions">
+                <el-button @click="resetCrop">居中适配</el-button>
+                <el-button type="primary" :loading="cropping" @click="saveCroppedAsset">生成新素材</el-button>
+              </div>
+            </template>
+          </template>
+        </aside>
+
+        <section class="preview-stage">
+          <div v-if="previewAsset.type === FileAssetType.Image && previewMode === 'view'" class="image-fit-stage">
+            <img :src="previewAsset.url" :alt="previewAsset.name" @load="handlePreviewImageLoad" />
+          </div>
+          <div v-else-if="previewAsset.type === FileAssetType.Image" class="crop-workbench">
+            <div class="crop-canvas" :style="{ aspectRatio: `${activeCropPreset.width} / ${activeCropPreset.height}` }">
+              <img
+                :src="previewAsset.url"
+                :alt="previewAsset.name"
+                class="crop-image"
+                :style="cropPreviewStyle"
+                @load="handlePreviewImageLoad"
+              />
+              <div class="crop-guide"></div>
+              <div class="crop-size-label">{{ activeCropPreset.width }}×{{ activeCropPreset.height }}</div>
+            </div>
+            <p class="crop-note">裁剪会生成一个新的图片素材，不会覆盖原图。</p>
+          </div>
+          <video v-else :src="previewAsset.url" controls class="video-preview" />
+        </section>
       </div>
     </el-dialog>
 
@@ -289,6 +369,23 @@ const ungroupedCount = ref(0)
 
 const previewVisible = ref(false)
 const previewAsset = ref<FileAsset | null>(null)
+const previewMode = ref<'view' | 'crop'>('view')
+const previewModeOptions = [
+  { label: '完整查看', value: 'view' },
+  { label: '裁剪适配', value: 'crop' },
+]
+const cropPresets = [
+  { key: 'product-main', label: '商品主图', width: 800, height: 800, desc: '商城列表与商品封面' },
+  { key: 'sku', label: 'SKU 规格图', width: 600, height: 600, desc: '规格选择与库存图' },
+  { key: 'detail', label: '详情头图', width: 750, height: 1000, desc: '商品详情首屏展示' },
+  { key: 'banner', label: '活动横幅', width: 1200, height: 520, desc: '首页与营销横幅' },
+]
+const activeCropPresetKey = ref(cropPresets[0].key)
+const cropZoom = ref(1)
+const cropOffsetX = ref(0)
+const cropOffsetY = ref(0)
+const cropping = ref(false)
+const imageNatural = reactive({ width: 0, height: 0 })
 
 const renameVisible = ref(false)
 const renameTarget = ref<FileAsset | null>(null)
@@ -322,6 +419,10 @@ const formatDuration = (s: number) => {
 const currentGroup = computed(() => filters.groupId)
 const currentPageImageCount = computed(() => list.value.filter(item => item.type === FileAssetType.Image).length)
 const currentPageVideoCount = computed(() => list.value.filter(item => item.type === FileAssetType.Video).length)
+const activeCropPreset = computed(() => cropPresets.find(p => p.key === activeCropPresetKey.value) || cropPresets[0])
+const cropPreviewStyle = computed(() => ({
+  transform: `translate(${cropOffsetX.value * 0.35}%, ${cropOffsetY.value * 0.35}%) scale(${cropZoom.value})`,
+}))
 const currentScopeTitle = computed(() => {
   if (filters.groupId === undefined) return '全部文件'
   if (filters.groupId === null) return '未分组文件'
@@ -377,7 +478,103 @@ const resetUploadTarget = () => { filters.groupId = undefined; search() }
 
 const preview = (item: FileAsset) => {
   previewAsset.value = item
+  previewMode.value = 'view'
+  resetCrop()
   previewVisible.value = true
+}
+
+const openCrop = (item: FileAsset) => {
+  previewAsset.value = item
+  previewMode.value = 'crop'
+  resetCrop()
+  previewVisible.value = true
+}
+
+const selectCropPreset = (key: string) => {
+  activeCropPresetKey.value = key
+  resetCrop()
+}
+
+const resetCrop = () => {
+  cropZoom.value = 1
+  cropOffsetX.value = 0
+  cropOffsetY.value = 0
+}
+
+const handlePreviewImageLoad = (event: Event) => {
+  const img = event.target as HTMLImageElement
+  imageNatural.width = img.naturalWidth
+  imageNatural.height = img.naturalHeight
+}
+
+const loadCanvasImage = async (url: string) => {
+  const blobUrl = await fetch(url).then(r => {
+    if (!r.ok) throw new Error('image fetch failed')
+    return r.blob()
+  }).then(blob => URL.createObjectURL(blob))
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => {
+      URL.revokeObjectURL(blobUrl)
+      reject(new Error('image load failed'))
+    }
+    img.src = blobUrl
+  }).finally(() => URL.revokeObjectURL(blobUrl))
+}
+
+const canvasToBlob = (canvas: HTMLCanvasElement) => new Promise<Blob>((resolve, reject) => {
+  canvas.toBlob(blob => {
+    if (blob) resolve(blob)
+    else reject(new Error('canvas export failed'))
+  }, 'image/jpeg', 0.92)
+})
+
+const fileBaseName = (name: string) => {
+  const dot = name.lastIndexOf('.')
+  return (dot > 0 ? name.slice(0, dot) : name).replace(/[\\/:*?"<>|]/g, '-')
+}
+
+const saveCroppedAsset = async () => {
+  if (!previewAsset.value || previewAsset.value.type !== FileAssetType.Image) return
+  cropping.value = true
+  try {
+    const preset = activeCropPreset.value
+    const img = await loadCanvasImage(previewAsset.value.url)
+    const canvas = document.createElement('canvas')
+    canvas.width = preset.width
+    canvas.height = preset.height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('canvas unsupported')
+
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, preset.width, preset.height)
+
+    const coverScale = Math.max(preset.width / img.naturalWidth, preset.height / img.naturalHeight)
+    const scale = coverScale * cropZoom.value
+    const drawWidth = img.naturalWidth * scale
+    const drawHeight = img.naturalHeight * scale
+    const maxMoveX = Math.max(0, (drawWidth - preset.width) / 2)
+    const maxMoveY = Math.max(0, (drawHeight - preset.height) / 2)
+    const dx = (preset.width - drawWidth) / 2 + (cropOffsetX.value / 50) * maxMoveX
+    const dy = (preset.height - drawHeight) / 2 + (cropOffsetY.value / 50) * maxMoveY
+
+    ctx.drawImage(img, dx, dy, drawWidth, drawHeight)
+    const blob = await canvasToBlob(canvas)
+    const file = new File(
+      [blob],
+      `${fileBaseName(previewAsset.value.name)}-${preset.label}-${preset.width}x${preset.height}.jpg`,
+      { type: 'image/jpeg' },
+    )
+    await apiFile.upload(file, previewAsset.value.groupId)
+    ElMessage.success('裁剪图已生成并加入素材库')
+    await load()
+    await loadGroups()
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? `裁剪失败：${error.message}` : '裁剪失败')
+  } finally {
+    cropping.value = false
+  }
 }
 
 const rename = (item: FileAsset) => {
@@ -864,12 +1061,207 @@ onMounted(async () => {
   justify-content: center;
   gap: 12px;
 }
-.preview-body {
+:deep(.asset-preview-dialog .el-dialog__body) {
+  padding-top: 8px;
+}
+.preview-shell {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 18px;
+  min-height: 560px;
+}
+.preview-panel {
+  border: 1px solid #E7E9ED;
+  border-radius: 16px;
+  padding: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 241, 235, 0.66), rgba(255, 255, 255, 0) 34%),
+    #fff;
+}
+.preview-panel-title {
+  color: #171A1F;
+  font-size: 14px;
+  font-weight: 800;
+}
+.preview-panel-title.with-gap {
+  margin-top: 18px;
+  margin-bottom: 10px;
+}
+.preview-meta-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.preview-meta-list div {
+  min-height: 36px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: #F8F9FB;
+  border: 1px solid #E7E9ED;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.preview-meta-list span {
+  color: #626A73;
+  font-size: 12px;
+}
+.preview-meta-list b {
+  min-width: 0;
+  color: #171A1F;
+  font-size: 12px;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.crop-presets {
+  display: grid;
+  gap: 8px;
+}
+.crop-preset {
+  width: 100%;
+  padding: 10px 11px;
+  border: 1px solid #E7E9ED;
+  border-radius: 12px;
+  background: #fff;
+  color: #171A1F;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.crop-preset:hover {
+  border-color: #FFD5C5;
+  background: #FFF1EB;
+}
+.crop-preset.active {
+  border-color: #FF6B35;
+  background: #FFF1EB;
+  box-shadow: inset 3px 0 0 #FF6B35;
+}
+.crop-preset strong,
+.crop-preset span,
+.crop-preset small {
+  display: block;
+}
+.crop-preset strong {
+  font-size: 13px;
+}
+.crop-preset span {
+  margin-top: 4px;
+  color: #E85222;
+  font-size: 12px;
+  font-weight: 800;
+}
+.crop-preset small {
+  margin-top: 3px;
+  color: #626A73;
+  font-size: 12px;
+}
+.crop-controls {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+}
+.crop-controls label span {
+  color: #626A73;
+  font-size: 12px;
+  font-weight: 700;
+}
+.crop-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
+.preview-stage {
+  min-width: 0;
+  border: 1px solid #E7E9ED;
+  border-radius: 18px;
+  background:
+    linear-gradient(45deg, rgba(231, 233, 237, 0.7) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(231, 233, 237, 0.7) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(231, 233, 237, 0.7) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(231, 233, 237, 0.7) 75%),
+    #fff;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+  background-size: 20px 20px;
+  overflow: hidden;
+}
+.image-fit-stage {
+  height: min(68vh, 620px);
+  min-height: 460px;
+  padding: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 200px;
-  background: #F8F9FB;
+  background: rgba(248, 249, 251, 0.88);
+}
+.image-fit-stage img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 18px 48px rgba(17, 24, 39, 0.14);
+}
+.crop-workbench {
+  min-height: 560px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(248, 249, 251, 0.92);
+}
+.crop-canvas {
+  position: relative;
+  width: min(100%, 620px);
+  max-height: 520px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 22px 58px rgba(17, 24, 39, 0.16);
+}
+.crop-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.12s ease;
+  transform-origin: center;
+}
+.crop-guide {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.42) 1px, transparent 1px) 33.333% 0 / 33.333% 100%,
+    linear-gradient(180deg, rgba(255,255,255,.42) 1px, transparent 1px) 0 33.333% / 100% 33.333%;
+  box-shadow: inset 0 0 0 2px rgba(255, 107, 53, 0.92);
+}
+.crop-size-label {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(23, 26, 31, 0.72);
+  font-size: 12px;
+  font-weight: 800;
+  backdrop-filter: blur(12px);
+}
+.crop-note {
+  margin: 14px 0 0;
+  color: #626A73;
+  font-size: 12px;
+}
+.video-preview {
+  width: 100%;
+  max-height: min(68vh, 620px);
+  display: block;
+  background: #000;
 }
 .form-tip {
   font-size: 12px;
@@ -917,6 +1309,16 @@ onMounted(async () => {
   }
   .asset-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .preview-shell {
+    grid-template-columns: 1fr;
+  }
+  .preview-panel {
+    order: 2;
+  }
+  .image-fit-stage,
+  .crop-workbench {
+    min-height: 360px;
   }
 }
 </style>
