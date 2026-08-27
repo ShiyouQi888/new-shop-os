@@ -35,8 +35,18 @@ function patchConfigDefaults() {
   }
 }
 
+/** 一次性修正历史种子数据的错误：早期种子把 9 个普通零售商品也错误标记为 is_gift_package=1，
+ *  导致商城详情页把它们的"立即购买"全部导向入会流程。只修正非入会专区分类下被误标的商品，
+ *  不影响管理员后续手动设置的真实礼包商品。 */
+function fixSeedGiftPackageFlag() {
+  if (seeded('migration.fix_seed_gift_package_flag')) return
+  run("UPDATE product_spu SET is_gift_package = 0 WHERE is_gift_package = 1 AND category_id != 5 AND id IN (1,2,3,4,5,6,7,8,9)")
+  markSeed('migration.fix_seed_gift_package_flag')
+}
+
 export async function seed() {
   patchConfigDefaults()
+  fixSeedGiftPackageFlag()
 
   if (seeded('seed.done')) {
     console.log('[seed] 已存在种子数据，跳过')
@@ -112,11 +122,13 @@ export async function seed() {
   }
 
   // ===== 商品 SPU + SKU =====
+  // 元组: [id, name, categoryId, isGiftPackage, sort] —— 只有入会专区(categoryId=5)的 3 个礼包才是 isGiftPackage=1，
+  // 其余 9 个普通零售商品必须是 0，否则商品详情页会把"立即购买"按钮全部导向入会流程
   const spus: [number, string, number, number, number][] = [
-    [1, '烟酰胺焕亮精华液', 1, 1, 0], [2, '玻尿酸保湿面膜', 1, 1, 0], [3, '丝绒哑光口红', 1, 1, 0],
-    [4, '胶原蛋白肽粉', 2, 1, 0], [5, '益生菌固体饮料', 2, 1, 0],
-    [6, '香薰加湿器', 3, 1, 0], [7, '乳胶枕', 3, 1, 0],
-    [8, '无线蓝牙耳机', 4, 1, 0], [9, '智能体脂秤', 4, 1, 0],
+    [1, '烟酰胺焕亮精华液', 1, 0, 0], [2, '玻尿酸保湿面膜', 1, 0, 0], [3, '丝绒哑光口红', 1, 0, 0],
+    [4, '胶原蛋白肽粉', 2, 0, 0], [5, '益生菌固体饮料', 2, 0, 0],
+    [6, '香薰加湿器', 3, 0, 0], [7, '乳胶枕', 3, 0, 0],
+    [8, '无线蓝牙耳机', 4, 0, 0], [9, '智能体脂秤', 4, 0, 0],
     [10, '礼包·银卡套装', 5, 1, 1], [11, '礼包·金卡套装', 5, 1, 1], [12, '礼包·铂金套装', 5, 1, 1],
   ]
   const skuDefs: [number, string, number, number][] = [
