@@ -132,7 +132,7 @@ button { -webkit-tap-highlight-color: transparent; }
 
 .van-nav-bar {
   left: 50% !important;
-  width: min(430px, 100vw);
+  width: min(430px, 100vw) !important;
   transform: translateX(-50%);
   background: rgba(255, 255, 255, 0.9) !important;
   border-bottom: 1px solid rgba(231, 233, 237, 0.76);
@@ -147,6 +147,13 @@ button { -webkit-tap-highlight-color: transparent; }
   font-size: 15px;
   font-weight: 800;
   letter-spacing: 0;
+}
+
+.van-dropdown-item {
+  left: 50% !important;
+  right: auto !important;
+  width: min(430px, 100vw) !important;
+  transform: translateX(-50%);
 }
 
 .van-tabbar--fixed,

@@ -236,9 +236,10 @@ onMounted(async () => {
 
 .redeem-bar {
   position: fixed;
-  left: 12px;
-  right: 12px;
+  left: 50%;
+  transform: translateX(-50%);
   bottom: calc(14px + env(safe-area-inset-bottom));
+  width: min(406px, calc(100vw - 24px));
   padding: 12px 14px calc(10px + env(safe-area-inset-bottom)) 14px;
   border: 1px solid rgba(231, 233, 237, 0.9);
   border-radius: 16px;
