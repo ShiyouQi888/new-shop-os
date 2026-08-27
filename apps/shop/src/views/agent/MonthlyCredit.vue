@@ -31,11 +31,11 @@
       <!-- 领货操作 -->
       <div class="action-row">
         <van-button color="#FF6B35" block round @click="goPickProducts">领取商品自用</van-button>
-        <van-button plain color="#E85222" block round @click="goResell">一键转卖变现</van-button>
+        <van-button v-if="hasResellable" plain color="#E85222" block round @click="goResell">一键转卖变现</van-button>
       </div>
 
-      <!-- 领货进度 -->
-      <div class="progress-card premium-card">
+      <!-- 领货进度（代理商入会权益周期，普通会员消费返还额度无周期限制） -->
+      <div class="progress-card premium-card" v-if="userStore.isAgent">
         <div class="card-title">领货权益进度</div>
         <div class="progress-info">
           <span>已领 {{ usedMonths }}/{{ totalMonths }} 个月</span>
@@ -63,6 +63,7 @@
         </div>
       </div>
     </div>
+    <van-empty v-else description="暂无领货额度，购物消费后可累加当月额度" />
   </div>
 </template>
 
@@ -86,6 +87,8 @@ const usagePercent = computed(() => {
 })
 const totalMonths = 10
 const usedMonths = computed(() => credits.value.length)
+/** 转卖入口是否展示：由额度来源决定（后台可配置消费所得额度是否支持转卖），非仅代理商专属 */
+const hasResellable = computed(() => credits.value.some(c => Number(c.resellableAmount) > 0))
 
 const goPickProducts = () => {
   router.push('/agent/credit-pool')

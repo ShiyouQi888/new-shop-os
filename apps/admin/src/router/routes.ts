@@ -140,6 +140,12 @@ export const adminRoutes: RouteRecordRaw[] = [
         meta: { title: '领货规则配置', icon: 'Calendar', permission: 'benefit:config' },
       },
       {
+        path: 'consumption-credit',
+        name: 'ConsumptionCreditRule',
+        component: () => import('@/views/benefit/ConsumptionCreditConfig.vue'),
+        meta: { title: '消费返还额度配置', icon: 'Coin', permission: 'benefit:config' },
+      },
+      {
         path: 'resell',
         name: 'ResellRule',
         component: () => import('@/views/benefit/ResellRuleConfig.vue'),

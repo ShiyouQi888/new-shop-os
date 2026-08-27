@@ -122,14 +122,36 @@ router.post('/upgrade', requireMember, (req, res, next) => {
     run('UPDATE member SET level = ?, become_agent_time = ? WHERE id = ?', body.level, now(), mid)
     const month = monthOf()
     const credit = Number(level.monthlyCredit ?? 0)
-    if (credit > 0 && !get('SELECT id FROM credit_record WHERE member_id = ? AND month = ?', mid, month)) {
-      const rec = run(
-        'INSERT INTO credit_record (member_id, month, credit_amount, used_amount, remain_amount, status, remark, create_time) VALUES (?, ?, ?, 0, ?, 0, ?, ?)',
-        mid, month, credit, credit, '入会礼包支付后自动发放', now(),
+    if (credit > 0) {
+      // 入会礼包发放的额度全额可转卖；若当月已有消费返还额度（消费所得不可转卖），在其基础上叠加，而非跳过
+      const ts = now()
+      const existing = get<{ id: number; usedAmount: number; remainAmount: number; resellableAmount: number }>(
+        'SELECT id, used_amount AS usedAmount, remain_amount AS remainAmount, resellable_amount AS resellableAmount FROM credit_record WHERE member_id = ? AND month = ?',
+        mid, month,
       )
+      let recordId: number
+      let remain: number
+      if (existing) {
+        remain = money(Number(existing.remainAmount) + credit)
+        const resellable = money(Number(existing.resellableAmount ?? 0) + credit)
+        const status = Number(existing.usedAmount) > 0 ? 1 : 0
+        run(
+          'UPDATE credit_record SET credit_amount = credit_amount + ?, remain_amount = ?, resellable_amount = ?, status = ?, update_time = ? WHERE id = ?',
+          credit, remain, resellable, status, ts, existing.id,
+        )
+        recordId = existing.id
+      } else {
+        const rec = run(
+          `INSERT INTO credit_record (member_id, month, credit_amount, used_amount, remain_amount, resellable_amount, status, remark, create_time)
+           VALUES (?, ?, ?, 0, ?, ?, 0, ?, ?)`,
+          mid, month, credit, credit, credit, '入会礼包支付后自动发放', ts,
+        )
+        recordId = Number(rec.lastInsertRowid)
+        remain = credit
+      }
       run(
         'INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, create_time) VALUES (?, ?, ?, ?, 1, ?, ?)',
-        Number(rec.lastInsertRowid), mid, credit, credit, '入会礼包支付后自动发放', now(),
+        recordId, mid, credit, remain, '入会礼包支付后自动发放', ts,
       )
     }
     ok(res, memberDetail(mid), '代理商权益已开通')
@@ -150,7 +172,7 @@ router.get('/me', requireMember, (req, res, next) => {
     const l2 = get<{ c: number }>('SELECT COUNT(*) AS c FROM member WHERE second_inviter_id = ?', id)!.c
     const l3 = get<{ c: number }>('SELECT COUNT(*) AS c FROM member WHERE third_inviter_id = ?', id)!.c
     const resellActive = get<{ c: number }>('SELECT COUNT(*) AS c FROM resell_order WHERE member_id = ? AND status IN (0,1,2)', id)!.c
-    const credit = get('SELECT id, member_id AS memberId, month, credit_amount AS creditAmount, used_amount AS usedAmount, remain_amount AS remainAmount, status FROM credit_record WHERE member_id = ? ORDER BY month DESC LIMIT 1', id)
+    const credit = get('SELECT id, member_id AS memberId, month, credit_amount AS creditAmount, used_amount AS usedAmount, remain_amount AS remainAmount, resellable_amount AS resellableAmount, status FROM credit_record WHERE member_id = ? ORDER BY month DESC LIMIT 1', id)
     ok(res, {
       member: detail,
       commission: { total, available, pending, withdrawn },
@@ -191,7 +213,7 @@ router.get('/promote-stats', requireMember, (req, res, next) => {
 router.get('/credits', requireMember, (req, res, next) => {
   try {
     const id = req.member!.mid
-    const list = all('SELECT id, month, credit_amount AS creditAmount, used_amount AS usedAmount, remain_amount AS remainAmount, status, remark FROM credit_record WHERE member_id = ? ORDER BY month DESC', id)
+    const list = all('SELECT id, month, credit_amount AS creditAmount, used_amount AS usedAmount, remain_amount AS remainAmount, resellable_amount AS resellableAmount, status, remark FROM credit_record WHERE member_id = ? ORDER BY month DESC', id)
     ok(res, list)
   } catch (e) { next(e) }
 })
@@ -295,8 +317,10 @@ router.post('/credits/:id/redeem', requireMember, (req, res, next) => {
 
     const remain = money(remainAmount - totalCost)
     const used = money(Number(credit.usedAmount) + totalCost)
-    run('UPDATE credit_record SET used_amount = ?, remain_amount = ?, status = ?, update_time = ? WHERE id = ?',
-      used, remain, remain <= 0 ? 2 : 1, ts, creditId)
+    // 兑换不区分额度来源，消耗后可转卖部分不能超过剩余额度
+    const resellable = money(Math.min(Number(credit.resellableAmount ?? 0), remain))
+    run('UPDATE credit_record SET used_amount = ?, remain_amount = ?, resellable_amount = ?, status = ?, update_time = ? WHERE id = ?',
+      used, remain, resellable, remain <= 0 ? 2 : 1, ts, creditId)
     const summary = lines.map(l => `${String(l.sku.skuName)} x${l.quantity}`).join('、')
     run('INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, create_time) VALUES (?, ?, ?, ?, 2, ?, ?)',
       creditId, mid, -totalCost, remain, `领取商品自用：${summary}`, ts)
@@ -339,14 +363,16 @@ router.post('/resells', requireMember, (req, res, next) => {
     if (!member) throw notFound('会员不存在')
     const credit = body.creditId
       ? get<Record<string, unknown>>('SELECT * FROM credit_record WHERE id = ? AND member_id = ?', body.creditId, mid)
-      : get<Record<string, unknown>>('SELECT * FROM credit_record WHERE member_id = ? AND remain_amount >= ? AND status IN (0,1) ORDER BY month DESC, id DESC LIMIT 1', mid, body.goodsValue)
+      : get<Record<string, unknown>>('SELECT * FROM credit_record WHERE member_id = ? AND resellable_amount >= ? AND status IN (0,1) ORDER BY month DESC, id DESC LIMIT 1', mid, body.goodsValue)
     if (!credit) throw badRequest('可转卖月度领货额度不足')
-    const remainAmount = money(Number(credit.remainAmount))
+    // 消费返还所得额度不支持转卖，只有入会礼包发放的部分（resellable_amount）可转卖
+    const resellableAmount = money(Number(credit.resellableAmount ?? 0))
+    if (resellableAmount <= 0) throw badRequest('当前额度不支持转卖，仅可用于领取商品')
     if (claimMode() === 'lump_sum') {
-      if (money(body.goodsValue) !== remainAmount) {
-        throw badRequest(`当前为一次性转卖模式，需一次性转卖剩余额度（¥${remainAmount.toFixed(2)}）`)
+      if (money(body.goodsValue) !== resellableAmount) {
+        throw badRequest(`当前为一次性转卖模式，需一次性转卖完可转卖额度（¥${resellableAmount.toFixed(2)}）`)
       }
-    } else if (remainAmount < body.goodsValue) {
+    } else if (resellableAmount < body.goodsValue) {
       throw badRequest('可转卖月度领货额度不足')
     }
     const ts = now()
@@ -359,9 +385,10 @@ router.post('/resells', requireMember, (req, res, next) => {
       resellNo, mid, member.nickname, Number(credit.id), body.goodsValue, body.serviceFee ?? 0, body.shippingFee ?? 0,
       body.settleAmount ?? 0, body.skuName || '月度领货转卖商品', ts,
     )
-    const remain = Number(credit.remainAmount) - body.goodsValue
-    run('UPDATE credit_record SET used_amount = used_amount + ?, remain_amount = ?, status = ?, update_time = ? WHERE id = ?',
-      body.goodsValue, remain, remain <= 0 ? 4 : 1, ts, Number(credit.id))
+    const remain = money(Number(credit.remainAmount) - body.goodsValue)
+    const resellableRemain = money(resellableAmount - body.goodsValue)
+    run('UPDATE credit_record SET used_amount = used_amount + ?, remain_amount = ?, resellable_amount = ?, status = ?, update_time = ? WHERE id = ?',
+      body.goodsValue, remain, resellableRemain, remain <= 0 ? 4 : 1, ts, Number(credit.id))
     run('INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, create_time) VALUES (?, ?, ?, ?, 2, ?, ?)',
       Number(credit.id), mid, -body.goodsValue, remain, '发起转卖扣减月度额度', ts)
     const id = Number(r.lastInsertRowid)

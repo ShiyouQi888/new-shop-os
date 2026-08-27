@@ -133,19 +133,21 @@ const routes: RouteRecordRaw[] = [
     path: '/agent/credit',
     name: 'AgentCredit',
     component: () => import('@/views/agent/MonthlyCredit.vue'),
-    meta: { title: '月度领货', requiresAuth: true, requiresAgent: true },
+    // 普通会员购物消费也可累加领货额度（无转卖权），故不限代理商
+    meta: { title: '月度领货', requiresAuth: true },
   },
   {
     path: '/agent/credit-pool',
     name: 'AgentCreditPool',
     component: () => import('@/views/agent/CreditRedeem.vue'),
-    meta: { title: '领取商品自用', requiresAuth: true, requiresAgent: true },
+    meta: { title: '领取商品自用', requiresAuth: true },
   },
   {
     path: '/agent/resell',
     name: 'AgentResell',
     component: () => import('@/views/agent/ResellCenter.vue'),
-    meta: { title: '转卖中心', requiresAuth: true, requiresAgent: true },
+    // 转卖资格由额度来源决定（后台可配置消费所得额度是否支持转卖），故不限代理商身份
+    meta: { title: '转卖中心', requiresAuth: true },
   },
   {
     path: '/agent/commission',

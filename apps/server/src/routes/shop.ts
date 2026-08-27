@@ -9,6 +9,7 @@ import { completeMockPayment, createPayment } from '../services/payment.js'
 import { createPendingCommissions, scheduleOrderCommissions, settleDueCommissions } from '../services/distribution.js'
 import { recordFinanceFlow } from '../services/finance.js'
 import { restoreOrderStock } from '../services/inventory.js'
+import { grantConsumptionCredit } from '../services/credit.js'
 
 const router = Router()
 
@@ -311,6 +312,7 @@ router.post('/orders/:id/pay', requireMember, (req, res, next) => {
     }
     recordFinanceFlow(1, Number(order.payAmount), String(order.orderNo), '订单支付收入')
     createPendingCommissions(id)
+    grantConsumptionCredit(id)
     if (nextStatus === 3) scheduleOrderCommissions(id)
     ok(res, null, '支付成功')
   } catch (e) { next(e) }

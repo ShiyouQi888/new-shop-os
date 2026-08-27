@@ -16,13 +16,15 @@ db.exec('PRAGMA journal_mode = DELETE;')
 db.exec('PRAGMA foreign_keys = ON;')
 db.exec(SCHEMA_SQL)
 
-// ===== 轻量迁移：按需补充列（幂等） =====
-function ensureColumn(table: string, column: string, ddl: string) {
+// ===== 轻量迁移：按需补充列（幂等）；返回本次是否新增，供依赖该列的一次性回填判断 =====
+function ensureColumn(table: string, column: string, ddl: string): boolean {
   const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]
   if (!cols.some(c => c.name === column)) {
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`)
     console.log(`[db] 迁移：${table} 增加列 ${column}`)
+    return true
   }
+  return false
 }
 ensureColumn('member', 'real_name', "real_name TEXT NOT NULL DEFAULT ''")
 ensureColumn('member', 'register_time', "register_time TEXT NOT NULL DEFAULT ''")
@@ -48,6 +50,20 @@ ensureColumn('work_order', 'close_time', 'close_time TEXT DEFAULT NULL')
 ensureColumn('promote_poster', 'qr_x', 'qr_x REAL NOT NULL DEFAULT 38')
 ensureColumn('promote_poster', 'qr_y', 'qr_y REAL NOT NULL DEFAULT 72')
 ensureColumn('promote_poster', 'qr_size', 'qr_size REAL NOT NULL DEFAULT 24')
+// 消费返还额度：代理商等级的消费返还比例/有效月数/是否支持转卖、领货额度记录中可转卖部分
+ensureColumn('level_config', 'consumption_credit_rate', 'consumption_credit_rate REAL NOT NULL DEFAULT 0')
+ensureColumn('level_config', 'consumption_credit_months', 'consumption_credit_months INTEGER NOT NULL DEFAULT 0')
+ensureColumn('level_config', 'consumption_resellable', 'consumption_resellable INTEGER NOT NULL DEFAULT 0')
+if (ensureColumn('credit_record', 'resellable_amount', 'resellable_amount REAL NOT NULL DEFAULT 0')) {
+  // 历史领货额度均来自入会礼包发放，一次性回填为可转卖，避免老代理商突然失去转卖权
+  db.exec('UPDATE credit_record SET resellable_amount = remain_amount WHERE remain_amount > 0')
+  console.log('[db] 迁移：历史领货额度回填 resellable_amount（视为可转卖）')
+}
+// 消费返还额度已独立成页，早期版本种下的两个 key 曾归在 credit 分组下，这里归位到 consumption_credit（幂等）
+db.exec(
+  "UPDATE system_config SET config_group = 'consumption_credit' " +
+  "WHERE config_key IN ('consumption_credit.enabled', 'consumption_credit.normal_rate') AND config_group != 'consumption_credit'",
+)
 // scope 索引需在列存在后创建（旧表迁移场景）
 db.exec('CREATE INDEX IF NOT EXISTS idx_help_scope ON help_article(scope, status)')
 

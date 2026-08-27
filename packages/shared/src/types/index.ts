@@ -267,6 +267,8 @@ export interface MonthlyCredit {
   creditAmount: number
   usedAmount: number
   remainAmount: number
+  /** 剩余额度中可转卖的部分（入会礼包发放所得）；消费返还所得额度不可转卖 */
+  resellableAmount: number
   status: CreditStatus
   expireTime: string
   createTime: string
@@ -381,6 +383,9 @@ export interface LevelBenefitConfig {
   monthlyCredit: number
   creditMonths: number
   resellFeeRate: number // 20 = 20%
+  consumptionCreditRate: number // 消费返还比例，8 = 消费实付金额的8%累加为领货额度
+  consumptionCreditMonths: number // 消费返还额度有效月数，0 表示不限
+  consumptionResellable: number // 消费所得额度是否支持转卖：1 支持 0 不支持
   status: ProductStatus
 }
 

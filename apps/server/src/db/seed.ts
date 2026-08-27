@@ -24,6 +24,10 @@ function patchConfigDefaults() {
     ['site.logo', '', 'basic', '站点Logo（登录页/侧边栏展示，留空使用默认）'],
     ['site.icon', '', 'basic', '站点图标/Favicon（留空使用默认）'],
     ['credit.claim_mode', 'lump_sum', 'credit', '领货/转卖模式：lump_sum 一次性用完剩余额度 / flexible 自由任意额度'],
+    ['consumption_credit.enabled', '0', 'consumption_credit', '消费返还额度总开关：1 开启 0 关闭（购物消费按比例累加当月领货额度）'],
+    ['consumption_credit.normal_rate', '0', 'consumption_credit', '普通会员消费返还比例(%)，按订单实付金额计算'],
+    ['consumption_credit.normal_months', '0', 'consumption_credit', '普通会员消费返还额度有效月数（0 表示不限）'],
+    ['consumption_credit.normal_resellable', '0', 'consumption_credit', '普通会员消费所得额度是否支持转卖：1 支持 0 不支持'],
   ]
   for (const c of patches) {
     run('INSERT OR IGNORE INTO system_config (config_key, config_value, config_group, description, update_time) VALUES (?, ?, ?, ?, ?)', c[0], c[1], c[2], c[3], now())

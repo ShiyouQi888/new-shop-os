@@ -93,6 +93,14 @@
         </el-form>
       </div>
 
+      <el-alert
+        title="购物消费返还额度（比例/有效月数/是否支持转卖）请在「消费返还额度配置」中按身份单独设置，新增的代理商身份会自动出现在该页面"
+        type="info"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 16px"
+      />
+
       <el-empty v-if="!sortedConfigs.length" description="暂无等级，点击右上角「新增等级」创建" />
     </SfPageContainer>
 
@@ -199,6 +207,10 @@ const createLevel = async () => {
       monthlyCredit: createForm.monthlyCredit,
       creditMonths: createForm.creditMonths,
       resellFeeRate: createForm.resellFeeRate,
+      // 消费返还额度（比例/月数/是否可转卖）默认关闭，创建后请到「消费返还额度配置」按需设置
+      consumptionCreditRate: 0,
+      consumptionCreditMonths: 0,
+      consumptionResellable: 0,
       status: ProductStatus.OnSale,
     })
     configs.value.push(created)

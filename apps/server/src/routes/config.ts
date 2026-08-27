@@ -16,7 +16,9 @@ router.get('/levels', (_req, res, next) => {
     const list = all(`
       SELECT id, level, level_name AS levelName, level_sort AS levelSort, entry_amount AS entryAmount,
              shop_discount AS shopDiscount, monthly_credit AS monthlyCredit, credit_months AS creditMonths,
-             resell_fee_rate AS resellFeeRate, status, update_time AS updateTime
+             resell_fee_rate AS resellFeeRate, consumption_credit_rate AS consumptionCreditRate,
+             consumption_credit_months AS consumptionCreditMonths, consumption_resellable AS consumptionResellable,
+             status, update_time AS updateTime
       FROM level_config ORDER BY level_sort
     `)
     ok(res, list)
@@ -36,16 +38,21 @@ router.put('/levels/:id', requirePermission('benefit:config'), (req, res, next) 
       monthlyCredit: z.number().min(0).optional(),
       creditMonths: z.number().int().min(1).optional(),
       resellFeeRate: z.number().min(0).max(100).optional(),
+      consumptionCreditRate: z.number().min(0).max(100).optional(),
+      consumptionCreditMonths: z.number().int().min(0).optional(),
+      consumptionResellable: z.number().min(0).max(1).optional(),
       status: z.number().min(0).max(1).optional(),
     }).parse(req.body)
     const cur = get<Record<string, unknown>>('SELECT * FROM level_config WHERE id = ?', id)!
     run(
       `UPDATE level_config SET level_name = ?, level_sort = ?, entry_amount = ?, shop_discount = ?, monthly_credit = ?,
-        credit_months = ?, resell_fee_rate = ?, status = ?, update_time = ? WHERE id = ?`,
+        credit_months = ?, resell_fee_rate = ?, consumption_credit_rate = ?, consumption_credit_months = ?,
+        consumption_resellable = ?, status = ?, update_time = ? WHERE id = ?`,
       body.levelName ?? cur.levelName, body.levelSort ?? cur.levelSort, body.entryAmount ?? cur.entryAmount,
       body.shopDiscount ?? cur.shopDiscount, body.monthlyCredit ?? cur.monthlyCredit,
       body.creditMonths ?? cur.creditMonths, body.resellFeeRate ?? cur.resellFeeRate,
-      body.status ?? cur.status, now(), id,
+      body.consumptionCreditRate ?? cur.consumptionCreditRate, body.consumptionCreditMonths ?? cur.consumptionCreditMonths,
+      body.consumptionResellable ?? cur.consumptionResellable, body.status ?? cur.status, now(), id,
     )
     ok(res, null, '已更新')
   } catch (e) { next(e) }
@@ -62,13 +69,19 @@ router.post('/levels', requirePermission('benefit:config'), (req, res, next) => 
       monthlyCredit: z.number().min(0),
       creditMonths: z.number().int().min(1),
       resellFeeRate: z.number().min(0).max(100),
+      consumptionCreditRate: z.number().min(0).max(100).optional(),
+      consumptionCreditMonths: z.number().int().min(0).optional(),
+      consumptionResellable: z.number().min(0).max(1).optional(),
     }).parse(req.body)
     const nextLevel = get<{ m: number }>('SELECT COALESCE(MAX(level),0) + 1 AS m FROM level_config')!.m
     if (get('SELECT id FROM level_config WHERE level = ?', nextLevel)) throw conflict('等级档位冲突')
     const r = run(
-      'INSERT INTO level_config (level, level_name, level_sort, entry_amount, shop_discount, monthly_credit, credit_months, resell_fee_rate, status, update_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)',
+      `INSERT INTO level_config (level, level_name, level_sort, entry_amount, shop_discount, monthly_credit, credit_months,
+        resell_fee_rate, consumption_credit_rate, consumption_credit_months, consumption_resellable, status, update_time)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
       nextLevel, body.levelName, body.levelSort, body.entryAmount, body.shopDiscount, body.monthlyCredit,
-      body.creditMonths, body.resellFeeRate, now(),
+      body.creditMonths, body.resellFeeRate, body.consumptionCreditRate ?? 0, body.consumptionCreditMonths ?? 0,
+      body.consumptionResellable ?? 0, now(),
     )
     ok(res, { id: Number(r.lastInsertRowid), level: nextLevel }, '等级已创建', 201)
   } catch (e) { next(e) }

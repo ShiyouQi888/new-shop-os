@@ -43,6 +43,16 @@
       </div>
       <van-icon name="arrow" />
     </section>
+    <section v-else class="agent-entry" @click="router.push('/agent/credit')">
+      <div class="entry-left">
+        <van-icon name="gift-o" size="24" color="#FF6B35" />
+        <div>
+          <div class="entry-title">月度领货</div>
+          <div class="entry-desc">购物消费累加额度，{{ formatMoney(userStore.monthlyCredit) }} 可兑换商品</div>
+        </div>
+      </div>
+      <van-icon name="arrow" />
+    </section>
 
     <section class="section-card">
       <div class="section-header">
