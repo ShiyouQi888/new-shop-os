@@ -12,10 +12,9 @@
         </div>
         <div class="est-item">
           <span>商品价值</span>
-          <van-stepper v-if="!isLumpSum" v-model="goodsValue" :step="50" :min="50" :max="selectedCreditRemain || 50" />
-          <strong v-else class="fixed-value">{{ formatMoney(goodsValue) }}</strong>
+          <strong class="fixed-value">{{ formatMoney(goodsValue) }}</strong>
         </div>
-        <div class="mode-hint" v-if="isLumpSum">当前为一次性转卖模式，需一次性转卖完可转卖额度</div>
+        <div class="mode-hint">转卖固定为一次性转卖全部可转卖额度，不支持部分转卖</div>
         <div class="mode-hint" v-if="selectedCredit && selectedCredit.remainAmount > selectedCredit.resellableAmount">
           该月另有 {{ formatMoney(selectedCredit.remainAmount - selectedCredit.resellableAmount) }} 额度不支持转卖，仅能用于领取商品
         </div>
@@ -77,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showConfirmDialog, showSuccessToast, showToast } from 'vant'
 import { api } from '@/api'
@@ -86,27 +85,21 @@ import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
 const userStore = useUserStore()
-/** 一次性模式：转卖金额锁定为剩余额度；自由模式：允许任意部分额度 */
-const isLumpSum = computed(() => userStore.claimMode === 'lump_sum')
 const activeTab = ref(0)
-const goodsValue = ref(980)
 const credits = ref<Array<{ id: number; month: string; remainAmount: number; resellableAmount: number; status: number }>>([])
 const list = ref<ResellOrder[]>([])
 const submitting = ref(false)
-const serviceFee = computed(() => Number((goodsValue.value * 0.2).toFixed(2)))
-const shippingFee = 10
-const settleAmount = computed(() => Number(Math.max(goodsValue.value - serviceFee.value - shippingFee, 0).toFixed(2)))
 // 消费返还所得额度不支持转卖，仅 resellableAmount（入会礼包发放部分）可转卖；固定取最近一笔可转卖额度，无需手动选择
 const usableCredits = computed(() => credits.value.filter(c => c.resellableAmount > 0 && [0, 1].includes(Number(c.status))))
 const selectedCredit = computed(() => usableCredits.value[0] || null)
-const selectedCreditRemain = computed(() => Number(selectedCredit.value?.resellableAmount ?? 0))
+// 转卖固定为一次性转卖全部可转卖额度，商品价值直接等于可转卖额度，不允许调整
+const goodsValue = computed(() => Number(selectedCredit.value?.resellableAmount ?? 0))
+const serviceFee = computed(() => Number((goodsValue.value * 0.2).toFixed(2)))
+const shippingFee = 10
+const settleAmount = computed(() => Number(Math.max(goodsValue.value - serviceFee.value - shippingFee, 0).toFixed(2)))
 const creditLabel = computed(() => selectedCredit.value
   ? `${selectedCredit.value.month} 可转卖 ${formatMoney(selectedCredit.value.resellableAmount)}`
   : '暂无可转卖额度')
-
-watch(selectedCreditRemain, (remain) => {
-  if (isLumpSum.value && remain > 0) goodsValue.value = remain
-}, { immediate: true })
 
 const filteredList = computed(() => {
   if (activeTab.value === 0) return list.value
@@ -125,11 +118,7 @@ const confirmResell = async () => {
     router.replace('/login')
     return
   }
-  if (settleAmount.value <= 0) {
-    showToast('预计到账需大于 0')
-    return
-  }
-  if (!selectedCredit.value || selectedCreditRemain.value < goodsValue.value) {
+  if (!selectedCredit.value || settleAmount.value <= 0) {
     showToast('可转卖额度不足')
     return
   }
@@ -147,11 +136,7 @@ const confirmResell = async () => {
   submitting.value = true
   try {
     await api.createResell({
-      goodsValue: goodsValue.value,
       creditId: selectedCredit.value.id,
-      serviceFee: serviceFee.value,
-      shippingFee,
-      settleAmount: settleAmount.value,
       skuName: '月度领货转卖商品',
     })
     await loadPageData()
@@ -181,9 +166,6 @@ const loadPageData = async () => {
     status: Number(c.status ?? 0),
   }))
   list.value = resellRows
-  if (selectedCreditRemain.value > 0 && goodsValue.value > selectedCreditRemain.value) {
-    goodsValue.value = Math.max(50, selectedCreditRemain.value)
-  }
 }
 </script>
 

@@ -176,8 +176,8 @@ export const api = {
   redeemCredit: (creditId: number, payload: { items: { skuId: number; quantity: number }[]; receiverName: string; receiverPhone: string; receiverAddress: string }) =>
     http.post<{ orderId: number; cost: number; remainAmount: number }>(`/shop/member/credits/${creditId}/redeem`, payload),
   getResellOrders: (memberId: number) => http.get<ResellOrder[]>('/shop/member/resells', { memberId }),
-  /** 发起转卖（落库，后台可见） */
-  createResell: (payload: { goodsValue: number; creditId?: number; serviceFee: number; shippingFee: number; settleAmount: number; skuName?: string }) =>
+  /** 发起转卖（落库，后台可见）：固定一次性转卖全部可转卖额度，金额与费用均由服务端权威计算 */
+  createResell: (payload: { creditId?: number; skuName?: string }) =>
     http.post<ResellOrder>('/shop/member/resells', payload),
   getCommissions: (memberId: number, level?: number) =>
     http.get<Commission[]>('/shop/member/commissions', { memberId, level }),
