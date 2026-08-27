@@ -4,6 +4,11 @@ const Layout = () => import('@/layouts/MainLayout.vue')
 
 export const adminRoutes: RouteRecordRaw[] = [
   {
+    path: '/',
+    redirect: '/dashboard',
+    meta: { hidden: true },
+  },
+  {
     path: '/login',
     name: 'Login',
     component: () => import('@/views/Login.vue'),
@@ -254,5 +259,10 @@ export const adminRoutes: RouteRecordRaw[] = [
         meta: { title: '文件资产', icon: 'Picture', permission: 'system:file' },
       },
     ],
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/dashboard',
+    meta: { hidden: true },
   },
 ]
