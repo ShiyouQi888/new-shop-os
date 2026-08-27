@@ -68,7 +68,8 @@ router.patch('/:id/status', requirePermission('order:ship'), (req, res, next) =>
     const order = get<Record<string, unknown>>('SELECT * FROM "order" WHERE id = ?', id)
     if (!order) throw notFound('订单不存在')
     const body = z.object({
-      status: z.number().int().min(1).max(4),
+      // 仅发货(2)/完成(3)/取消(4) 三种合法转移；不允许打回待支付(1)，该状态只应由支付流程本身写入
+      status: z.union([z.literal(2), z.literal(3), z.literal(4)]),
       logisticsCompany: z.string().optional(),
       logisticsNo: z.string().optional(),
     }).parse(req.body)
@@ -76,6 +77,7 @@ router.patch('/:id/status', requirePermission('order:ship'), (req, res, next) =>
     if (body.status === 2 && (!body.logisticsCompany || !body.logisticsNo)) throw badRequest('发货必须填写物流公司和物流单号')
     if (body.status === 3 && Number(order.status) !== 2) throw badRequest('仅待收货订单可完成')
     if (body.status === 4 && ![0, 1, 2].includes(Number(order.status))) throw badRequest('当前订单状态不可取消')
+    const wasPaid = [1, 2].includes(Number(order.status))
     const sets: string[] = ['status = ?']
     const params: (string | number)[] = [body.status]
     if (body.status === 2 && !order.shipTime) { sets.push('ship_time = ?'); params.push(now()) }
@@ -89,6 +91,8 @@ router.patch('/:id/status', requirePermission('order:ship'), (req, res, next) =>
     if (body.status === 4) {
       rollbackOrderCommissions(id, '订单取消')
       restoreOrderStock(id)
+      // 已支付订单被直接取消（而非走退款审核）时，同样要冲正此前记过的收入，否则资金流水台账会永久多记一笔从未真正完成的收入
+      if (wasPaid) recordFinanceFlow(5, -Number(order.payAmount), String(order.orderNo), '订单取消（已支付）冲正收入')
     }
     ok(res, null, '订单状态已更新')
   } catch (e) { next(e) }
@@ -103,13 +107,15 @@ router.patch('/ship', requirePermission('order:ship'), (req, res, next) => {
       no: z.string().min(1).max(50),
     }).parse(req.body)
     const ts = now()
+    let shipped = 0
     for (const id of body.ids) {
-      run('UPDATE "order" SET status = 2, logistics_company = ?, logistics_no = ?, ship_time = ? WHERE id = ? AND status = 1',
+      const r = run('UPDATE "order" SET status = 2, logistics_company = ?, logistics_no = ?, ship_time = ? WHERE id = ? AND status = 1',
         body.company, body.no, ts, id)
+      shipped += Number(r.changes)
     }
     logOperation(String(req.auth?.username || ''), '订单管理', '发货',
-      `批量发货 ${body.ids.length} 单（${body.company} ${body.no}）`, String(req.ip || ''))
-    ok(res, null, `已发货 ${body.ids.length} 单`)
+      `批量发货 ${shipped}/${body.ids.length} 单（${body.company} ${body.no}）`, String(req.ip || ''))
+    ok(res, null, `已发货 ${shipped}/${body.ids.length} 单`)
   } catch (e) { next(e) }
 })
 
@@ -119,6 +125,7 @@ router.post('/:id/refund-audit', requirePermission('order:ship'), (req, res, nex
     const id = Number(req.params.id)
     const order = get<Record<string, unknown>>('SELECT * FROM "order" WHERE id = ?', id)
     if (!order) throw notFound('订单不存在')
+    if (Number(order.status) !== 5) throw badRequest('仅退款中的订单可审核')
     const body = z.object({ pass: z.boolean(), remark: z.string().max(200).optional() }).parse(req.body)
     if (!body.pass && !body.remark) throw badRequest('驳回时必须填写原因')
     const nextStatus = body.pass ? 6 : (order.shipTime ? 2 : 1)

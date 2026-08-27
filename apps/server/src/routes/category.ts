@@ -32,7 +32,12 @@ router.post('/', requirePermission('category:edit'), (req, res, next) => {
       sort: z.number().int().min(0).optional(),
       isGiftZone: z.boolean().optional(),
     }).parse(req.body)
-    if (body.parentId && !get('SELECT id FROM category WHERE id = ?', body.parentId)) throw notFound('上级分类不存在')
+    if (body.parentId) {
+      const parent = get<{ parentId: number }>('SELECT parent_id AS parentId FROM category WHERE id = ?', body.parentId)
+      if (!parent) throw notFound('上级分类不存在')
+      // 当前分类树只有两层：根分类 + 直接子分类；挂在非根分类下会在所有树形视图里都不可见
+      if (Number(parent.parentId) !== 0) throw badRequest('上级分类必须是根分类，不支持三级及以上嵌套')
+    }
     const r = run(
       'INSERT INTO category (name, parent_id, icon, sort, is_gift_zone, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?)',
       body.name, body.parentId || 0, body.icon || 'folder', body.sort ?? 0, body.isGiftZone ? 1 : 0, now(), now(),
@@ -71,6 +76,7 @@ router.delete('/:id', requirePermission('category:edit'), (req, res, next) => {
     const id = Number(req.params.id)
     const cat = get('SELECT * FROM category WHERE id = ?', id)
     if (!cat) throw notFound('分类不存在')
+    if (cat.isGiftZone === 1) throw badRequest('入会专区不可删除，如需调整请先在编辑中处理')
     const children = all('SELECT id FROM category WHERE parent_id = ?', id)
     const ids = [id, ...children.map((c) => c.id)]
     run(`UPDATE product_spu SET category_id = NULL WHERE category_id IN (${ids.map(() => '?').join(',')})`, ...ids)

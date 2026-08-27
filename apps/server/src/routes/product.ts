@@ -1,9 +1,9 @@
 // ===== 商品管理 /api/v1/products =====
 import { Router } from 'express'
 import { z } from 'zod'
-import { all, get, run, paginate } from '../db/index.js'
-import { ok, notFound } from '../utils/response.js'
-import { parsePagination, int, str, parseJson, now, uniqueNumbers } from '../utils/index.js'
+import { all, get, run, paginate, transaction } from '../db/index.js'
+import { ok, notFound, badRequest } from '../utils/response.js'
+import { parsePagination, int, str, parseJson, now, uniqueNumbers, money } from '../utils/index.js'
 import { requireAuth, requirePermission } from '../middlewares/auth.js'
 
 const router = Router()
@@ -135,13 +135,25 @@ router.patch('/:id/status', requirePermission('product:edit'), (req, res, next) 
   } catch (e) { next(e) }
 })
 
+/** 商品被礼包/月度商品池引用时禁止删除，避免外键约束在"先删 SKU 再删 SPU"的第二步才失败，导致 SKU 已被删但 SPU 变成空壳 */
+function assertProductsDeletable(ids: number[]) {
+  const placeholders = ids.map(() => '?').join(',')
+  const inGift = all<{ spuId: number }>(`SELECT DISTINCT spu_id AS spuId FROM gift_package WHERE spu_id IN (${placeholders})`, ...ids)
+  if (inGift.length) throw badRequest(`商品 ${inGift.map(r => r.spuId).join('、')} 仍被礼包引用，无法删除，请先在礼包管理中移除`)
+  const inPool = all<{ spuId: number }>(`SELECT DISTINCT spu_id AS spuId FROM credit_pool_item WHERE spu_id IN (${placeholders})`, ...ids)
+  if (inPool.length) throw badRequest(`商品 ${inPool.map(r => r.spuId).join('、')} 仍在月度领货商品池中，无法删除，请先移出商品池`)
+}
+
 /** DELETE /products/:id */
 router.delete('/:id', requirePermission('product:edit'), (req, res, next) => {
   try {
     const id = Number(req.params.id)
     if (!get('SELECT id FROM product_spu WHERE id = ?', id)) throw notFound('商品不存在')
-    run('DELETE FROM product_sku WHERE spu_id = ?', id)
-    run('DELETE FROM product_spu WHERE id = ?', id)
+    assertProductsDeletable([id])
+    transaction(() => {
+      run('DELETE FROM product_sku WHERE spu_id = ?', id)
+      run('DELETE FROM product_spu WHERE id = ?', id)
+    })
     ok(res, null, '已删除')
   } catch (e) { next(e) }
 })
@@ -151,8 +163,11 @@ router.delete('/', requirePermission('product:edit'), (req, res, next) => {
   try {
     const ids = uniqueNumbers((req.body as { ids?: unknown } | undefined)?.ids)
     if (!ids.length) { ok(res, null, '无删除项'); return }
-    run(`DELETE FROM product_sku WHERE spu_id IN (${ids.map(() => '?').join(',')})`, ...ids)
-    run(`DELETE FROM product_spu WHERE id IN (${ids.map(() => '?').join(',')})`, ...ids)
+    assertProductsDeletable(ids)
+    transaction(() => {
+      run(`DELETE FROM product_sku WHERE spu_id IN (${ids.map(() => '?').join(',')})`, ...ids)
+      run(`DELETE FROM product_spu WHERE id IN (${ids.map(() => '?').join(',')})`, ...ids)
+    })
     ok(res, null, `已删除 ${ids.length} 个商品`)
   } catch (e) { next(e) }
 })
@@ -183,7 +198,7 @@ router.post('/:id/skus', requirePermission('product:edit'), (req, res, next) => 
     }).parse(req.body)
     const r = run(
       'INSERT INTO product_sku (spu_id, sku_name, spec_info, price, original_price, stock, sales, image, status) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)',
-      id, body.skuName, JSON.stringify(body.specInfo || {}), body.price, body.originalPrice ?? body.price,
+      id, body.skuName, JSON.stringify(body.specInfo || {}), money(body.price), money(body.originalPrice ?? body.price),
       body.stock ?? 0, body.image || '', body.status ?? 1,
     )
     run('UPDATE product_spu SET update_time = ? WHERE id = ?', now(), id)
@@ -194,8 +209,9 @@ router.post('/:id/skus', requirePermission('product:edit'), (req, res, next) => 
 /** PUT /products/:id/skus/:skuId 编辑 SKU */
 router.put('/:id/skus/:skuId', requirePermission('product:edit'), (req, res, next) => {
   try {
+    const id = Number(req.params.id)
     const skuId = Number(req.params.skuId)
-    const sku = get('SELECT * FROM product_sku WHERE id = ?', skuId)
+    const sku = get('SELECT * FROM product_sku WHERE id = ? AND spu_id = ?', skuId, id)
     if (!sku) throw notFound('SKU 不存在')
     const body = z.object({
       skuName: z.string().min(1).max(40).optional(),
@@ -209,7 +225,7 @@ router.put('/:id/skus/:skuId', requirePermission('product:edit'), (req, res, nex
     run(
       'UPDATE product_sku SET sku_name = ?, spec_info = ?, price = ?, original_price = ?, stock = ?, image = ?, status = ? WHERE id = ?',
       body.skuName ?? sku.skuName, body.specInfo ? JSON.stringify(body.specInfo) : sku.specInfo,
-      body.price ?? sku.price, body.originalPrice ?? sku.originalPrice,
+      body.price !== undefined ? money(body.price) : sku.price, body.originalPrice !== undefined ? money(body.originalPrice) : sku.originalPrice,
       body.stock ?? sku.stock, body.image ?? sku.image, body.status ?? sku.status, skuId,
     )
     ok(res, null, '已更新')
@@ -219,7 +235,9 @@ router.put('/:id/skus/:skuId', requirePermission('product:edit'), (req, res, nex
 /** DELETE /products/:id/skus/:skuId */
 router.delete('/:id/skus/:skuId', requirePermission('product:edit'), (req, res, next) => {
   try {
+    const id = Number(req.params.id)
     const skuId = Number(req.params.skuId)
+    if (!get('SELECT id FROM product_sku WHERE id = ? AND spu_id = ?', skuId, id)) throw notFound('SKU 不存在')
     run('DELETE FROM product_sku WHERE id = ?', skuId)
     ok(res, null, '已删除')
   } catch (e) { next(e) }
