@@ -5,7 +5,7 @@
         <div>
           <div class="hero-kicker">CAPITAL POOL</div>
           <h2>资金池余额 ¥{{ money(overview.fundPoolBalance) }}</h2>
-          <p>实收 ¥{{ money(overview.cashIn) }}，已分出/打款 ¥{{ money(overview.cashOut) }}，潜在负债 ¥{{ money(overview.riskExposure) }}。</p>
+          <p>实收 ¥{{ money(overview.cashIn) }}，已分出/打款 ¥{{ money(overview.cashOut) }}，资金风险敞口 ¥{{ money(overview.cashRiskExposure) }}。</p>
         </div>
         <div class="risk-badge" :class="`risk-${overview.riskLevel}`">
           <span>{{ riskText }}</span>
@@ -38,57 +38,73 @@
 
       <el-row :gutter="16" class="stat-row">
         <el-col :xs="12" :sm="6">
-          <SfStatCard :value="overview.totalRevenue" label="订单总实收" icon="Coin" color="#FF6B35" prefix="¥" />
+          <SfStatCard :value="overview.walletBalance" label="会员可提现余额" icon="Wallet" color="#E85222" prefix="¥" />
+        </el-col>
+        <el-col :xs="12" :sm="6">
+          <SfStatCard :value="overview.walletFrozen" label="会员冻结中余额" icon="Lock" color="#626A73" prefix="¥" />
         </el-col>
         <el-col :xs="12" :sm="6">
           <SfStatCard :value="overview.commissionPending" label="待结算佣金" icon="Timer" color="#F5A623" prefix="¥" />
         </el-col>
         <el-col :xs="12" :sm="6">
-          <SfStatCard :value="overview.commissionAvailable" label="可提现佣金" icon="Money" color="#E85222" prefix="¥" />
-        </el-col>
-        <el-col :xs="12" :sm="6">
-          <SfStatCard :value="overview.pendingWithdraw" label="待提现打款" icon="Wallet" color="#626A73" prefix="¥" />
+          <SfStatCard :value="overview.pendingWithdraw" label="待提现打款（含于冻结）" icon="Money" color="#9AA1AA" prefix="¥" />
         </el-col>
       </el-row>
 
       <el-row :gutter="16" class="stat-row">
         <el-col :xs="12" :sm="6">
-          <SfStatCard :value="overview.resellServiceFee" label="累计转卖服务费" icon="RefreshRight" color="#18A66A" prefix="¥" />
+          <SfStatCard :value="overview.creditResellableFace" label="可转卖领货额度（原值）" icon="RefreshRight" color="#FF6B35" prefix="¥" />
         </el-col>
         <el-col :xs="12" :sm="6">
-          <SfStatCard :value="overview.resellPayout" label="累计转卖打款" icon="Promotion" color="#FF6B35" prefix="¥" />
+          <SfStatCard :value="overview.creditResellableEstimated" label="可转卖额度预计兑付" icon="TrendCharts" color="#E5484D" prefix="¥" />
         </el-col>
         <el-col :xs="12" :sm="6">
-          <SfStatCard :value="overview.resellPendingPayout" label="待转卖结算" icon="Timer" color="#F5A623" prefix="¥" />
+          <SfStatCard :value="overview.creditRedeemableLiability" label="仅可领取的额度（履约）" icon="Present" color="#18A66A" prefix="¥" />
         </el-col>
         <el-col :xs="12" :sm="6">
-          <SfStatCard :value="overview.walletBalance + overview.walletFrozen" label="会员钱包负债" icon="WalletFilled" color="#E85222" prefix="¥" />
+          <SfStatCard :value="overview.resellPendingPayout" label="转卖中待结算" icon="Timer" color="#F5A623" prefix="¥" />
         </el-col>
       </el-row>
 
       <el-row :gutter="16">
         <el-col :xs="24" :lg="14">
           <div class="sf-card">
-            <div class="sf-card-title"><el-icon><DataAnalysis /></el-icon> 资金池风险拆解</div>
+            <div class="sf-card-title"><el-icon><DataAnalysis /></el-icon> 资金风险拆解</div>
             <div class="risk-panel">
               <div class="risk-meter">
                 <div class="meter-head">
-                  <span>负债覆盖率</span>
-                  <strong>{{ riskPercent }}%</strong>
+                  <span>资金覆盖率</span>
+                  <strong :class="`text-${overview.riskLevel}`">{{ coveragePercent }}%</strong>
                 </div>
                 <div class="meter-track">
-                  <div class="meter-fill" :class="`risk-${overview.riskLevel}`" :style="{ width: Math.min(riskPercent, 100) + '%' }"></div>
+                  <div class="meter-fill" :class="`risk-${overview.riskLevel}`" :style="{ width: meterWidth + '%' }"></div>
+                  <div class="meter-threshold"></div>
                 </div>
-                <p>覆盖率超过 100% 代表潜在应付大于资金池余额，需要重点核查。</p>
+                <p>覆盖率 = 资金池余额 ÷ 资金风险敞口；100% 为收支打平线，低于 100% 说明资金池已不足以覆盖近期可能兑现的负债，存在资金缺口；建议维持在 150% 以上。</p>
               </div>
 
               <div class="risk-items">
-                <div v-for="item in riskItems" :key="item.label" class="risk-item">
+                <div v-for="item in cashRiskItems" :key="item.label" class="risk-item">
                   <span>{{ item.label }}</span>
                   <b>¥{{ money(item.value) }}</b>
                 </div>
               </div>
             </div>
+          </div>
+
+          <div class="sf-card fulfillment-card">
+            <div class="sf-card-title"><el-icon><Box /></el-icon> 履约风险（非现金，占用库存/商品成本）</div>
+            <div class="risk-items">
+              <div v-for="item in fulfillmentItems" :key="item.label" class="risk-item">
+                <span>{{ item.label }}</span>
+                <b>¥{{ money(item.value) }}</b>
+              </div>
+              <div class="risk-item total">
+                <span>履约风险合计</span>
+                <b>¥{{ money(overview.fulfillmentExposure) }}</b>
+              </div>
+            </div>
+            <p class="fulfillment-hint">这部分不会直接消耗资金池现金，但会消耗库存或商品采购成本，需结合库存与供应链能力单独评估，不计入上方资金缺口。</p>
           </div>
         </el-col>
 
@@ -144,7 +160,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { Tickets, DataAnalysis, TrendCharts } from '@element-plus/icons-vue'
+import { Tickets, DataAnalysis, TrendCharts, Box } from '@element-plus/icons-vue'
 import { apiFinance } from '@/api'
 import SfPageContainer from '@/components/SfPageContainer.vue'
 import SfStatCard from '@/components/SfStatCard.vue'
@@ -157,8 +173,10 @@ const overview = ref({
   orderCount: 0, memberOrderIncome: 0, memberOrderCount: 0, giftOrderIncome: 0, giftOrderCount: 0,
   pendingShipAmount: 0, pendingShipCount: 0, inTransitAmount: 0, inTransitCount: 0,
   pendingServiceFee: 0, resellPayout: 0, resellPendingPayout: 0, resellActiveCount: 0, resellCompletedCount: 0,
-  walletBalance: 0, walletFrozen: 0, cashIn: 0, cashOut: 0, fundPoolBalance: 0,
-  riskExposure: 0, riskGap: 0, riskRatio: 0, riskLevel: 'low',
+  walletBalance: 0, walletFrozen: 0, walletLiability: 0,
+  creditResellableFace: 0, creditResellableEstimated: 0, creditRedeemableLiability: 0, resellFeeRate: 0,
+  cashIn: 0, cashOut: 0, fundPoolBalance: 0,
+  cashRiskExposure: 0, fulfillmentExposure: 0, riskGap: 0, coverageRatio: 0, riskLevel: 'low',
 })
 
 const flowList = ref<Array<{ time: string; type: string; desc: string; amount: number; balance: number }>>([])
@@ -168,20 +186,27 @@ const pageSize = 10
 const flowTotal = computed(() => allFlows.value.length)
 
 const money = (value: number) => Number(value || 0).toFixed(2)
-const riskPercent = computed(() => Math.round(Math.min(overview.value.riskRatio * 100, 999)))
+/** 资金覆盖率：资金池余额 / 资金风险敞口，越高越安全（100% 为打平线） */
+const coveragePercent = computed(() => Math.round(Math.min(overview.value.coverageRatio * 100, 999)))
+/** 仪表条按 0-150% 映射满格，超过部分视觉上封顶，避免极端值把条形图撑爆 */
+const meterWidth = computed(() => Math.min(coveragePercent.value / 150 * 100, 100))
 const riskText = computed(() => {
-  if (overview.value.riskLevel === 'high') return '高风险'
-  if (overview.value.riskLevel === 'medium') return '需关注'
+  if (overview.value.riskLevel === 'high') return '资金缺口，需立即关注'
+  if (overview.value.riskLevel === 'medium') return '覆盖偏紧，需关注'
   return '健康'
 })
 
-const riskItems = computed(() => [
+const cashRiskItems = computed(() => [
+  { label: '会员可提现余额', value: overview.value.walletBalance },
+  { label: '会员冻结中余额', value: overview.value.walletFrozen },
   { label: '待结算佣金', value: overview.value.commissionPending },
-  { label: '可提现佣金', value: overview.value.commissionAvailable },
-  { label: '待提现打款', value: overview.value.pendingWithdraw },
-  { label: '待转卖结算', value: overview.value.resellPendingPayout },
+  { label: '转卖中待结算', value: overview.value.resellPendingPayout },
+  { label: `可转卖额度预计兑付（费率${overview.value.resellFeeRate}%）`, value: overview.value.creditResellableEstimated },
+])
+
+const fulfillmentItems = computed(() => [
   { label: '待发货订单金额', value: overview.value.pendingShipAmount },
-  { label: '钱包余额/冻结', value: overview.value.walletBalance + overview.value.walletFrozen },
+  { label: '仅可领取的领货额度', value: overview.value.creditRedeemableLiability },
 ])
 
 const flowBars = computed(() => {
@@ -312,6 +337,7 @@ onMounted(async () => {
   font-weight: 800;
 }
 .meter-track {
+  position: relative;
   height: 14px;
   margin: 12px 0 8px;
   border-radius: 999px;
@@ -321,14 +347,27 @@ onMounted(async () => {
 .meter-fill {
   height: 100%;
   border-radius: 999px;
+  transition: width 0.4s ease;
+}
+.meter-threshold {
+  position: absolute;
+  top: 0;
+  left: calc(100% / 1.5);
+  width: 2px;
+  height: 100%;
+  background: rgba(23, 26, 31, 0.28);
 }
 .risk-low { background: #18A66A; }
 .risk-medium { background: #F5A623; }
 .risk-high { background: #E5484D; }
+.text-low { color: #18A66A; }
+.text-medium { color: #F5A623; }
+.text-high { color: #E5484D; }
 .risk-meter p {
   margin: 0;
   color: #626A73;
   font-size: 12px;
+  line-height: 1.6;
 }
 .risk-items {
   display: grid;
@@ -344,6 +383,13 @@ onMounted(async () => {
   justify-content: space-between;
   gap: 12px;
 }
+.risk-item.total {
+  grid-column: 1 / -1;
+  background: #FFF1EB;
+}
+.risk-item.total b {
+  color: #E85222;
+}
 .risk-item span {
   color: #626A73;
   font-size: 12px;
@@ -351,6 +397,15 @@ onMounted(async () => {
 .risk-item b {
   color: #171A1F;
   font-size: 13px;
+}
+.fulfillment-card {
+  margin-top: 16px;
+}
+.fulfillment-hint {
+  margin: 12px 0 0;
+  color: #9AA1AA;
+  font-size: 12px;
+  line-height: 1.6;
 }
 .text-success {
   color: #18A66A;
