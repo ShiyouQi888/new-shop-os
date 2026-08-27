@@ -223,14 +223,19 @@
     >
       <div class="preview-shell" v-if="previewAsset">
         <aside class="preview-panel">
-          <div class="preview-panel-title">素材信息</div>
-          <div class="preview-meta-list">
-            <div><span>类型</span><b>{{ FileAssetTypeLabels[previewAsset.type] }}</b></div>
-            <div><span>大小</span><b>{{ formatSize(previewAsset.size) }}</b></div>
-            <div v-if="previewAsset.width && previewAsset.height"><span>尺寸</span><b>{{ previewAsset.width }}×{{ previewAsset.height }}</b></div>
-            <div v-else-if="imageNatural.width && imageNatural.height"><span>尺寸</span><b>{{ imageNatural.width }}×{{ imageNatural.height }}</b></div>
-            <div v-if="previewAsset.groupId !== null"><span>分组</span><b>{{ currentGroupName(previewAsset) }}</b></div>
-          </div>
+          <details class="preview-info" open>
+            <summary>
+              <span>素材信息</span>
+              <small>点击折叠</small>
+            </summary>
+            <div class="preview-meta-list">
+              <div><span>类型</span><b>{{ FileAssetTypeLabels[previewAsset.type] }}</b></div>
+              <div><span>大小</span><b>{{ formatSize(previewAsset.size) }}</b></div>
+              <div v-if="previewAsset.width && previewAsset.height"><span>尺寸</span><b>{{ previewAsset.width }}×{{ previewAsset.height }}</b></div>
+              <div v-else-if="imageNatural.width && imageNatural.height"><span>尺寸</span><b>{{ imageNatural.width }}×{{ imageNatural.height }}</b></div>
+              <div v-if="previewAsset.groupId !== null"><span>分组</span><b>{{ currentGroupName(previewAsset) }}</b></div>
+            </div>
+          </details>
 
           <template v-if="previewAsset.type === FileAssetType.Image">
             <div class="preview-panel-title with-gap">查看方式</div>
@@ -251,26 +256,6 @@
                   <span>{{ preset.width }}×{{ preset.height }}</span>
                   <small>{{ preset.desc }}</small>
                 </button>
-              </div>
-
-              <div class="crop-controls">
-                <label>
-                  <span>缩放</span>
-                  <el-slider v-model="cropZoom" :min="1" :max="3" :step="0.05" />
-                </label>
-                <label>
-                  <span>水平位置</span>
-                  <el-slider v-model="cropOffsetX" :min="-50" :max="50" :step="1" />
-                </label>
-                <label>
-                  <span>垂直位置</span>
-                  <el-slider v-model="cropOffsetY" :min="-50" :max="50" :step="1" />
-                </label>
-              </div>
-
-              <div class="crop-actions">
-                <el-button @click="resetCrop">居中适配</el-button>
-                <el-button type="primary" :loading="cropping" @click="saveCroppedAsset">生成新素材</el-button>
               </div>
             </template>
           </template>
@@ -293,6 +278,26 @@
               <div class="crop-size-label">{{ activeCropPreset.width }}×{{ activeCropPreset.height }}</div>
             </div>
             <p class="crop-note">裁剪会生成一个新的图片素材，不会覆盖原图。</p>
+            <div class="crop-control-panel">
+              <div class="crop-controls">
+                <label>
+                  <span>缩放</span>
+                  <el-slider v-model="cropZoom" :min="1" :max="3" :step="0.05" />
+                </label>
+                <label>
+                  <span>水平位置</span>
+                  <el-slider v-model="cropOffsetX" :min="-50" :max="50" :step="1" />
+                </label>
+                <label>
+                  <span>垂直位置</span>
+                  <el-slider v-model="cropOffsetY" :min="-50" :max="50" :step="1" />
+                </label>
+              </div>
+              <div class="crop-actions">
+                <el-button @click="resetCrop">居中适配</el-button>
+                <el-button type="primary" :loading="cropping" @click="saveCroppedAsset">生成新素材</el-button>
+              </div>
+            </div>
           </div>
           <video v-else :src="previewAsset.url" controls class="video-preview" />
         </section>
@@ -1066,7 +1071,7 @@ onMounted(async () => {
 }
 .preview-shell {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: 260px minmax(0, 1fr);
   align-items: start;
   gap: 18px;
 }
@@ -1077,6 +1082,46 @@ onMounted(async () => {
   background:
     linear-gradient(180deg, rgba(255, 241, 235, 0.66), rgba(255, 255, 255, 0) 34%),
     #fff;
+}
+.preview-info {
+  border: 1px solid #E7E9ED;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+  overflow: hidden;
+}
+.preview-info summary {
+  min-height: 42px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  color: #171A1F;
+  font-size: 14px;
+  font-weight: 800;
+  list-style: none;
+}
+.preview-info summary::-webkit-details-marker {
+  display: none;
+}
+.preview-info summary::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid #9AA1AA;
+  border-bottom: 2px solid #9AA1AA;
+  transform: rotate(45deg);
+  transition: transform 0.18s ease;
+}
+.preview-info[open] summary::after {
+  transform: rotate(225deg);
+}
+.preview-info summary small {
+  margin-left: auto;
+  margin-right: 12px;
+  color: #9AA1AA;
+  font-size: 12px;
+  font-weight: 500;
 }
 .preview-panel-title {
   color: #171A1F;
@@ -1090,7 +1135,7 @@ onMounted(async () => {
 .preview-meta-list {
   display: grid;
   gap: 8px;
-  margin-top: 12px;
+  padding: 0 12px 12px;
 }
 .preview-meta-list div {
   min-height: 36px;
@@ -1160,9 +1205,11 @@ onMounted(async () => {
   font-size: 12px;
 }
 .crop-controls {
+  flex: 1;
+  min-width: 0;
   display: grid;
-  gap: 6px;
-  margin-top: 14px;
+  grid-template-columns: repeat(3, minmax(130px, 1fr));
+  gap: 12px;
 }
 .crop-controls label span {
   color: #626A73;
@@ -1170,10 +1217,10 @@ onMounted(async () => {
   font-weight: 700;
 }
 .crop-actions {
+  width: 220px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 8px;
-  margin-top: 14px;
 }
 .preview-stage {
   min-width: 0;
@@ -1256,6 +1303,18 @@ onMounted(async () => {
   color: #626A73;
   font-size: 12px;
 }
+.crop-control-panel {
+  width: min(100%, 760px);
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid #E7E9ED;
+  border-radius: 16px;
+  background: #fff;
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  box-shadow: 0 14px 34px rgba(17, 24, 39, 0.06);
+}
 .video-preview {
   width: 100%;
   max-height: min(68vh, 620px);
@@ -1311,6 +1370,17 @@ onMounted(async () => {
   }
   .preview-shell {
     grid-template-columns: 1fr;
+  }
+  .crop-control-panel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .crop-controls {
+    grid-template-columns: 1fr;
+  }
+  .crop-actions {
+    width: 100%;
+    grid-template-columns: 1fr 1fr;
   }
   .preview-panel {
     order: 2;
