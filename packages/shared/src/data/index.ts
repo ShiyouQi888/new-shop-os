@@ -291,19 +291,19 @@ export const mockResellOrders: ResellOrder[] = [
   {
     id: 1, resellNo: 'RS20260815001', memberId: 1, creditId: 1, skuId: 3, skuName: '焕颜精华套装-标准装',
     quantity: 1, goodsValue: 399, serviceFee: 79.8, shippingFee: 10, settleAmount: 309.2,
-    status: ResellStatus.Completed, matchOrderId: 2, matchTime: '2026-08-16 10:00:00',
+    status: ResellStatus.Completed, matchOrderId: 2, matchTime: '2026-08-16 10:00:00', autoMatched: false,
     settleTime: '2026-08-18 14:00:00', cancelTime: null, createTime: '2026-08-15 09:00:00',
   },
   {
     id: 2, resellNo: 'RS20260820002', memberId: 2, creditId: 2, skuId: 11, skuName: '水光面膜10片装',
     quantity: 2, goodsValue: 258, serviceFee: 51.6, shippingFee: 10, settleAmount: 196.4,
-    status: ResellStatus.PendingMatch, matchOrderId: null, matchTime: null,
+    status: ResellStatus.PendingMatch, matchOrderId: null, matchTime: null, autoMatched: false,
     settleTime: null, cancelTime: null, createTime: '2026-08-20 15:00:00',
   },
   {
     id: 3, resellNo: 'RS20260822003', memberId: 4, creditId: 4, skuId: 5, skuName: '胶原蛋白肽-单瓶',
     quantity: 1, goodsValue: 299, serviceFee: 59.8, shippingFee: 10, settleAmount: 229.2,
-    status: ResellStatus.Matching, matchOrderId: null, matchTime: null,
+    status: ResellStatus.Matching, matchOrderId: null, matchTime: null, autoMatched: false,
     settleTime: null, cancelTime: null, createTime: '2026-08-22 11:00:00',
   },
 ]

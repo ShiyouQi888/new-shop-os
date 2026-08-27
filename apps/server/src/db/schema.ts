@@ -521,4 +521,15 @@ CREATE TABLE IF NOT EXISTS credit_pool_item (
   UNIQUE (level, spu_id)
 );
 CREATE INDEX IF NOT EXISTS idx_credit_pool_level ON credit_pool_item(level);
+
+-- 转卖自动匹配商品池（按等级配置：商城/入会礼包订单命中池内商品才能触发自动匹配）
+CREATE TABLE IF NOT EXISTS resell_pool_item (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  level       INTEGER NOT NULL,
+  spu_id      INTEGER NOT NULL REFERENCES product_spu(id),
+  sort        INTEGER NOT NULL DEFAULT 0,
+  create_time TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
+  UNIQUE (level, spu_id)
+);
+CREATE INDEX IF NOT EXISTS idx_resell_pool_level ON resell_pool_item(level);
 `

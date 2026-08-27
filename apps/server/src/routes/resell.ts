@@ -30,7 +30,7 @@ router.get('/', (req, res, next) => {
       `SELECT r.id, r.resell_no AS resellNo, r.member_id AS memberId, r.member_name AS memberName,
               r.credit_id AS creditId, r.order_id AS orderId, r.order_no AS orderNo, r.goods_value AS goodsValue,
               r.service_fee AS serviceFee, r.shipping_fee AS shippingFee, r.settle_amount AS settleAmount,
-              r.status, r.match_order_id AS matchOrderId, r.match_time AS matchTime, r.cancel_time AS cancelTime,
+              r.status, r.match_order_id AS matchOrderId, r.match_time AS matchTime, r.auto_matched AS autoMatched, r.cancel_time AS cancelTime,
               r.settle_time AS settleTime,
               r.create_time AS createTime,
               COALESCE(r.sku_name, (SELECT oi.sku_name FROM order_item oi WHERE oi.order_id = r.order_id LIMIT 1)) AS skuName,

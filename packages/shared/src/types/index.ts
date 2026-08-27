@@ -300,6 +300,7 @@ export interface ResellOrder {
   status: ResellStatus
   matchOrderId: number | null
   matchTime: string | null
+  autoMatched: boolean
   settleTime: string | null
   cancelTime: string | null
   createTime: string

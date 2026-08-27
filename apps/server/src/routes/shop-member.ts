@@ -349,35 +349,30 @@ router.get('/resells', requireMember, (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-/** POST /shop/member/resells 发起转卖（需登录，落库供后台可见） */
+/** POST /shop/member/resells 发起转卖（需登录，落库供后台可见）
+ *  转卖固定为"一次性转卖全部可转卖额度"，不支持部分转卖；金额/服务费/快递费/结算金额均由服务端按当前配置权威计算，
+ *  不信任客户端传入值，避免伪造更低的服务费/更高的结算金额。 */
 router.post('/resells', requireMember, (req, res, next) => {
   try {
     const mid = req.member!.mid
     const body = z.object({
-      goodsValue: z.number().min(1),
       creditId: z.number().int().optional(),
-      serviceFee: z.number().min(0).optional(),
-      shippingFee: z.number().min(0).optional(),
-      settleAmount: z.number().min(0).optional(),
       skuName: z.string().max(40).optional(),
     }).parse(req.body)
-    if (Number(body.settleAmount ?? 0) <= 0) throw badRequest('预计到账需大于 0')
     const member = get<{ nickname: string }>('SELECT nickname FROM member WHERE id = ?', mid)
     if (!member) throw notFound('会员不存在')
     const credit = body.creditId
       ? get<Record<string, unknown>>('SELECT * FROM credit_record WHERE id = ? AND member_id = ?', body.creditId, mid)
-      : get<Record<string, unknown>>('SELECT * FROM credit_record WHERE member_id = ? AND resellable_amount >= ? AND status IN (0,1) ORDER BY month DESC, id DESC LIMIT 1', mid, body.goodsValue)
+      : get<Record<string, unknown>>('SELECT * FROM credit_record WHERE member_id = ? AND resellable_amount > 0 AND status IN (0,1) ORDER BY month DESC, id DESC LIMIT 1', mid)
     if (!credit) throw badRequest('可转卖月度领货额度不足')
     // 消费返还所得额度不支持转卖，只有入会礼包发放的部分（resellable_amount）可转卖
-    const resellableAmount = money(Number(credit.resellableAmount ?? 0))
-    if (resellableAmount <= 0) throw badRequest('当前额度不支持转卖，仅可用于领取商品')
-    if (claimMode() === 'lump_sum') {
-      if (money(body.goodsValue) !== resellableAmount) {
-        throw badRequest(`当前为一次性转卖模式，需一次性转卖完可转卖额度（¥${resellableAmount.toFixed(2)}）`)
-      }
-    } else if (resellableAmount < body.goodsValue) {
-      throw badRequest('可转卖月度领货额度不足')
-    }
+    const goodsValue = money(Number(credit.resellableAmount ?? 0))
+    if (goodsValue <= 0) throw badRequest('当前额度不支持转卖，仅可用于领取商品')
+    const feeRate = Number(get<{ v: string }>('SELECT config_value AS v FROM system_config WHERE config_key = ?', 'resell.service_fee_rate')?.v ?? 20)
+    const shippingFee = Number(get<{ v: string }>('SELECT config_value AS v FROM system_config WHERE config_key = ?', 'resell.shipping_fee')?.v ?? 10)
+    const serviceFee = money(goodsValue * feeRate / 100)
+    const settleAmount = money(goodsValue - serviceFee - shippingFee)
+    if (settleAmount <= 0) throw badRequest('可转卖额度过低，扣除服务费与快递费后预计到账为 0')
     const ts = now()
     const d = new Date()
     const pad = (n: number) => String(n).padStart(2, '0')
@@ -385,15 +380,15 @@ router.post('/resells', requireMember, (req, res, next) => {
     const r = run(
       `INSERT INTO resell_order (resell_no, member_id, member_name, credit_id, order_id, order_no, goods_value, service_fee, shipping_fee, settle_amount, status, sku_name, create_time)
        VALUES (?, ?, ?, ?, NULL, '', ?, ?, ?, ?, 0, ?, ?)`,
-      resellNo, mid, member.nickname, Number(credit.id), body.goodsValue, body.serviceFee ?? 0, body.shippingFee ?? 0,
-      body.settleAmount ?? 0, body.skuName || '月度领货转卖商品', ts,
+      resellNo, mid, member.nickname, Number(credit.id), goodsValue, serviceFee, shippingFee,
+      settleAmount, body.skuName || '月度领货转卖商品', ts,
     )
-    const remain = money(Number(credit.remainAmount) - body.goodsValue)
-    const resellableRemain = money(resellableAmount - body.goodsValue)
-    run('UPDATE credit_record SET used_amount = used_amount + ?, remain_amount = ?, resellable_amount = ?, status = ?, update_time = ? WHERE id = ?',
-      body.goodsValue, remain, resellableRemain, remain <= 0 ? 4 : 1, ts, Number(credit.id))
+    // 一次性转卖全部可转卖额度：remain/resellable 都清零，剩余（若有）不可转卖的部分维持不变
+    const remain = money(Number(credit.remainAmount) - goodsValue)
+    run('UPDATE credit_record SET used_amount = used_amount + ?, remain_amount = ?, resellable_amount = 0, status = ?, update_time = ? WHERE id = ?',
+      goodsValue, remain, remain <= 0 ? 4 : 1, ts, Number(credit.id))
     run('INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, create_time) VALUES (?, ?, ?, ?, 2, ?, ?)',
-      Number(credit.id), mid, -body.goodsValue, remain, '发起转卖扣减月度额度', ts)
+      Number(credit.id), mid, -goodsValue, remain, '发起转卖扣减月度额度', ts)
     const id = Number(r.lastInsertRowid)
     ok(res, get(
       `SELECT id, resell_no AS resellNo, goods_value AS goodsValue, service_fee AS serviceFee,

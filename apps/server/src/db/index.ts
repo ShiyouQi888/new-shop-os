@@ -61,6 +61,8 @@ if (ensureColumn('credit_record', 'resellable_amount', 'resellable_amount REAL N
 }
 // 消费返还额度发放记录需要关联订单号，用于防止同一订单被重复发放（支付双路径竞态等场景）
 ensureColumn('credit_flow', 'order_id', 'order_id INTEGER DEFAULT NULL')
+// 转卖单标记是否由系统自动匹配（区别于后台人工匹配），供后台列表展示
+ensureColumn('resell_order', 'auto_matched', 'auto_matched INTEGER NOT NULL DEFAULT 0')
 // 消费返还额度已独立成页，早期版本种下的两个 key 曾归在 credit 分组下，这里归位到 consumption_credit（幂等）
 db.exec(
   "UPDATE system_config SET config_group = 'consumption_credit' " +

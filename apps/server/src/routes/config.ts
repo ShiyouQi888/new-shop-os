@@ -183,4 +183,30 @@ router.put('/credit-pool/:level', requirePermission('benefit:config'), (req, res
   } catch (e) { next(e) }
 })
 
+// ===== 转卖自动匹配商品池（按等级配置） =====
+/** GET /config/resell-pool 全部等级的转卖商品池（含商品名称/图片，供后台按等级分组展示） */
+router.get('/resell-pool', (_req, res, next) => {
+  try {
+    const list = all(
+      `SELECT r.level, r.spu_id AS spuId, p.name, p.main_image AS mainImage
+       FROM resell_pool_item r JOIN product_spu p ON p.id = r.spu_id
+       ORDER BY r.level, r.sort, r.id`,
+    )
+    ok(res, list)
+  } catch (e) { next(e) }
+})
+
+/** PUT /config/resell-pool/:level 整体替换某等级的转卖商品池（body: { spuIds: number[] }） */
+router.put('/resell-pool/:level', requirePermission('benefit:config'), (req, res, next) => {
+  try {
+    const level = Number(req.params.level)
+    const body = z.object({ spuIds: z.array(z.number().int()) }).parse(req.body)
+    run('DELETE FROM resell_pool_item WHERE level = ?', level)
+    body.spuIds.forEach((spuId, idx) => {
+      run('INSERT OR IGNORE INTO resell_pool_item (level, spu_id, sort, create_time) VALUES (?, ?, ?, ?)', level, spuId, idx, now())
+    })
+    ok(res, null, '转卖商品池已更新')
+  } catch (e) { next(e) }
+})
+
 export default router

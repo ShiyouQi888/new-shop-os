@@ -29,6 +29,7 @@ function patchConfigDefaults() {
     ['consumption_credit.normal_rate', '0', 'consumption_credit', '普通会员消费返还比例(%)，按订单实付金额计算'],
     ['consumption_credit.normal_months', '0', 'consumption_credit', '普通会员消费返还额度有效月数（0 表示不限）'],
     ['consumption_credit.normal_resellable', '0', 'consumption_credit', '普通会员消费所得额度是否支持转卖：1 支持 0 不支持'],
+    ['resell.auto_match_enabled', '0', 'resell', '转卖自动匹配总开关：1 开启后，商城/入会礼包订单命中转卖商品池即自动匹配最早的待匹配转卖单'],
   ]
   for (const c of patches) {
     run('INSERT OR IGNORE INTO system_config (config_key, config_value, config_group, description, update_time) VALUES (?, ?, ?, ?, ?)', c[0], c[1], c[2], c[3], now())
