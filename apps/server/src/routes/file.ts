@@ -12,12 +12,18 @@ import { config } from '../config.js'
 
 // ===== 上传 =====
 fs.mkdirSync(config.uploadDir, { recursive: true })
+/** 仅允许图片/视频，避免任意文件类型被 /uploads 静态目录当作可执行内容公开托管 */
+const ALLOWED_MIME = /^(image\/(jpeg|png|gif|webp)|video\/(mp4|quicktime|webm))$/
 const upload = multer({
   storage: multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, config.uploadDir),
     filename: (_req, file, cb) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${path.extname(file.originalname)}`),
   }),
   limits: { fileSize: 200 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!ALLOWED_MIME.test(file.mimetype)) return cb(badRequest('仅支持上传图片或视频文件'))
+    cb(null, true)
+  },
 })
 
 /** 按分组规则自动归组 */
@@ -42,7 +48,7 @@ export const fileRouter = Router()
 fileRouter.use(requireAuth)
 
 /** POST /files/upload 上传（multipart field: file；可选 groupId） */
-fileRouter.post('/upload', upload.single('file'), (req, res, next) => {
+fileRouter.post('/upload', requirePermission('system:file'), upload.single('file'), (req, res, next) => {
   try {
     if (!req.file) throw badRequest('未收到文件')
     const f = req.file
@@ -61,7 +67,7 @@ fileRouter.post('/upload', upload.single('file'), (req, res, next) => {
 })
 
 /** GET /files?page=&pageSize=&keyword=&type=&groupId= */
-fileRouter.get('/', (req, res, next) => {
+fileRouter.get('/', requirePermission('system:file'), (req, res, next) => {
   try {
     const { page, pageSize } = parsePagination(req.query)
     const keyword = str(req.query.keyword)
@@ -89,7 +95,7 @@ fileRouter.get('/', (req, res, next) => {
 })
 
 /** PATCH /files/group 批量移动（body: { ids, groupId }）—— 需在 /:id 之前注册 */
-fileRouter.patch('/group', (req, res, next) => {
+fileRouter.patch('/group', requirePermission('system:file'), (req, res, next) => {
   try {
     const body = z.object({ ids: z.array(z.number().int()).min(1), groupId: z.number().nullable() }).parse(req.body)
     run(`UPDATE file_asset SET group_id = ? WHERE id IN (${body.ids.map(() => '?').join(',')})`, body.groupId, ...body.ids)
@@ -98,7 +104,7 @@ fileRouter.patch('/group', (req, res, next) => {
 })
 
 /** PATCH /files/:id/group 移动分组（body: { groupId }，null 为未分组） */
-fileRouter.patch('/:id/group', (req, res, next) => {
+fileRouter.patch('/:id/group', requirePermission('system:file'), (req, res, next) => {
   try {
     const id = Number(req.params.id)
     if (!get('SELECT id FROM file_asset WHERE id = ?', id)) throw notFound('文件不存在')
@@ -109,7 +115,7 @@ fileRouter.patch('/:id/group', (req, res, next) => {
 })
 
 /** PATCH /files/:id/name 重命名 */
-fileRouter.patch('/:id/name', (req, res, next) => {
+fileRouter.patch('/:id/name', requirePermission('system:file'), (req, res, next) => {
   try {
     const id = Number(req.params.id)
     if (!get('SELECT id FROM file_asset WHERE id = ?', id)) throw notFound('文件不存在')
@@ -120,12 +126,17 @@ fileRouter.patch('/:id/name', (req, res, next) => {
 })
 
 /** DELETE /files/:id */
-fileRouter.delete('/:id', (req, res, next) => {
+fileRouter.delete('/:id', requirePermission('system:file'), (req, res, next) => {
   try {
     const id = Number(req.params.id)
     const f = get<Record<string, unknown>>('SELECT * FROM file_asset WHERE id = ?', id)
     if (!f) throw notFound('文件不存在')
     run('DELETE FROM file_asset WHERE id = ?', id)
+    // 物理文件一并删除，避免"已删除"的资源仍可通过原始 URL 公开访问
+    const fileName = String(f.url || '').split('/').pop()
+    if (fileName) {
+      fs.unlink(path.join(config.uploadDir, fileName), () => {})
+    }
     ok(res, null, '已删除')
   } catch (e) { next(e) }
 })
@@ -135,7 +146,7 @@ export const fileGroupRouter = Router()
 fileGroupRouter.use(requireAuth)
 
 /** GET /file-groups */
-fileGroupRouter.get('/', (_req, res, next) => {
+fileGroupRouter.get('/', requirePermission('system:file'), (_req, res, next) => {
   try {
     const list = all(
       `SELECT g.id, g.name, g.icon, g.match_rules AS matchRules, g.create_time AS createTime,

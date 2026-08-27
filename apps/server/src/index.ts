@@ -9,7 +9,6 @@ async function main() {
   app.listen(config.port, () => {
     console.log(`[shop-os-server] 后端服务已启动: http://localhost:${config.port}`)
     console.log(`[shop-os-server] 健康检查: http://localhost:${config.port}/api/v1/health`)
-    console.log(`[shop-os-server] 演示账号: admin / ops / finance（密码 123456）`)
   })
 }
 

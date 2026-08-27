@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { all, get, run } from '../db/index.js'
 import { ok, notFound } from '../utils/response.js'
 import { str, now } from '../utils/index.js'
-import { requireAuth } from '../middlewares/auth.js'
+import { requireAuth, requirePermission } from '../middlewares/auth.js'
 
 const router = Router()
 
@@ -36,7 +36,7 @@ router.get('/:id', (req, res, next) => {
 // ===== 以下为后台维护接口（需登录） =====
 
 /** GET /help/admin/list?scope= 后台：全量列表（含停用，keyword 筛选） */
-router.get('/admin/list', requireAuth, (req, res, next) => {
+router.get('/admin/list', requireAuth, requirePermission('help:manage'), (req, res, next) => {
   try {
     const scope = parseScope(req.query.scope)
     const keyword = str(req.query.keyword)
@@ -55,7 +55,7 @@ router.get('/admin/list', requireAuth, (req, res, next) => {
 })
 
 /** POST /help 后台：新增（scope: help 帮助 / rules 规则） */
-router.post('/', requireAuth, (req, res, next) => {
+router.post('/', requireAuth, requirePermission('help:manage'), (req, res, next) => {
   try {
     const body = z.object({
       title: z.string().min(1).max(60),
@@ -73,7 +73,7 @@ router.post('/', requireAuth, (req, res, next) => {
 })
 
 /** PUT /help/:id 后台：编辑 */
-router.put('/:id', requireAuth, (req, res, next) => {
+router.put('/:id', requireAuth, requirePermission('help:manage'), (req, res, next) => {
   try {
     const id = Number(req.params.id)
     const cur = get<Record<string, unknown>>('SELECT * FROM help_article WHERE id = ?', id)
@@ -94,9 +94,10 @@ router.put('/:id', requireAuth, (req, res, next) => {
 })
 
 /** DELETE /help/:id 后台：删除 */
-router.delete('/:id', requireAuth, (req, res, next) => {
+router.delete('/:id', requireAuth, requirePermission('help:manage'), (req, res, next) => {
   try {
     const id = Number(req.params.id)
+    if (!get('SELECT id FROM help_article WHERE id = ?', id)) throw notFound('文档不存在')
     run('DELETE FROM help_article WHERE id = ?', id)
     ok(res, null, '已删除')
   } catch (e) { next(e) }

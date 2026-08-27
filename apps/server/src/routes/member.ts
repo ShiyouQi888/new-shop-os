@@ -2,11 +2,13 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
+import crypto from 'node:crypto'
 import { get, paginate, all, run } from '../db/index.js'
 import { ok, notFound, conflict, badRequest } from '../utils/response.js'
 import { parsePagination, int, str, monthOf, now } from '../utils/index.js'
-import { requireAuth } from '../middlewares/auth.js'
+import { requireAuth, requirePermission } from '../middlewares/auth.js'
 import { config } from '../config.js'
+import { logOperation } from './log.js'
 
 const router = Router()
 router.use(requireAuth)
@@ -28,7 +30,7 @@ const MEMBER_SELECT = `
 `
 
 /** GET /members?page=&pageSize=&keyword=&level=&status= */
-router.get('/', (req, res, next) => {
+router.get('/', requirePermission('member:view'), (req, res, next) => {
   try {
     const { page, pageSize } = parsePagination(req.query)
     const keyword = str(req.query.keyword)
@@ -56,7 +58,7 @@ router.get('/', (req, res, next) => {
 })
 
 /** GET /members/:id 详情（含统计：订单数/消费/佣金/钱包） */
-router.get('/:id', (req, res, next) => {
+router.get('/:id', requirePermission('member:view'), (req, res, next) => {
   try {
     const id = Number(req.params.id)
     const member = get(MEMBER_SELECT + ' WHERE m.id = ?', id)
@@ -81,7 +83,7 @@ router.get('/:id', (req, res, next) => {
 })
 
 /** GET /members/:id/wallet 钱包 */
-router.get('/:id/wallet', (req, res, next) => {
+router.get('/:id/wallet', requirePermission('member:view'), (req, res, next) => {
   try {
     const id = Number(req.params.id)
     const wallet = get('SELECT id, member_id AS memberId, balance, frozen, total_income AS totalIncome, total_withdraw AS totalWithdraw FROM wallet WHERE member_id = ?', id)
@@ -91,32 +93,35 @@ router.get('/:id/wallet', (req, res, next) => {
 })
 
 /** PATCH /members/:id/status 会员启停（1 正常 / 2 冻结） */
-router.patch('/:id/status', (req, res, next) => {
+router.patch('/:id/status', requirePermission('member:edit'), (req, res, next) => {
   try {
     const id = Number(req.params.id)
-    if (!get('SELECT id FROM member WHERE id = ?', id)) throw notFound('会员不存在')
+    const target = get<{ nickname: string }>('SELECT nickname FROM member WHERE id = ?', id)
+    if (!target) throw notFound('会员不存在')
     const status = z.object({ status: z.number().int().min(1).max(2) }).parse(req.body).status
     run('UPDATE member SET status = ? WHERE id = ?', status, id)
+    logOperation(String(req.auth?.username || ''), '会员管理', status === 2 ? '冻结' : '解冻', `${status === 2 ? '冻结' : '解冻'}会员「${target.nickname}」`, String(req.ip || ''))
     ok(res, null, status === 2 ? '会员已冻结' : '会员已解冻')
   } catch (e) { next(e) }
 })
 
 /** POST /members 自定义创建会员（后台录入，代理商等级联动发放当月领货额度） */
-router.post('/', (req, res, next) => {
+router.post('/', requirePermission('member:edit'), (req, res, next) => {
   try {
     const body = z.object({
       nickname: z.string().min(1).max(20),
       phone: z.string().min(5).max(20),
       level: z.number().int().min(0),
       realName: z.string().max(20).optional(),
-      // 登录密码（6-50 位，选填；留空默认 123456）
+      // 登录密码（6-50 位，选填；留空则随机生成，随创建结果一次性返回，不再回落到固定默认密码）
       password: z.string().min(6).max(50).optional(),
     }).parse(req.body)
     if (get('SELECT id FROM member WHERE phone = ?', body.phone)) throw conflict('该手机号已存在')
-    if (body.level > 0 && !get('SELECT id FROM level_config WHERE level = ?', body.level)) throw badRequest('等级不存在，请先在等级权益配置中创建')
+    if (body.level > 0 && !get('SELECT id FROM level_config WHERE level = ? AND status = 1', body.level)) throw badRequest('等级不存在或已停用，请先在等级权益配置中创建/启用')
 
     const inviteCode = `SH${body.phone.slice(-4)}${Math.floor(Math.random() * 900 + 100)}`
-    const passwordHash = bcrypt.hashSync(body.password || '123456', config.bcryptRounds)
+    const generatedPassword = body.password ? null : crypto.randomBytes(6).toString('base64url')
+    const passwordHash = bcrypt.hashSync(body.password || generatedPassword!, config.bcryptRounds)
     const r = run(
       `INSERT INTO member (phone, password_hash, nickname, avatar, level, invite_code, status, real_name, register_time, become_agent_time)
        VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
@@ -139,12 +144,14 @@ router.post('/', (req, res, next) => {
           Number(rec.lastInsertRowid), id, credit, credit, '后台创建会员自动发放', req.auth!.uid, now())
       }
     }
-    ok(res, get('SELECT id, phone, nickname, level, invite_code AS inviteCode FROM member WHERE id = ?', id), '会员创建成功', 201)
+    const created = get<Record<string, unknown>>('SELECT id, phone, nickname, level, invite_code AS inviteCode FROM member WHERE id = ?', id)
+    logOperation(String(req.auth?.username || ''), '会员管理', '新增', `后台创建会员「${body.nickname}」（等级 ${body.level}）`, String(req.ip || ''))
+    ok(res, { ...created, generatedPassword }, generatedPassword ? `会员创建成功，初始密码：${generatedPassword}` : '会员创建成功', 201)
   } catch (e) { next(e) }
 })
 
 /** GET /members/:id/orders 订单记录 */
-router.get('/:id/orders', (req, res, next) => {
+router.get('/:id/orders', requirePermission('member:view'), (req, res, next) => {
   try {
     const { page, pageSize } = parsePagination(req.query)
     const id = Number(req.params.id)
@@ -157,7 +164,7 @@ router.get('/:id/orders', (req, res, next) => {
 })
 
 /** GET /members/:id/commissions 佣金记录 */
-router.get('/:id/commissions', (req, res, next) => {
+router.get('/:id/commissions', requirePermission('member:view'), (req, res, next) => {
   try {
     const { page, pageSize } = parsePagination(req.query)
     const id = Number(req.params.id)
@@ -173,7 +180,7 @@ router.get('/:id/commissions', (req, res, next) => {
 })
 
 /** GET /members/:id/credits 领货额度 */
-router.get('/:id/credits', (req, res, next) => {
+router.get('/:id/credits', requirePermission('member:view'), (req, res, next) => {
   try {
     const id = Number(req.params.id)
     const list = all('SELECT id, member_id AS memberId, month, credit_amount AS creditAmount, used_amount AS usedAmount, remain_amount AS remainAmount, status, remark FROM credit_record WHERE member_id = ? ORDER BY month DESC', id)

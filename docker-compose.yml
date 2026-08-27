@@ -11,7 +11,7 @@ services:
       DB_FILE: /data/shop-os.db
       UPLOAD_DIR: /uploads
       BASE_URL: ${SERVER_BASE_URL:-http://localhost:3000}
-      JWT_SECRET: ${JWT_SECRET:-shop-os-change-me-in-production}
+      JWT_SECRET: ${JWT_SECRET:?请先在 .env 中设置 JWT_SECRET（生成示例：openssl rand -hex 32），不要使用示例默认值}
       AUTO_SEED: ${AUTO_SEED:-1}
     volumes:
       - shop_os_data:/data

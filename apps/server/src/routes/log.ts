@@ -3,10 +3,10 @@ import { Router } from 'express'
 import { all, get, run, paginate } from '../db/index.js'
 import { ok } from '../utils/response.js'
 import { parsePagination, str, int, now } from '../utils/index.js'
-import { requireAuth } from '../middlewares/auth.js'
+import { requireAuth, requirePermission } from '../middlewares/auth.js'
 
 const router = Router()
-router.use(requireAuth)
+router.use(requireAuth, requirePermission('system:log'))
 
 /** GET /logs/operations?page=&pageSize=&keyword= 操作日志 */
 router.get('/operations', (req, res, next) => {

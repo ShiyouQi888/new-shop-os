@@ -1,4 +1,5 @@
 // ===== 种子数据（幂等：已存在则跳过） =====
+import crypto from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import { db, run, get } from './index.js'
 import { config } from '../config.js'
@@ -50,11 +51,16 @@ export async function seed() {
     { username: 'ops', name: '运营', role: 'ops' },
     { username: 'finance', name: '财务', role: 'finance' },
   ]
+  // 首次初始化的管理员账号使用随机密码，避免生产环境出现"人尽皆知"的固定初始密码；
+  // 仅在打印一次的启动日志中出现，请立即登录后自行修改
+  console.log('[seed] 首次初始化管理员账号，初始密码如下（仅显示一次，请妥善保存并尽快登录修改）：')
   for (const a of admins) {
+    const initialPassword = crypto.randomBytes(6).toString('base64url')
     run(
       'INSERT OR IGNORE INTO admin_user (username, password_hash, name, role, avatar) VALUES (?, ?, ?, ?, ?)',
-      a.username, hash('123456'), a.name, a.role, '',
+      a.username, hash(initialPassword), a.name, a.role, '',
     )
+    console.log(`[seed]   ${a.username} / ${initialPassword}`)
   }
 
   // ===== 会员（含三级推荐链） =====

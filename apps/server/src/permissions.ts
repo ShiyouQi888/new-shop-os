@@ -38,6 +38,7 @@ export const PERMISSIONS: PermissionItem[] = [
   // 客服
   { code: 'workorder:view', name: '查看工单', group: '客服工单' },
   { code: 'workorder:handle', name: '处理工单', group: '客服工单' },
+  { code: 'help:manage', name: '管理帮助/规则内容', group: '客服工单' },
   // 财务
   { code: 'finance:view', name: '查看财务', group: '财务管理' },
   // 系统
@@ -68,7 +69,7 @@ export const BUILTIN_ROLES: { code: string; name: string; description: string; p
       'dashboard:view', 'product:view', 'product:edit', 'category:edit', 'gift:edit',
       'order:view', 'order:ship', 'member:view', 'member:edit',
       'benefit:config', 'credit:view', 'credit:adjust', 'resell:view', 'resell:match',
-      'relation:view', 'poster:config', 'workorder:view', 'workorder:handle',
+      'relation:view', 'poster:config', 'workorder:view', 'workorder:handle', 'help:manage',
       'system:log', 'system:file',
     ],
   },

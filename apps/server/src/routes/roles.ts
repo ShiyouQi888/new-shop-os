@@ -71,6 +71,7 @@ router.put('/:id', (req, res, next) => {
     if (body.name && body.name !== role.name && get('SELECT id FROM admin_role WHERE name = ? AND id != ?', body.name, id)) {
       throw conflict('角色名称已存在')
     }
+    if (role.code === 'super_admin' && body.status === 0) throw badRequest('超级管理员角色不可禁用')
     // 校验权限码合法性
     if (body.permissions) {
       const valid = new Set(PERMISSIONS.map(p => p.code))
@@ -104,7 +105,7 @@ router.delete('/:id', (req, res, next) => {
 })
 
 /** POST /roles/seed-builtin 重置内置角色（幂等） */
-router.post('/seed-builtin', (_req, res, next) => {
+router.post('/seed-builtin', (req, res, next) => {
   try {
     for (const b of BUILTIN_ROLES) {
       const exists = get('SELECT id FROM admin_role WHERE code = ?', b.code)
@@ -116,6 +117,7 @@ router.post('/seed-builtin', (_req, res, next) => {
           b.code, b.name, b.description, JSON.stringify(b.permissions), now(), now())
       }
     }
+    logOperation(String(req.auth?.username || ''), '权限管理', '重置内置角色', '重置全部内置角色为默认权限', String(req.ip || ''))
     ok(res, null, '内置角色已就绪')
   } catch (e) { next(e) }
 })

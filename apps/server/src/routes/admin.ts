@@ -76,6 +76,10 @@ router.put('/:id', (req, res, next) => {
     const name = body.name ?? admin.name
     const role = body.role ?? admin.role
     if (role !== 'super_admin' && !get('SELECT id FROM admin_role WHERE code = ?', role)) throw badRequest('角色不存在')
+    if (admin.role === 'super_admin' && role !== 'super_admin') {
+      const superAdminCount = get<{ c: number }>("SELECT COUNT(*) AS c FROM admin_user WHERE role = 'super_admin'")!.c
+      if (superAdminCount <= 1) throw badRequest('系统至少需保留一个超级管理员，不能将其降级')
+    }
     const passwordHash = body.password ? bcrypt.hashSync(body.password, config.bcryptRounds) : admin.passwordHash
     run('UPDATE admin_user SET name = ?, role = ?, password_hash = ?, updated_at = ? WHERE id = ?', name, role, passwordHash, now(), id)
     logOperation(String(req.auth?.username || ''), '管理员管理', '编辑', `编辑管理员「${name}」`, String(req.ip || ''))
@@ -92,6 +96,7 @@ router.patch('/:id/status', (req, res, next) => {
     if (admin.role === 'super_admin') throw badRequest('超级管理员不可禁用')
     const status = z.object({ status: z.number().int().min(0).max(1) }).parse(req.body).status
     run('UPDATE admin_user SET status = ?, updated_at = ? WHERE id = ?', status, now(), id)
+    logOperation(String(req.auth?.username || ''), '管理员管理', status ? '启用' : '禁用', `${status ? '启用' : '禁用'}管理员「${String(admin.name)}」`, String(req.ip || ''))
     ok(res, null, status ? '已启用' : '已禁用')
   } catch (e) { next(e) }
 })
@@ -105,6 +110,7 @@ router.delete('/:id', (req, res, next) => {
     if (admin.role === 'super_admin') throw badRequest('超级管理员不可删除')
     if (id === req.auth!.uid) throw badRequest('不能删除当前登录账号')
     run('DELETE FROM admin_user WHERE id = ?', id)
+    logOperation(String(req.auth?.username || ''), '管理员管理', '删除', `删除管理员「${String(admin.name)}」（账号 ${String(admin.username)}）`, String(req.ip || ''))
     ok(res, null, '已删除')
   } catch (e) { next(e) }
 })
