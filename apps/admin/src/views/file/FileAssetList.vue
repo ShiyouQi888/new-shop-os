@@ -1067,8 +1067,8 @@ onMounted(async () => {
 .preview-shell {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
+  align-items: start;
   gap: 18px;
-  min-height: 560px;
 }
 .preview-panel {
   border: 1px solid #E7E9ED;
@@ -1177,6 +1177,7 @@ onMounted(async () => {
 }
 .preview-stage {
   min-width: 0;
+  align-self: start;
   border: 1px solid #E7E9ED;
   border-radius: 18px;
   background:
@@ -1206,8 +1207,7 @@ onMounted(async () => {
   box-shadow: 0 18px 48px rgba(17, 24, 39, 0.14);
 }
 .crop-workbench {
-  min-height: 560px;
-  padding: 22px;
+  padding: 18px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1217,7 +1217,6 @@ onMounted(async () => {
 .crop-canvas {
   position: relative;
   width: min(100%, 620px);
-  max-height: 520px;
   border-radius: 16px;
   overflow: hidden;
   background: #fff;
@@ -1318,7 +1317,7 @@ onMounted(async () => {
   }
   .image-fit-stage,
   .crop-workbench {
-    min-height: 360px;
+    min-height: 0;
   }
 }
 </style>
