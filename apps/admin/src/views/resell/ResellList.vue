@@ -33,11 +33,13 @@
           <el-table-column label="结算金额" width="110">
             <template #default="{ row }"><SfPriceTag :value="row.settleAmount" size="large" /></template>
           </el-table-column>
-          <el-table-column label="状态" width="100">
+          <el-table-column label="状态" width="130">
             <template #default="{ row }">
               <el-tag :type="resellStatusTag(row.status)" size="small" effect="light">
                 {{ ResellStatusLabels[row.status as ResellStatus] }}
               </el-tag>
+              <el-tag v-if="row.status >= 2 && row.autoMatched" type="success" size="small" effect="plain" style="margin-left: 4px">自动</el-tag>
+              <el-tag v-else-if="row.status >= 2" type="info" size="small" effect="plain" style="margin-left: 4px">人工</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="创建时间" prop="createTime" min-width="160" />
@@ -96,6 +98,7 @@
         <el-descriptions-item label="快递费">¥{{ current.shippingFee.toFixed(2) }}</el-descriptions-item>
         <el-descriptions-item label="结算金额">¥{{ current.settleAmount.toFixed(2) }}</el-descriptions-item>
         <el-descriptions-item label="匹配订单">{{ current.matchOrderId || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="匹配方式">{{ current.matchOrderId ? (current.autoMatched ? '系统自动匹配' : '后台人工匹配') : '-' }}</el-descriptions-item>
         <el-descriptions-item label="匹配时间">{{ current.matchTime || '-' }}</el-descriptions-item>
         <el-descriptions-item label="结算时间">{{ current.settleTime || '-' }}</el-descriptions-item>
         <el-descriptions-item label="取消时间">{{ current.cancelTime || '-' }}</el-descriptions-item>

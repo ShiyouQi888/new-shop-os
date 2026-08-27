@@ -45,6 +45,60 @@
         </el-form>
       </div>
 
+      <div class="sf-card">
+        <el-form label-width="180px">
+          <el-form-item label="自动匹配总开关">
+            <el-switch v-model="autoMatchEnabled" active-text="开启" inactive-text="关闭" />
+            <div class="hint">
+              开启后，商城零售订单或入会礼包订单只要命中下方任一身份配置的「转卖商品池」商品，支付成功时就会自动匹配当前最早的一笔待匹配转卖单（先进先出，不要求金额或商品完全对应）。关闭时维持现状，全部由后台人工匹配。
+            </div>
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <el-alert
+        title="下方按身份（普通会员 + 各代理商等级）分别配置转卖商品池；任一身份池内的商品产生真实成交，都可以匹配任意会员的待匹配转卖单。"
+        type="info"
+        :closable="false"
+        show-icon
+        class="identity-tip"
+      />
+
+      <div class="sf-card identity-card">
+        <div class="identity-header">
+          <SfLevelTag :level="0" />
+          <span class="identity-hint">未购买入会礼包的普通会员</span>
+        </div>
+        <el-select
+          v-model="normalPool"
+          multiple
+          filterable
+          collapse-tags
+          collapse-tags-tooltip
+          placeholder="选择购买后可触发自动匹配的商品"
+          style="width: 100%"
+        >
+          <el-option v-for="p in allProducts" :key="p.id" :label="p.name" :value="p.id" />
+        </el-select>
+      </div>
+
+      <div class="sf-card identity-card" v-for="level in levelConfigs" :key="level.id">
+        <div class="identity-header">
+          <SfLevelTag :level="level.level" :name="level.levelName" />
+        </div>
+        <el-select
+          v-model="levelPools[level.level]"
+          multiple
+          filterable
+          collapse-tags
+          collapse-tags-tooltip
+          placeholder="选择购买后可触发自动匹配的商品"
+          style="width: 100%"
+        >
+          <el-option v-for="p in allProducts" :key="p.id" :label="p.name" :value="p.id" />
+        </el-select>
+      </div>
+
       <!-- 转卖预估演示 -->
       <div class="sf-card">
         <div class="sf-card-title"><el-icon><Coin /></el-icon> 转卖预估演示</div>
@@ -88,8 +142,10 @@
 import { ref, reactive, onMounted } from 'vue'
 import { Check, Coin } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { apiConfig } from '@/api'
+import { apiConfig, apiProduct } from '@/api'
+import { type ProductSPU, type LevelBenefitConfig } from '@shop-os/shared'
 import SfPageContainer from '@/components/SfPageContainer.vue'
+import SfLevelTag from '@/components/SfLevelTag.vue'
 
 const form = reactive({
   feeRate: 20,
@@ -100,23 +156,78 @@ const form = reactive({
   cancelPolicy: 'before_match',
 })
 const demoValue = ref(980)
+const autoMatchEnabled = ref(false)
+const allProducts = ref<ProductSPU[]>([])
+const levelConfigs = ref<LevelBenefitConfig[]>([])
+const normalPool = ref<number[]>([])
+const levelPools = reactive<Record<number, number[]>>({})
 
 const saveAll = async () => {
   const configs = await apiConfig.getSystemConfigs('resell')
   for (const config of configs) {
+    if (config.configKey === 'resell.service_fee_rate') config.configValue = String(form.feeRate)
     if (config.configKey === 'resell.timeout_days') config.configValue = String(form.timeoutDays)
     if (config.configKey === 'resell.timeout_policy') config.configValue = form.timeoutPolicy
     if (config.configKey === 'resell.shipping_fee') config.configValue = String(form.shippingFee)
+    if (config.configKey === 'resell.auto_match_enabled') config.configValue = autoMatchEnabled.value ? '1' : '0'
     await apiConfig.saveSystemConfig(config)
+  }
+  await apiConfig.saveResellPool(0, normalPool.value)
+  for (const level of levelConfigs.value) {
+    await apiConfig.saveResellPool(level.level, levelPools[level.level] || [])
   }
   ElMessage.success('转卖规则已保存')
 }
+
+onMounted(async () => {
+  const [sysConfigs, products, levels, poolItems] = await Promise.all([
+    apiConfig.getSystemConfigs('resell'),
+    apiProduct.getList({ page: 1, pageSize: 100 }),
+    apiConfig.getLevelConfigs(),
+    apiConfig.getResellPool(),
+  ])
+  const cfg = (key: string) => sysConfigs.find(c => c.configKey === key)?.configValue
+  form.feeRate = Number(cfg('resell.service_fee_rate')) || 0
+  form.shippingFee = Number(cfg('resell.shipping_fee')) || 0
+  form.timeoutDays = Number(cfg('resell.timeout_days')) || 30
+  form.timeoutPolicy = cfg('resell.timeout_policy') || 'fallback'
+  autoMatchEnabled.value = cfg('resell.auto_match_enabled') === '1'
+
+  allProducts.value = products.list
+  levelConfigs.value = [...levels].sort((a, b) => a.levelSort - b.levelSort)
+  normalPool.value = poolItems.filter(item => item.level === 0).map(item => item.spuId)
+  for (const level of levelConfigs.value) {
+    levelPools[level.level] = poolItems.filter(item => item.level === level.level).map(item => item.spuId)
+  }
+})
 </script>
 
 <style scoped>
 .form-tip {
   margin-left: 12px;
   font-size: 12px;
+  color: #626A73;
+}
+.hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.6;
+}
+.identity-tip {
+  margin: 16px 0;
+}
+.identity-card {
+  margin-bottom: 16px;
+}
+.identity-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.identity-hint {
+  font-size: 13px;
   color: #626A73;
 }
 .demo-item label {

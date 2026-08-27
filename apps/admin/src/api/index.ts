@@ -351,6 +351,9 @@ export const apiConfig = {
   /** 月度领货商品池（全部等级，按 level 分组使用） */
   getCreditPool: () => http.get<CreditPoolItem[]>('/config/credit-pool'),
   saveCreditPool: (level: number, spuIds: number[]) => http.put(`/config/credit-pool/${level}`, { spuIds }),
+  /** 转卖自动匹配商品池（全部等级，按 level 分组使用） */
+  getResellPool: () => http.get<CreditPoolItem[]>('/config/resell-pool'),
+  saveResellPool: (level: number, spuIds: number[]) => http.put(`/config/resell-pool/${level}`, { spuIds }),
 }
 
 // ============ 钱包 ============
