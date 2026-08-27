@@ -223,7 +223,7 @@
     >
       <div class="preview-shell" v-if="previewAsset">
         <aside class="preview-panel">
-          <details class="preview-info" open>
+          <details class="preview-info">
             <summary>
               <span>素材信息</span>
               <small>点击折叠</small>
