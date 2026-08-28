@@ -89,7 +89,7 @@ const sortOptions: { label: string; value: SortKey }[] = [
 const activeDescription = computed(() => categoryIconMeta[activeId.value]?.desc || '浏览平台精选商品与会员权益商品。')
 const sortedProducts = computed(() => {
   const list = [...products.value]
-  if (sortKey.value === 'price-asc') return list.sort((a, b) => a.price - b.price)
+  if (sortKey.value === 'price-asc') return list.sort((a, b) => (a.price ?? 0) - (b.price ?? 0))
   if (sortKey.value === 'newest') return list.sort((a, b) => b.createTime.localeCompare(a.createTime))
   return list.sort((a, b) => a.sort - b.sort)
 })

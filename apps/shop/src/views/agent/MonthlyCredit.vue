@@ -96,6 +96,7 @@ const goPickProducts = () => {
 const goResell = () => router.push('/agent/resell')
 
 onMounted(async () => {
+  if (!userStore.member) return
   credits.value = await api.getMonthlyCredit(userStore.member.id)
 })
 </script>

@@ -202,6 +202,7 @@ const confirmRedeem = async () => {
 }
 
 onMounted(async () => {
+  if (!userStore.member) return
   await addressStore.load()
   selectedAddressId.value = addressStore.defaultAddress?.id ?? null
   const [credits, poolData] = await Promise.all([api.getMonthlyCredit(userStore.member.id), api.getCreditPool()])

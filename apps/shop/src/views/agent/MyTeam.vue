@@ -75,7 +75,7 @@ const getContribution = (memberId: number) => {
 }
 
 const loadTeam = async () => {
-  if (!enabled.value || !activeLevels.value.length) return
+  if (!enabled.value || !activeLevels.value.length || !userStore.member) return
   const level = activeLevels.value[activeTab.value] as 1 | 2 | 3
   if (!level) return
   teamMembers.value = await api.getTeam(userStore.member.id, level)
@@ -89,6 +89,7 @@ const clampTab = () => {
 }
 
 onMounted(async () => {
+  if (!userStore.member) return
   const [stats, dist] = await Promise.all([
     api.getAgentStats(userStore.member),
     api.getDistributionConfig().catch(() => ({ enabled: true, level1: true, level2: true, level3: true, activeLevels: [1, 2, 3] })),

@@ -60,7 +60,7 @@
             label="密码"
             placeholder="设置登录密码（至少 6 位）"
             maxlength="50"
-            :rules="[{ required: true, message: '请设置密码' }, { min: 6, message: '密码至少 6 位' }]"
+            :rules="[{ required: true, message: '请设置密码' }, { pattern: /^.{6,}$/, message: '密码至少 6 位' }]"
           />
           <van-field
             v-model="confirmPassword"

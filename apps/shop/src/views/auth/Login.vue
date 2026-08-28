@@ -53,7 +53,7 @@
             label="密码"
             placeholder="请输入登录密码"
             maxlength="50"
-            :rules="[{ required: true, message: '请输入密码' }, { min: 6, message: '密码至少 6 位' }]"
+            :rules="[{ required: true, message: '请输入密码' }, { pattern: /^.{6,}$/, message: '密码至少 6 位' }]"
           />
 
           <van-button block round type="primary" native-type="submit" class="submit-button">

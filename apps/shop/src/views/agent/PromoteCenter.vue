@@ -41,8 +41,8 @@
             <div class="poster-slogan">加入代理商 开启分享之路</div>
           </div>
           <div class="poster-content">
-            <van-image round width="60" height="60" :src="userStore.member.avatar" />
-            <div class="poster-name">{{ userStore.member.nickname }} 邀请你加入</div>
+            <van-image round width="60" height="60" :src="userStore.member?.avatar" />
+            <div class="poster-name">{{ userStore.member?.nickname }} 邀请你加入</div>
             <div class="poster-benefits">
               <div class="pb-item">大礼包入会</div>
               <div class="pb-item">月度领货权益</div>
@@ -70,7 +70,7 @@
     <div class="invite-card premium-card">
       <div class="invite-row">
         <div class="invite-label">专属邀请码</div>
-        <div class="invite-code">{{ userStore.member.inviteCode }}</div>
+        <div class="invite-code">{{ userStore.member?.inviteCode }}</div>
         <van-button class="copy-btn" size="small" @click="copyCode">复制</van-button>
       </div>
     </div>
@@ -131,6 +131,7 @@ import { generateQRSvgDataUrl } from '@/utils/qrcode'
 import { useUserStore } from '@/stores/user'
 import { api } from '@/api'
 import { BASE_URL } from '@/api/http'
+import { formatMoney } from '@shop-os/shared'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -164,7 +165,7 @@ const composedPosterUrl = ref('')
 /** 推广链接域名（来自后端站点配置 site.domain） */
 const domain = ref('')
 /** 推广链接（动态拼接，携带邀请码） */
-const link = computed(() => `${domain.value || 'http://localhost:5174'}/r/${userStore.member.inviteCode}`)
+const link = computed(() => `${domain.value || 'http://localhost:5174'}/r/${userStore.member?.inviteCode || ''}`)
 
 /** 推广数据统计（来自后端真实数据） */
 const promoteStats = ref<{ directCount: number; teamCount: number; orderCount: number; commissionTotal: number }>({
@@ -282,7 +283,7 @@ onMounted(async () => {
     guideList.value = helps.filter(h => h.category === 'promote').map(h => ({ id: h.id, title: h.title }))
   } catch { /* 保持空 */ }
   try {
-    commissions.value = await api.getCommissions(userStore.member.id)
+    if (userStore.member) commissions.value = await api.getCommissions(userStore.member.id)
   } catch {
     /* 未登录或网络异常时保持空 */
   }
@@ -293,13 +294,15 @@ const copyLink = () => {
   showSuccessToast('链接已复制')
 }
 const copyCode = () => {
+  if (!userStore.member) return
   navigator.clipboard.writeText(userStore.member.inviteCode)
   showSuccessToast('邀请码已复制')
 }
 
 /** 保存海报：有后台海报图则下载原图；默认海报则下载当前展示内容（二维码已内嵌） */
 const savePoster = () => {
-  if (!enabled.value) return
+  if (!enabled.value || !userStore.member) return
+  const member = userStore.member
   try {
     if (currentPoster.value?.image) {
       // 下载已叠加二维码的合成海报
@@ -344,16 +347,16 @@ const savePoster = () => {
         ctx.drawImage(img, x, 170, size, size)
         ctx.fillStyle = '#171A1F'
         ctx.font = 'bold 20px sans-serif'
-        ctx.fillText(`${userStore.member.nickname} 邀请你加入`, 28, 420)
+        ctx.fillText(`${member.nickname} 邀请你加入`, 28, 420)
         ctx.fillStyle = '#E85222'
         ctx.font = '14px sans-serif'
-        ctx.fillText(`邀请码 ${userStore.member.inviteCode}`, 28, 460)
+        ctx.fillText(`邀请码 ${member.inviteCode}`, 28, 460)
         ctx.fillStyle = '#626A73'
         ctx.font = '13px sans-serif'
         ctx.fillText('扫码注册，大礼包入会 · 月度领货 · 分享佣金', 28, 500)
         const a = document.createElement('a')
         a.href = canvas.toDataURL('image/png')
-        a.download = `推广海报-${userStore.member.nickname}.png`
+        a.download = `推广海报-${member.nickname}.png`
         document.body.appendChild(a)
         a.click()
         a.remove()

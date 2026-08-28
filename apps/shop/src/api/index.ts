@@ -83,7 +83,7 @@ export const api = {
       price: Number(s.price ?? 0), costPrice: Number(s.originalPrice ?? s.price ?? 0),
       stock: Number(s.stock ?? 0), stockLocked: 0, status: Number(s.status ?? 1),
       image: String(s.image || ''), originalPrice: Number(s.originalPrice ?? s.price ?? 0),
-    }) as ProductSKU[])
+    }) as ProductSKU)
     return { spu, skus }
   },
   getCategories: async (): Promise<ProductCategory[]> => {
@@ -155,7 +155,7 @@ export const api = {
       wallet,
       /** 商城折扣率（90=9折），来自后端等级配置 */
       shopDiscount: Number(m.shopDiscount ?? 100),
-      monthlyCredit: (d.monthlyCredit as Row | null) ?? null,
+      monthlyCredit: (d.monthlyCredit as MonthlyCredit | null) ?? null,
       /** 领货/转卖模式：lump_sum 一次性用完剩余额度 / flexible 自由任意额度 */
       claimMode: (d.claimMode === 'flexible' ? 'flexible' : 'lump_sum') as 'lump_sum' | 'flexible',
       commission: {

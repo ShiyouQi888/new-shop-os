@@ -118,6 +118,7 @@ const statusClass = (status: CommissionStatus) => {
 }
 
 const onWithdraw = async () => {
+  if (!userStore.member) return
   const amount = parseFloat(withdrawAmount.value)
   if (!amount || amount < 10) {
     showToast('最低提现金额 ¥10')
@@ -162,6 +163,7 @@ const accountText = computed(() => {
 })
 
 onMounted(async () => {
+  if (!userStore.member) return
   const agentStats = await api.getAgentStats(userStore.member)
   stats.value = agentStats.commission
   list.value = await api.getCommissions(userStore.member.id)

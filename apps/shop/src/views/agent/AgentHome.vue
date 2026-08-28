@@ -142,6 +142,7 @@ const expireDate = computed(() => {
 })
 
 onMounted(async () => {
+  if (!userStore.member) return
   stats.value = await api.getAgentStats(userStore.member)
 })
 </script>
