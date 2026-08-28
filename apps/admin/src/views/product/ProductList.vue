@@ -143,12 +143,12 @@
               <el-table-column label="规格键值" min-width="240">
                 <template #default="{ row }">
                   <div class="spec-list">
-                    <div v-for="spec in getSpecRows(row)" :key="spec.key" class="spec-row">
-                      <el-input v-model="spec.key" placeholder="规格名" @change="syncSpecRows(row, getSpecRows(row))" />
-                      <el-input v-model="spec.value" placeholder="规格值" @change="syncSpecRows(row, getSpecRows(row))" />
-                      <el-button link type="danger" :icon="Delete" @click="removeSpec(row, spec.key)" />
+                    <div v-for="spec in getSpecRows(row as EditableSku)" :key="spec.key" class="spec-row">
+                      <el-input v-model="spec.key" placeholder="规格名" @change="syncSpecRows(row as EditableSku, getSpecRows(row as EditableSku))" />
+                      <el-input v-model="spec.value" placeholder="规格值" @change="syncSpecRows(row as EditableSku, getSpecRows(row as EditableSku))" />
+                      <el-button link type="danger" :icon="Delete" @click="removeSpec(row as EditableSku, spec.key)" />
                     </div>
-                    <el-button link type="primary" :icon="Plus" @click="addSpec(row)">添加规格项</el-button>
+                    <el-button link type="primary" :icon="Plus" @click="addSpec(row as EditableSku)">添加规格项</el-button>
                   </div>
                 </template>
               </el-table-column>
@@ -179,7 +179,7 @@
               </el-table-column>
               <el-table-column label="操作" width="70" align="center">
                 <template #default="{ row, $index }">
-                  <el-button link type="danger" @click="removeSku(row, $index)">删除</el-button>
+                  <el-button link type="danger" @click="removeSku(row as EditableSku, $index)">删除</el-button>
                 </template>
               </el-table-column>
             </el-table>

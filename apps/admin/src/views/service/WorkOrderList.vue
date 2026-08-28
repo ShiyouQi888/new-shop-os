@@ -53,10 +53,10 @@
           <el-table-column label="提交时间" prop="createTime" min-width="160" />
           <el-table-column label="操作" width="210" fixed="right">
             <template #default="{ row }">
-              <el-button link type="primary" @click="openDetail(row)">详情</el-button>
-              <el-button v-if="row.status === 0" link type="warning" @click="markProcessing(row)">处理中</el-button>
-              <el-button v-if="row.status !== 3" link type="success" @click="openReply(row)">回复</el-button>
-              <el-button v-if="row.status !== 3" link type="info" @click="closeTicket(row)">关闭</el-button>
+              <el-button link type="primary" @click="openDetail(row as WorkOrder)">详情</el-button>
+              <el-button v-if="row.status === 0" link type="warning" @click="markProcessing(row as WorkOrder)">处理中</el-button>
+              <el-button v-if="row.status !== 3" link type="success" @click="openReply(row as WorkOrder)">回复</el-button>
+              <el-button v-if="row.status !== 3" link type="info" @click="closeTicket(row as WorkOrder)">关闭</el-button>
             </template>
           </el-table-column>
         </el-table>
