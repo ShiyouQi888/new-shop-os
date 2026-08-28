@@ -243,7 +243,7 @@ watch(selectedSkuId, () => { quantity.value = 1 })
   margin: 12px -2px 12px;
   overflow: hidden;
   border-radius: 20px;
-  background: #fff;
+  background: var(--bg-card);
   box-shadow: 0 18px 44px rgba(23, 32, 42, 0.12);
 }
 .detail-img {
@@ -291,7 +291,7 @@ watch(selectedSkuId, () => { quantity.value = 1 })
 }
 h1 {
   margin-top: 9px;
-  color: #171A1F;
+  color: var(--text-primary);
   font-size: 22px;
   line-height: 1.28;
 }
@@ -300,12 +300,12 @@ h1 {
   margin-top: 12px;
 }
 .price-old {
-  color: #9AA1AA;
+  color: var(--text-placeholder);
   text-decoration: line-through;
 }
 .reference-price-line {
   margin-top: 4px;
-  color: #9AA1AA;
+  color: var(--text-placeholder);
   font-size: 12px;
 }
 .member-price-tag {
@@ -323,7 +323,7 @@ h1 {
   padding: 16px;
   margin-bottom: 12px;
   border-radius: 16px;
-  background: linear-gradient(135deg, #FFFFFF 0%, var(--color-primary-light) 100%);
+  background: linear-gradient(135deg, var(--bg-card) 0%, var(--color-primary-light) 100%);
   border: 1px solid rgba(var(--color-primary-rgb), 0.2);
 }
 .section-heading {
@@ -337,7 +337,7 @@ h1 {
 }
 h2 {
   margin-top: 3px;
-  color: #171A1F;
+  color: var(--text-primary);
   font-size: 17px;
   line-height: 1.2;
 }
@@ -347,7 +347,7 @@ h2 {
 }
 .benefit-item {
   gap: 8px;
-  color: #626A73;
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.45;
 }
@@ -363,10 +363,10 @@ h2 {
 .sku-item {
   min-height: 36px;
   padding: 0 14px;
-  border: 1px solid #E7E9ED;
+  border: 1px solid var(--border-color);
   border-radius: 999px;
-  background: #fff;
-  color: #626A73;
+  background: var(--bg-card);
+  color: var(--text-secondary);
   font-size: 13px;
   font-weight: 700;
 }
@@ -379,7 +379,7 @@ h2 {
   justify-content: space-between;
 }
 .desc-section p {
-  color: #626A73;
+  color: var(--text-secondary);
   font-size: 14px;
   line-height: 1.7;
 }
@@ -394,8 +394,8 @@ h2 {
   gap: 5px;
   min-height: 34px;
   border-radius: 10px;
-  background: #F8F9FB;
-  color: #626A73;
+  background: var(--bg-muted);
+  color: var(--text-secondary);
   font-size: 11px;
   font-weight: 700;
 }
@@ -413,7 +413,7 @@ h2 {
   right: 12px;
   bottom: calc(74px + env(safe-area-inset-bottom));
   width: auto;
-  border: 1px solid rgba(231, 233, 237, 0.9);
+  border: 1px solid var(--border-color);
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 14px 34px rgba(17, 24, 39, 0.13);

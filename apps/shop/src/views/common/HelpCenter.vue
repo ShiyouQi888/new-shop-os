@@ -82,10 +82,10 @@ onMounted(async () => {
 .sub-hero span { color: var(--color-primary); font-size: 11px; font-weight: 800; }
 .sub-hero h1 { margin-top: 8px; font-size: 25px; }
 .sub-hero p { margin-top: 8px; color: rgba(255,255,255,.72); line-height: 1.55; }
-.support-card { margin-top: 12px; overflow: hidden; border: 1px solid rgba(231, 233, 237,.86); border-radius: 14px; box-shadow: 0 8px 24px rgba(17,24,39,.06); }
+.support-card { margin-top: 12px; overflow: hidden; border: 1px solid var(--border-color); border-radius: 14px; box-shadow: 0 8px 24px rgba(17,24,39,.06); }
 .primary-action { margin-top: 16px; height: 44px; font-weight: 800; }
 .help-detail { padding: 22px 18px calc(18px + env(safe-area-inset-bottom)); }
-.help-detail-title { font-size: 18px; font-weight: 800; color: #171A1F; }
-.help-detail-body { margin-top: 14px; font-size: 14px; line-height: 1.9; color: #626A73; white-space: pre-wrap; }
+.help-detail-title { font-size: 18px; font-weight: 800; color: var(--text-primary); }
+.help-detail-body { margin-top: 14px; font-size: 14px; line-height: 1.9; color: var(--text-secondary); white-space: pre-wrap; }
 .detail-close { margin-top: 20px; height: 42px; font-weight: 700; }
 </style>

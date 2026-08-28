@@ -31,10 +31,10 @@ const cartBadge = computed(() => cartStore.totalCount > 0 ? cartStore.totalCount
   width: min(398px, calc(100vw - 24px)) !important;
   height: 58px;
   transform: translateX(-50%);
-  border: 1px solid rgba(231, 233, 237, 0.82);
+  border: 1px solid var(--border-color);
   border-radius: 18px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--bg-card);
   box-shadow: 0 18px 42px rgba(17, 24, 39, 0.16);
   backdrop-filter: blur(18px);
 }
@@ -44,7 +44,7 @@ const cartBadge = computed(() => cartStore.totalCount > 0 ? cartStore.totalCount
 }
 
 .premium-tabbar .van-tabbar-item {
-  color: #626A73;
+  color: var(--text-secondary);
   font-size: 11px;
   font-weight: 650;
 }

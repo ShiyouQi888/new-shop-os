@@ -187,11 +187,11 @@ onMounted(async () => {
 .overview-card { padding: 16px; margin: 12px 14px; }
 .overview-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .ov-val { font-size: 24px; }
-.ov-label { font-size: 13px; color: #626A73; margin-top: 4px; }
+.ov-label { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
 .overview-stats { display: flex; }
 .os-item { flex: 1; text-align: center; }
-.os-val { font-size: 16px; font-weight: 800; color: #171A1F; }
-.os-label { font-size: 12px; color: #626A73; margin-top: 2px; }
+.os-val { font-size: 16px; font-weight: 800; color: var(--text-primary); }
+.os-label { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
 .commission-list { padding: 0 14px 12px; }
 .commission-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; margin-bottom: 8px; }
 .ci-left { display: flex; gap: 12px; align-items: center; }
@@ -200,18 +200,18 @@ onMounted(async () => {
 .level-2 { background: var(--color-primary-dark); }
 .level-3 { background: #626A73; }
 .ci-amount { font-size: 16px; }
-.ci-meta { font-size: 12px; color: #626A73; margin-top: 2px; }
-.ci-time { font-size: 11px; color: #9AA1AA; margin-top: 2px; }
+.ci-meta { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.ci-time { font-size: 11px; color: var(--text-placeholder); margin-top: 2px; }
 .ci-status { font-size: 12px; font-weight: 500; }
 .st-pending { color: #F5A623; }
 .st-available { color: #18A66A; }
-.st-withdrawn { color: #626A73; }
+.st-withdrawn { color: var(--text-secondary); }
 .st-frozen { color: #E5484D; }
-.st-rollback { color: #626A73; }
+.st-rollback { color: var(--text-secondary); }
 .withdraw-popup { padding: 16px; }
 .popup-title { font-size: 16px; font-weight: 600; text-align: center; margin-bottom: 16px; }
-.withdraw-balance { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #F8F9FB; border-radius: 8px; margin-bottom: 12px; font-size: 14px; }
-.withdraw-tip { font-size: 12px; color: #626A73; margin-top: 8px; }
+.withdraw-balance { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-muted); border-radius: 8px; margin-bottom: 12px; font-size: 14px; }
+.withdraw-tip { font-size: 12px; color: var(--text-secondary); margin-top: 8px; }
 .withdraw-tip button {
   border: 0;
   background: transparent;

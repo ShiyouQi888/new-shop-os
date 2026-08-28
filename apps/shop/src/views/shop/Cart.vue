@@ -123,15 +123,15 @@ const onCheckout = () => {
 .cart-item { display: flex; align-items: center; gap: 10px; padding: 12px; margin-bottom: 10px; }
 .cart-img { width: 82px; height: 82px; border-radius: 12px; object-fit: cover; cursor: pointer; }
 .cart-info { flex: 1; min-width: 0; }
-.cart-name { color: #171A1F; font-size: 14px; font-weight: 750; line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-bottom: 6px; }
+.cart-name { color: var(--text-primary); font-size: 14px; font-weight: 750; line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-bottom: 6px; }
 .cart-price-row { display: flex; align-items: baseline; gap: 6px; margin-bottom: 8px; }
-.price-old { font-size: 12px; color: #9AA1AA; text-decoration: line-through; }
+.price-old { font-size: 12px; color: var(--text-placeholder); text-decoration: line-through; }
 .cart-actions { display: flex; justify-content: space-between; align-items: center; }
-.icon-button { width: 32px; height: 32px; border: 0; border-radius: 999px; background: #F8F9FB; color: #626A73; }
+.icon-button { width: 32px; height: 32px; border: 0; border-radius: 999px; background: var(--bg-muted); color: var(--text-secondary); }
 </style>
 
 <style>
-.cart-submit-bar { bottom: calc(74px + env(safe-area-inset-bottom)); left: 12px; right: 12px; width: auto; border: 1px solid rgba(231, 233, 237, 0.9); border-radius: 16px; overflow: hidden; box-shadow: 0 14px 34px rgba(17, 24, 39, 0.12); }
+.cart-submit-bar { bottom: calc(74px + env(safe-area-inset-bottom)); left: 12px; right: 12px; width: auto; border: 1px solid var(--border-color); border-radius: 16px; overflow: hidden; box-shadow: 0 14px 34px rgba(17, 24, 39, 0.12); }
 .cart-submit-bar::after { display: none; }
 .cart-submit-bar .van-submit-bar__bar { height: 54px; padding: 0 10px 0 14px; }
 .cart-submit-bar .van-submit-bar__button { height: 38px; border-radius: 999px; font-weight: 700; }

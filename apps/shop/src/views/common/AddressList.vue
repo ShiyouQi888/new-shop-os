@@ -216,19 +216,19 @@ const removeAddress = (id: number) => {
 .sub-hero span { color: var(--color-primary); font-size: 11px; font-weight: 800; }
 .sub-hero h1 { margin-top: 8px; font-size: 25px; }
 .sub-hero p { margin-top: 8px; color: rgba(255,255,255,.72); line-height: 1.55; }
-.address-card { margin-top: 12px; padding: 16px; border: 1px solid rgba(231, 233, 237,.86); border-radius: 14px; background: rgba(255,255,255,.96); box-shadow: 0 8px 24px rgba(17,24,39,.06); }
+.address-card { margin-top: 12px; padding: 16px; border: 1px solid var(--border-color); border-radius: 14px; background: var(--bg-card); box-shadow: 0 8px 24px rgba(17,24,39,.06); }
 .address-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .address-top div { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.address-top strong { color: #171A1F; font-size: 16px; }
-.address-top span { color: #626A73; font-size: 13px; }
+.address-top strong { color: var(--text-primary); font-size: 16px; }
+.address-top span { color: var(--text-secondary); font-size: 13px; }
 .address-top em { padding: 3px 8px; border-radius: 999px; background: var(--color-primary-light); color: var(--color-primary-dark); font-style: normal; font-size: 11px; font-weight: 700; }
-.address-card p { margin-top: 8px; color: #626A73; line-height: 1.55; }
-.address-actions { display: flex; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(231, 233, 237,.82); }
-.address-actions button { flex: 1; height: 34px; border: 1px solid rgba(231, 233, 237,.9); border-radius: 999px; background: #fff; color: #626A73; display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 700; }
+.address-card p { margin-top: 8px; color: var(--text-secondary); line-height: 1.55; }
+.address-actions { display: flex; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-color); }
+.address-actions button { flex: 1; height: 34px; border: 1px solid var(--border-color); border-radius: 999px; background: var(--bg-card); color: var(--text-secondary); display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 700; }
 .address-actions button.active { color: var(--color-primary-dark); background: var(--color-primary-light); border-color: rgba(var(--color-primary-rgb),.22); }
 .address-actions button.danger { color: #E5484D; }
 .primary-action { margin-top: 16px; height: 44px; font-weight: 800; }
 .address-editor { padding: 20px 16px 18px; }
-.popup-title { color: #171A1F; font-size: 17px; font-weight: 800; text-align: center; margin-bottom: 12px; }
+.popup-title { color: var(--text-primary); font-size: 17px; font-weight: 800; text-align: center; margin-bottom: 12px; }
 .save-button { margin-top: 16px; height: 44px; font-weight: 800; }
 </style>

@@ -60,11 +60,11 @@ onMounted(() => {
 .sub-hero p { margin-top: 8px; color: rgba(255,255,255,.72); line-height: 1.55; }
 .notice-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
 .notice-actions button { border: none; background: none; color: var(--color-primary-dark); font-size: 12px; }
-.notice-card { display: flex; gap: 12px; margin-top: 10px; padding: 14px; border: 1px solid rgba(231, 233, 237,.86); border-radius: 14px; background: rgba(255,255,255,.96); box-shadow: 0 8px 24px rgba(17,24,39,.06); }
+.notice-card { display: flex; gap: 12px; margin-top: 10px; padding: 14px; border: 1px solid var(--border-color); border-radius: 14px; background: var(--bg-card); box-shadow: 0 8px 24px rgba(17,24,39,.06); }
 .notice-card.unread { border-color: rgba(var(--color-primary-rgb),.35); }
 .notice-card > .van-icon { color: var(--color-primary-dark); margin-top: 2px; }
 .notice-card div { flex: 1; }
-.notice-card strong { color: #171A1F; font-size: 14px; }
-.notice-card p { margin-top: 5px; color: #626A73; line-height: 1.5; }
-.notice-card > span { color: #9AA1AA; font-size: 11px; white-space: nowrap; }
+.notice-card strong { color: var(--text-primary); font-size: 14px; }
+.notice-card p { margin-top: 5px; color: var(--text-secondary); line-height: 1.5; }
+.notice-card > span { color: var(--text-placeholder); font-size: 11px; white-space: nowrap; }
 </style>

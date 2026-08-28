@@ -253,19 +253,19 @@ onMounted(async () => {
 }
 .agent-home .metric-card {
   padding: 15px 14px;
-  border: 1px solid rgba(231, 233, 237, 0.86);
+  border: 1px solid var(--border-color);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--bg-card);
   box-shadow: 0 8px 24px rgba(17, 24, 39, 0.06);
   text-align: left;
 }
 .agent-home .metric-card span {
-  color: #626A73;
+  color: var(--text-secondary);
 }
 .agent-home .metric-card strong {
   display: block;
   margin-top: 7px;
-  color: #171A1F;
+  color: var(--text-primary);
   font-size: 22px;
   line-height: 1;
 }
@@ -282,7 +282,7 @@ onMounted(async () => {
 }
 .agent-home h2 {
   margin-top: 3px;
-  color: #171A1F;
+  color: var(--text-primary);
   font-size: 17px;
   line-height: 1.2;
 }
@@ -298,8 +298,8 @@ onMounted(async () => {
   min-height: 40px;
   padding: 0 12px;
   border-radius: 12px;
-  background: #F8F9FB;
-  color: #626A73;
+  background: var(--bg-muted);
+  color: var(--text-secondary);
   font-size: 13px;
   font-weight: 650;
 }
@@ -315,10 +315,10 @@ onMounted(async () => {
 }
 .agent-home .quick-cell {
   min-height: 82px;
-  border: 1px solid rgba(231, 233, 237, 0.78);
+  border: 1px solid var(--border-color);
   border-radius: 14px;
-  background: #fff;
-  color: #626A73;
+  background: var(--bg-card);
+  color: var(--text-secondary);
   font-size: 12px;
   font-weight: 700;
 }
@@ -331,11 +331,11 @@ onMounted(async () => {
   border-radius: 12px;
 }
 .agent-home .tone-gold { color: var(--color-primary); background: var(--color-primary-light); }
-.agent-home .tone-blue { color: #626A73; background: #F8F9FB; }
+.agent-home .tone-blue { color: var(--text-secondary); background: var(--bg-muted); }
 .agent-home .tone-green { color: #18A66A; background: #EAF8F2; }
-.agent-home .tone-ink { color: #171A1F; background: #F8F9FB; }
+.agent-home .tone-ink { color: var(--text-primary); background: var(--bg-muted); }
 .agent-home .tone-amber { color: #F5A623; background: var(--color-primary-light); }
-.agent-home .tone-slate { color: #626A73; background: #F8F9FB; }
+.agent-home .tone-slate { color: var(--text-secondary); background: var(--bg-muted); }
 .agent-home .todo-card {
   margin-bottom: 8px;
 }
@@ -344,7 +344,7 @@ onMounted(async () => {
   align-items: flex-start;
   gap: 8px;
   padding-top: 12px;
-  color: #626A73;
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.5;
 }

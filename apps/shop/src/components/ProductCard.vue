@@ -56,8 +56,8 @@ const onClick = () => {
 
 <style scoped>
 .product-card {
-  background: rgba(255, 255, 255, 0.96);
-  border: 1px solid rgba(231, 233, 237, 0.78);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: 14px;
   overflow: hidden;
   box-shadow: 0 8px 22px rgba(17, 24, 39, 0.052);
@@ -72,7 +72,7 @@ const onClick = () => {
   width: 100%;
   aspect-ratio: 1 / 0.92;
   overflow: hidden;
-  background: #F8F9FB;
+  background: var(--bg-muted);
 }
 .product-img img {
   width: 100%;
@@ -92,7 +92,7 @@ const onClick = () => {
   font-size: 10px;
   font-weight: 700;
 }
-.tag-gift { background: rgba(23, 32, 42, 0.9); color: var(--color-primary-light); }
+.tag-gift { background: rgba(23, 32, 42, 0.9); color: var(--color-primary-border); }
 .tag-monthly { background: rgba(247, 239, 226, 0.94); color: var(--color-primary-dark); }
 .product-info {
   padding: 9px 9px 10px;
@@ -102,7 +102,7 @@ const onClick = () => {
   min-height: 38px;
   font-size: 13px;
   line-height: 1.42;
-  color: #171A1F;
+  color: var(--text-primary);
   font-weight: 650;
   overflow: hidden;
   display: -webkit-box;
@@ -126,7 +126,7 @@ const onClick = () => {
 }
 .price-old {
   font-size: 10px;
-  color: #9AA1AA;
+  color: var(--text-placeholder);
   text-decoration: line-through;
 }
 .member-tag {
@@ -141,6 +141,6 @@ const onClick = () => {
   margin-top: 4px;
   font-size: 10px;
   line-height: 1.3;
-  color: #9AA1AA;
+  color: var(--text-placeholder);
 }
 </style>

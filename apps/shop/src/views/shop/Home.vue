@@ -152,12 +152,12 @@ onMounted(async () => {
   align-items: center;
   gap: 8px;
   min-height: 40px;
-  border: 1px solid rgba(231, 233, 237, 0.9);
-  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
   border-radius: 999px;
   padding: 0 16px;
   margin: 10px 0;
-  color: #626A73;
+  color: var(--text-secondary);
   box-shadow: 0 8px 20px rgba(17, 24, 39, 0.045);
 }
 .hero-stage {
@@ -207,7 +207,7 @@ onMounted(async () => {
   min-width: 0;
   border: 0;
   background: transparent;
-  color: #626A73;
+  color: var(--text-secondary);
 }
 .cat-icon {
   position: relative;
@@ -215,7 +215,7 @@ onMounted(async () => {
   height: 42px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(231, 233, 237, 0.82);
+  border: 1px solid var(--border-color);
   border-radius: 13px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78), 0 7px 15px rgba(17, 24, 39, 0.05);
 }
@@ -232,27 +232,27 @@ onMounted(async () => {
 }
 .tone-beauty {
   color: var(--color-primary-dark);
-  background: linear-gradient(145deg, #FFFFFF, var(--color-primary-light));
+  background: linear-gradient(145deg, var(--bg-card), var(--color-primary-light));
 }
 .tone-health {
   color: #18A66A;
-  background: linear-gradient(145deg, #FFFFFF, #EAF8F2);
+  background: linear-gradient(145deg, var(--bg-card), #EAF8F2);
 }
 .tone-home {
   color: var(--color-primary-dark);
-  background: linear-gradient(145deg, #FFFFFF, var(--color-primary-light));
+  background: linear-gradient(145deg, var(--bg-card), var(--color-primary-light));
 }
 .tone-digital {
-  color: #626A73;
-  background: linear-gradient(145deg, #FFFFFF, #F8F9FB);
+  color: var(--text-secondary);
+  background: linear-gradient(145deg, var(--bg-card), var(--bg-muted));
 }
 .tone-gift {
   color: var(--color-primary);
-  background: linear-gradient(145deg, #FFFFFF, var(--color-primary-light));
+  background: linear-gradient(145deg, var(--bg-card), var(--color-primary-light));
 }
 .tone-default {
-  color: #626A73;
-  background: linear-gradient(145deg, #FFFFFF, #F8F9FB);
+  color: var(--text-secondary);
+  background: linear-gradient(145deg, var(--bg-card), var(--bg-muted));
 }
 .cat-name {
   font-size: 11px;
@@ -267,7 +267,7 @@ onMounted(async () => {
   padding: 13px 14px;
   margin-bottom: 10px;
   border-radius: 16px;
-  background: linear-gradient(135deg, #FFFFFF 0%, var(--color-primary-light) 100%);
+  background: linear-gradient(135deg, var(--bg-card) 0%, var(--color-primary-light) 100%);
   border: 1px solid rgba(var(--color-primary-rgb), 0.2);
 }
 .gift-kicker {
@@ -277,13 +277,13 @@ onMounted(async () => {
 }
 .gift-title {
   margin-top: 4px;
-  color: #171A1F;
+  color: var(--text-primary);
   font-size: 15px;
   font-weight: 750;
 }
 .gift-desc {
   margin-top: 4px;
-  color: #626A73;
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.45;
 }

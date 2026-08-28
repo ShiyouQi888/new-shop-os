@@ -21,6 +21,8 @@ export const currentTheme = reactive({
   primaryDark: defaultTheme.primaryDark,
   primaryLight: defaultTheme.primaryLight,
   primaryBorder: defaultTheme.primaryBorder,
+  onPrimary: defaultTheme.onPrimary,
+  dark: !!defaultTheme.dark,
 })
 
 const hexToRgbTriple = (hex: string): string => {
@@ -38,6 +40,8 @@ export function applyTheme(themeId: string) {
   currentTheme.primaryDark = theme.primaryDark
   currentTheme.primaryLight = theme.primaryLight
   currentTheme.primaryBorder = theme.primaryBorder
+  currentTheme.onPrimary = theme.onPrimary
+  currentTheme.dark = !!theme.dark
 
   const root = document.documentElement.style
   root.setProperty('--color-primary', theme.primary)
@@ -45,6 +49,17 @@ export function applyTheme(themeId: string) {
   root.setProperty('--color-primary-rgb', hexToRgbTriple(theme.primary))
   root.setProperty('--color-primary-light', theme.primaryLight)
   root.setProperty('--color-primary-border', theme.primaryBorder)
+  root.setProperty('--color-on-primary', theme.onPrimary)
+  root.setProperty('--bg-page', theme.surfacePage)
+  root.setProperty('--bg-card', theme.surfaceCard)
+  root.setProperty('--bg-muted', theme.surfaceMuted)
+  root.setProperty('--text-primary', theme.textPrimary)
+  root.setProperty('--text-secondary', theme.textSecondary)
+  root.setProperty('--text-regular', theme.textSecondary)
+  root.setProperty('--text-placeholder', theme.textPlaceholder)
+  root.setProperty('--border-color', theme.borderColor)
+
+  document.documentElement.classList.toggle('van-theme-dark', !!theme.dark)
 }
 
 let pending: Promise<void> | null = null

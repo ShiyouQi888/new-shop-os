@@ -44,8 +44,8 @@ onMounted(async () => {
 .sub-hero span { color: var(--color-primary); font-size: 11px; font-weight: 800; }
 .sub-hero h1 { margin-top: 8px; font-size: 25px; }
 .sub-hero p { margin-top: 8px; color: rgba(255,255,255,.72); line-height: 1.55; }
-.rule-card { margin-top: 10px; padding: 16px; border: 1px solid rgba(231, 233, 237,.86); border-radius: 14px; background: rgba(255,255,255,.96); box-shadow: 0 8px 24px rgba(17,24,39,.06); }
-.rule-card div { display: flex; align-items: center; gap: 8px; color: #171A1F; font-size: 15px; font-weight: 800; }
+.rule-card { margin-top: 10px; padding: 16px; border: 1px solid var(--border-color); border-radius: 14px; background: var(--bg-card); box-shadow: 0 8px 24px rgba(17,24,39,.06); }
+.rule-card div { display: flex; align-items: center; gap: 8px; color: var(--text-primary); font-size: 15px; font-weight: 800; }
 .rule-card .van-icon { color: var(--color-primary-dark); }
-.rule-card p { margin-top: 8px; color: #626A73; line-height: 1.6; }
+.rule-card p { margin-top: 8px; color: var(--text-secondary); line-height: 1.6; }
 </style>

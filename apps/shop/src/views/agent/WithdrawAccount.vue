@@ -142,7 +142,7 @@ p {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #171A1F;
+  color: var(--text-primary);
   font-size: 16px;
   font-weight: 800;
 }
@@ -158,18 +158,18 @@ p {
   font-weight: 700;
 }
 .status-pill.muted {
-  background: #F8F9FB;
-  color: #626A73;
+  background: var(--bg-muted);
+  color: var(--text-secondary);
 }
 .account-form {
-  border-top: 1px solid rgba(231, 233, 237, 0.76);
+  border-top: 1px solid var(--border-color);
 }
 .security-note {
   display: flex;
   align-items: flex-start;
   gap: 8px;
   margin: 14px 4px;
-  color: #626A73;
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.5;
 }

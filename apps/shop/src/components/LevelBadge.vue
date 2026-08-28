@@ -44,12 +44,12 @@ onMounted(() => {
 }
 .badge-silver {
   background: rgba(21, 31, 46, .08);
-  color: var(--color-ink);
+  color: var(--text-primary);
   border: 1px solid rgba(21, 31, 46, .1);
 }
 .badge-normal {
-  background: var(--color-surface);
-  color: var(--color-muted);
-  border: 1px solid var(--color-border);
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
 }
 </style>

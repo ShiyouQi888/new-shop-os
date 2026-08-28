@@ -99,9 +99,9 @@ const onSubmit = async () => {
 .auth-page {
   min-height: 100vh;
   background:
-    linear-gradient(180deg, rgba(23, 26, 31, 0.46), rgba(23, 26, 31, 0.72) 38%, #F8F9FB 38%),
+    linear-gradient(180deg, rgba(23, 26, 31, 0.46), rgba(23, 26, 31, 0.72) 38%, var(--bg-page) 38%),
     url('https://images.unsplash.com/photo-1618220179428-22790b461013?auto=format&fit=crop&w=1200&q=80') center top/cover;
-  color: #171A1F;
+  color: var(--text-primary);
 }
 .auth-shell {
   min-height: 100vh;
@@ -202,11 +202,11 @@ p {
 }
 .auth-card {
   padding: 18px 16px 20px;
-  border: 1px solid rgba(231, 233, 237, 0.92);
+  border: 1px solid var(--border-color);
   border-radius: 24px;
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--bg-card);
   box-shadow: 0 20px 54px rgba(17, 24, 39, 0.14);
-  color: #171A1F;
+  color: var(--text-primary);
   backdrop-filter: blur(18px);
 }
 .card-head {
@@ -217,13 +217,13 @@ p {
   padding: 4px 2px 0;
 }
 .card-head span {
-  color: #626A73;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 .card-head strong {
   display: block;
   margin-top: 4px;
-  color: #171A1F;
+  color: var(--text-primary);
   font-size: 19px;
 }
 .card-head .van-icon {
@@ -241,20 +241,20 @@ p {
 .auth-form :deep(.van-cell) {
   margin-bottom: 12px;
   padding: 14px 14px;
-  border: 1px solid #E7E9ED;
+  border: 1px solid var(--border-color);
   border-radius: 14px;
-  background: #F8F9FB;
+  background: var(--bg-page);
 }
 .auth-form :deep(.van-cell::after) {
   display: none;
 }
 .auth-form :deep(.van-field__label) {
   width: 54px;
-  color: #171A1F;
+  color: var(--text-primary);
   font-weight: 700;
 }
 .auth-form :deep(.van-field__control) {
-  color: #171A1F;
+  color: var(--text-primary);
   font-weight: 600;
 }
 .submit-button {
@@ -268,7 +268,7 @@ p {
 .auth-switch {
   margin-top: 20px;
   text-align: center;
-  color: #626A73;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 .auth-switch button {
@@ -285,7 +285,7 @@ p {
   }
   .auth-shell {
     min-height: 760px;
-    border: 1px solid rgba(231, 233, 237, 0.9);
+    border: 1px solid var(--border-color);
     border-radius: 32px;
     overflow: hidden;
     box-shadow: 0 28px 80px rgba(17, 24, 39, 0.24);

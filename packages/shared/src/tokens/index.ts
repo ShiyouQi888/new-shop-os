@@ -131,21 +131,56 @@ export const transition = {
 export interface ShopTheme {
   id: string
   name: string
+  /** 深色主题：切换 Vant 官方暗色变量（van-theme-dark）并影响页面/卡片配色 */
+  dark?: boolean
   /** 主色 */
   primary: string
   /** 主色（深），用于渐变/强调价格等 */
   primaryDark: string
   /** 主色浅色底（徽标/标签背景等） */
   primaryLight: string
-  /** 主色浅色边框 */
+  /** 主色浅色边框/强调色文字（用于深色装饰面板上的小标签，需保持较浅以便阅读） */
   primaryBorder: string
+  /** 主色实心按钮上的文字颜色 */
+  onPrimary: string
+  /** 页面背景 */
+  surfacePage: string
+  /** 卡片背景 */
+  surfaceCard: string
+  /** 卡片内中性图标徽标底色（如分类小图标圆底） */
+  surfaceMuted: string
+  /** 正文文字 */
+  textPrimary: string
+  /** 次要文字 */
+  textSecondary: string
+  /** 占位/弱化文字 */
+  textPlaceholder: string
+  /** 分割线/描边 */
+  borderColor: string
+}
+
+const LIGHT_NEUTRALS = {
+  onPrimary: '#FFFFFF',
+  surfacePage: '#F8F9FB',
+  surfaceCard: '#FFFFFF',
+  surfaceMuted: '#F8F9FB',
+  textPrimary: '#171A1F',
+  textSecondary: '#626A73',
+  textPlaceholder: '#9AA1AA',
+  borderColor: '#E7E9ED',
 }
 
 export const SHOP_THEMES: ShopTheme[] = [
-  { id: 'orange', name: '橘意暖阳', primary: '#FF6B35', primaryDark: '#E85222', primaryLight: '#FFF1EB', primaryBorder: '#FFD5C5' },
-  { id: 'blue', name: '海洋蓝', primary: '#1677FF', primaryDark: '#0E4FA8', primaryLight: '#EAF3FF', primaryBorder: '#BFDBFF' },
-  { id: 'green', name: '森林绿', primary: '#18A66A', primaryDark: '#0E7A4D', primaryLight: '#EAFBF3', primaryBorder: '#BEEBD3' },
-  { id: 'purple', name: '至尊紫', primary: '#7C3AED', primaryDark: '#5B21B6', primaryLight: '#F3EBFF', primaryBorder: '#DDC6FA' },
+  { id: 'orange', name: '橘意暖阳', primary: '#FF6B35', primaryDark: '#E85222', primaryLight: '#FFF1EB', primaryBorder: '#FFD5C5', ...LIGHT_NEUTRALS },
+  { id: 'blue', name: '海洋蓝', primary: '#1677FF', primaryDark: '#0E4FA8', primaryLight: '#EAF3FF', primaryBorder: '#BFDBFF', ...LIGHT_NEUTRALS },
+  { id: 'green', name: '森林绿', primary: '#18A66A', primaryDark: '#0E7A4D', primaryLight: '#EAFBF3', primaryBorder: '#BEEBD3', ...LIGHT_NEUTRALS },
+  { id: 'purple', name: '至尊紫', primary: '#7C3AED', primaryDark: '#5B21B6', primaryLight: '#F3EBFF', primaryBorder: '#DDC6FA', ...LIGHT_NEUTRALS },
+  {
+    id: 'blackgold', name: '黑金尊享', dark: true,
+    primary: '#D4AF37', primaryDark: '#B8932A', primaryLight: '#2B2412', primaryBorder: '#B89B5E', onPrimary: '#1A1610',
+    surfacePage: '#15130F', surfaceCard: '#201B14', surfaceMuted: '#2A2418',
+    textPrimary: '#F2E9D8', textSecondary: '#B3A688', textPlaceholder: '#7D735C', borderColor: '#3A331F',
+  },
 ]
 
 export const DEFAULT_SHOP_THEME = 'orange'

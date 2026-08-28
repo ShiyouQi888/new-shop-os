@@ -36,9 +36,9 @@ onMounted(async () => {
 .sub-hero span { color: var(--color-primary); font-size: 11px; font-weight: 800; }
 .sub-hero h1 { margin-top: 8px; font-size: 25px; }
 .sub-hero p { margin-top: 8px; color: rgba(255,255,255,.72); line-height: 1.55; }
-.history-card { display: flex; align-items: center; gap: 12px; margin-top: 10px; padding: 12px; border: 1px solid rgba(231, 233, 237,.86); border-radius: 14px; background: rgba(255,255,255,.96); box-shadow: 0 8px 24px rgba(17,24,39,.06); }
+.history-card { display: flex; align-items: center; gap: 12px; margin-top: 10px; padding: 12px; border: 1px solid var(--border-color); border-radius: 14px; background: var(--bg-card); box-shadow: 0 8px 24px rgba(17,24,39,.06); }
 .history-card img { width: 58px; height: 58px; border-radius: 12px; object-fit: cover; }
 .history-card div { flex: 1; min-width: 0; }
-.history-card strong { display: block; color: #171A1F; font-size: 14px; }
-.history-card span { display: block; margin-top: 5px; color: #626A73; font-size: 12px; }
+.history-card strong { display: block; color: var(--text-primary); font-size: 14px; }
+.history-card span { display: block; margin-top: 5px; color: var(--text-secondary); font-size: 12px; }
 </style>

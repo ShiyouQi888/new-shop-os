@@ -160,27 +160,27 @@ const rebuy = (order: Order) => {
 .order-page { min-height: 100vh; padding-top: 46px; }
 .order-body { padding: 12px 14px 24px; }
 .order-item { padding: 14px; margin-bottom: 12px; }
-.order-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid #E7E9ED; }
-.order-no { color: #626A73; font-size: 12px; }
+.order-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+.order-no { color: var(--text-secondary); font-size: 12px; }
 .order-status { font-size: 13px; font-weight: 800; }
 .st-pending { color: #F5A623; }
 .st-paid, .st-shipped { color: var(--color-primary); }
 .st-done { color: #18A66A; }
-.st-cancel { color: #626A73; }
+.st-cancel { color: var(--text-secondary); }
 .st-refund { color: #E5484D; }
 .order-goods { display: flex; gap: 10px; padding: 12px 0; align-items: center; }
 .goods-img { width: 58px; height: 58px; border-radius: 12px; object-fit: cover; }
 .goods-info { flex: 1; min-width: 0; }
-.goods-name { color: #171A1F; font-size: 13px; font-weight: 700; line-height: 1.4; }
-.goods-meta { margin-top: 4px; color: #626A73; font-size: 12px; }
+.goods-name { color: var(--text-primary); font-size: 13px; font-weight: 700; line-height: 1.4; }
+.goods-meta { margin-top: 4px; color: var(--text-secondary); font-size: 12px; }
 .goods-price { font-size: 14px; }
-.order-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-top: 10px; border-top: 1px solid #E7E9ED; }
-.order-total { color: #626A73; font-size: 13px; }
+.order-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-top: 10px; border-top: 1px solid var(--border-color); }
+.order-total { color: var(--text-secondary); font-size: 13px; }
 .order-actions { display: flex; gap: 8px; flex-shrink: 0; }
 .pay-popup { padding: 20px 16px 18px; }
-.popup-title { color: #171A1F; font-size: 17px; font-weight: 800; text-align: center; }
-.pay-order-no { margin-top: 6px; color: #626A73; font-size: 12px; text-align: center; }
-.pay-summary { display: flex; justify-content: space-between; align-items: center; padding: 14px; margin: 16px 0 12px; border-radius: 14px; background: #F8F9FB; color: #626A73; }
-.pay-summary strong { color: #171A1F; font-size: 23px; }
+.popup-title { color: var(--text-primary); font-size: 17px; font-weight: 800; text-align: center; }
+.pay-order-no { margin-top: 6px; color: var(--text-secondary); font-size: 12px; text-align: center; }
+.pay-summary { display: flex; justify-content: space-between; align-items: center; padding: 14px; margin: 16px 0 12px; border-radius: 14px; background: var(--bg-muted); color: var(--text-secondary); }
+.pay-summary strong { color: var(--text-primary); font-size: 23px; }
 .pay-methods { margin-bottom: 16px; }
 </style>

@@ -131,8 +131,8 @@ onMounted(async () => {
   width: 88px;
   height: 100%;
   padding: 10px 6px 82px;
-  background: rgba(255, 255, 255, 0.68);
-  border-right: 1px solid rgba(231, 233, 237, 0.84);
+  background: var(--bg-card);
+  border-right: 1px solid var(--border-color);
   overflow-y: auto;
   flex-shrink: 0;
 }
@@ -144,7 +144,7 @@ onMounted(async () => {
   border: 1px solid transparent;
   border-radius: 13px;
   background: transparent;
-  color: #626A73;
+  color: var(--text-secondary);
   font-size: 12px;
   font-weight: 700;
 }
@@ -220,10 +220,10 @@ onMounted(async () => {
 .filter-chip {
   height: 28px;
   padding: 0 12px;
-  border: 1px solid rgba(231, 233, 237, 0.86);
+  border: 1px solid var(--border-color);
   border-radius: 999px;
-  background: #fff;
-  color: #626A73;
+  background: var(--bg-card);
+  color: var(--text-secondary);
   font-size: 12px;
   font-weight: 700;
 }
@@ -236,11 +236,11 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   padding: 0 12px;
-  color: #626A73;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 .result-meta span:first-child {
-  color: #171A1F;
+  color: var(--text-primary);
   font-weight: 750;
 }
 .product-list {
@@ -251,7 +251,7 @@ onMounted(async () => {
 .tone-beauty { color: var(--color-primary-dark); background: var(--color-primary-light); }
 .tone-health { color: #18A66A; background: #EAF8F2; }
 .tone-home { color: var(--color-primary-dark); background: var(--color-primary-light); }
-.tone-digital { color: #626A73; background: #F8F9FB; }
+.tone-digital { color: var(--text-secondary); background: var(--bg-muted); }
 .tone-gift { color: var(--color-primary); background: var(--color-primary-light); }
-.tone-default { color: #626A73; background: #F8F9FB; }
+.tone-default { color: var(--text-secondary); background: var(--bg-muted); }
 </style>

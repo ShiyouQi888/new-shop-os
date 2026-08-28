@@ -173,27 +173,27 @@ const loadPageData = async () => {
 <style scoped>
 .resell-page { padding-top: 46px; min-height: 100vh; padding-bottom: 20px; }
 .estimate-card, .rules-card, .records-card { padding: 16px; margin: 12px 14px; }
-.card-title { color: #171A1F; font-size: 15px; font-weight: 800; margin-bottom: 12px; }
+.card-title { color: var(--text-primary); font-size: 15px; font-weight: 800; margin-bottom: 12px; }
 .estimate-form { display: flex; flex-direction: column; gap: 12px; }
 .est-item { display: flex; justify-content: space-between; align-items: center; }
-.fixed-value { color: #171A1F; font-size: 16px; }
-.mode-hint { margin-top: -6px; font-size: 12px; color: #9AA1AA; }
-.credit-value { color: #171A1F; font-size: 14px; font-weight: 700; }
-.est-result { background: #F8F9FB; border-radius: 12px; padding: 16px; }
-.est-line { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; color: #626A73; }
+.fixed-value { color: var(--text-primary); font-size: 16px; }
+.mode-hint { margin-top: -6px; font-size: 12px; color: var(--text-placeholder); }
+.credit-value { color: var(--text-primary); font-size: 14px; font-weight: 700; }
+.est-result { background: var(--bg-muted); border-radius: 12px; padding: 16px; }
+.est-line { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; color: var(--text-secondary); }
 .est-line.danger span:last-child { color: #E5484D; }
 .est-line.result { font-weight: 600; font-size: 15px; }
-.result-price { color: #171A1F; font-size: 20px; font-weight: 800; }
-.rule-item { font-size: 13px; color: #626A73; padding: 4px 0; }
-.record-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #E7E9ED; }
+.result-price { color: var(--text-primary); font-size: 20px; font-weight: 800; }
+.rule-item { font-size: 13px; color: var(--text-secondary); padding: 4px 0; }
+.record-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border-color); }
 .record-item:last-child { border-bottom: none; }
 .rec-name { font-size: 14px; font-weight: 500; }
-.rec-meta { font-size: 11px; color: #626A73; margin-top: 2px; }
+.rec-meta { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
 .rec-amount { font-size: 15px; }
 .rec-status { font-size: 12px; margin-top: 4px; text-align: right; }
 .st-wait { color: #F5A623; }
 .st-match { color: var(--color-primary); }
 .st-matched { color: var(--color-primary); }
 .st-done { color: #18A66A; }
-.st-cancel { color: #626A73; }
+.st-cancel { color: var(--text-secondary); }
 </style>

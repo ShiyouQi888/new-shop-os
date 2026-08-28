@@ -107,30 +107,30 @@ onMounted(async () => {
 .credit-body { padding: 12px 14px 24px; }
 .current-card { padding: 16px; margin-bottom: 12px; }
 .current-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.current-month { color: #171A1F; font-size: 18px; font-weight: 800; }
+.current-month { color: var(--text-primary); font-size: 18px; font-weight: 800; }
 .current-stats { display: flex; justify-content: space-around; margin-top: 16px; }
 .cs-item { text-align: center; }
-.cs-val { font-size: 18px; font-weight: 800; color: #171A1F; }
-.cs-label { font-size: 12px; color: #626A73; margin-top: 4px; }
+.cs-val { font-size: 18px; font-weight: 800; color: var(--text-primary); }
+.cs-label { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 .action-row { display: flex; gap: 10px; margin-bottom: 12px; }
 .progress-card { padding: 16px; margin-bottom: 12px; }
-.card-title { color: #171A1F; font-size: 15px; font-weight: 800; margin-bottom: 12px; }
-.progress-info { display: flex; justify-content: space-between; font-size: 13px; color: #626A73; margin-bottom: 12px; }
+.card-title { color: var(--text-primary); font-size: 15px; font-weight: 800; margin-bottom: 12px; }
+.progress-info { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; }
 .months-bar { display: flex; gap: 6px; flex-wrap: wrap; }
 .month-dot {
   width: 28px; height: 28px;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: 11px;
-  background: #F8F9FB; color: #9AA1AA;
+  background: var(--bg-muted); color: var(--text-placeholder);
 }
 .month-dot.used { background: #18A66A; color: #fff; }
 .month-dot.current { background: var(--color-primary); color: #fff; }
 .history-card { padding: 16px; }
-.history-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #E7E9ED; }
+.history-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border-color); }
 .history-item:last-child { border-bottom: none; }
-.hist-month { color: #171A1F; font-size: 14px; font-weight: 700; }
-.hist-status { font-size: 12px; color: #626A73; margin-top: 2px; }
-.hist-amount { color: #171A1F; font-size: 14px; font-weight: 700; text-align: right; }
-.hist-desc { font-size: 12px; color: #626A73; text-align: right; margin-top: 2px; }
+.hist-month { color: var(--text-primary); font-size: 14px; font-weight: 700; }
+.hist-status { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.hist-amount { color: var(--text-primary); font-size: 14px; font-weight: 700; text-align: right; }
+.hist-desc { font-size: 12px; color: var(--text-secondary); text-align: right; margin-top: 2px; }
 </style>

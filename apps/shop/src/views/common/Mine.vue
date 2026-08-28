@@ -182,7 +182,7 @@ const onLogout = () => {
 }
 .upgrade-hint {
   margin-top: 5px;
-  color: var(--color-primary-light);
+  color: var(--color-primary-border);
   font-size: 12px;
 }
 .auth-link {
@@ -221,6 +221,7 @@ const onLogout = () => {
 }
 .identity-metrics strong {
   font-size: 15px;
+  color: var(--color-primary-border);
 }
 .identity-metrics span {
   margin-top: 4px;
@@ -231,9 +232,9 @@ const onLogout = () => {
 .section-card,
 .wallet-card {
   margin-top: 10px;
-  border: 1px solid rgba(231, 233, 237, 0.86);
+  border: 1px solid var(--border-color);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--bg-card);
   box-shadow: 0 8px 22px rgba(17, 24, 39, 0.052);
 }
 .agent-entry {
@@ -248,13 +249,13 @@ const onLogout = () => {
   gap: 10px;
 }
 .entry-title {
-  color: #171A1F;
+  color: var(--text-primary);
   font-size: 15px;
   font-weight: 750;
 }
 .entry-desc {
   margin-top: 3px;
-  color: #626A73;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 .section-card {
@@ -285,7 +286,7 @@ const onLogout = () => {
   gap: 6px;
   border: 0;
   background: transparent;
-  color: #626A73;
+  color: var(--text-secondary);
   font-size: 11px;
 }
 .wallet-card {
@@ -297,13 +298,13 @@ const onLogout = () => {
   text-align: center;
 }
 .wallet-value {
-  color: #171A1F;
+  color: var(--text-primary);
   font-size: 16px;
   font-weight: 800;
 }
 .wallet-label {
   margin-top: 4px;
-  color: #626A73;
+  color: var(--text-secondary);
   font-size: 11px;
 }
 .tools-card {

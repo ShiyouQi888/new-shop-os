@@ -111,17 +111,17 @@ onMounted(async () => {
 .team-page { padding-top: 46px; min-height: 100vh; }
 .team-overview { display: grid; grid-template-columns: repeat(4, 1fr); padding: 16px 0; margin: 12px 14px; }
 .ov-item { text-align: center; }
-.ov-val { font-size: 20px; font-weight: 800; color: #171A1F; }
-.ov-label { font-size: 11px; color: #626A73; margin-top: 4px; }
+.ov-val { font-size: 20px; font-weight: 800; color: var(--text-primary); }
+.ov-label { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
 .team-list { padding: 0 14px 12px; }
 .team-item { display: flex; align-items: center; gap: 10px; padding: 12px; margin-bottom: 8px; }
 .ti-info { flex: 1; }
-.ti-name { color: #171A1F; font-size: 14px; font-weight: 700; }
-.ti-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 11px; color: #626A73; }
+.ti-name { color: var(--text-primary); font-size: 14px; font-weight: 700; }
+.ti-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 11px; color: var(--text-secondary); }
 .ti-contribution { text-align: right; }
 .ti-amount { font-size: 15px; }
-.ti-label { font-size: 11px; color: #626A73; }
-.privacy-note { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 16px; font-size: 12px; color: #9AA1AA; }
-.team-disabled { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 12px 14px; padding: 24px; color: #626A73; font-size: 13px; }
+.ti-label { font-size: 11px; color: var(--text-secondary); }
+.privacy-note { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 16px; font-size: 12px; color: var(--text-placeholder); }
+.team-disabled { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 12px 14px; padding: 24px; color: var(--text-secondary); font-size: 13px; }
 .team-disabled .van-icon { color: var(--color-primary); }
 </style>

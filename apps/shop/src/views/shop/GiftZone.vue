@@ -209,24 +209,24 @@ onMounted(async () => {
 .intro-banner p { margin-top: 8px; color: rgba(255,255,255,.72); line-height: 1.55; }
 .package-card { padding: 16px; margin-bottom: 12px; border-width: 1px; }
 .package-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
-.package-name { margin-top: 5px; color: #171A1F; font-size: 18px; font-weight: 800; }
+.package-name { margin-top: 5px; color: var(--text-primary); font-size: 18px; font-weight: 800; }
 .package-benefits { display: grid; gap: 8px; margin-bottom: 14px; }
-.benefit-item { display: flex; align-items: center; gap: 7px; color: #626A73; font-size: 13px; }
+.benefit-item { display: flex; align-items: center; gap: 7px; color: var(--text-secondary); font-size: 13px; }
 .benefit-item .van-icon { color: var(--color-primary); }
-.package-rights { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; padding: 12px; background: #F8F9FB; border-radius: 12px; }
+.package-rights { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; padding: 12px; background: var(--bg-muted); border-radius: 12px; }
 .right-item { text-align: center; }
-.right-value { color: #171A1F; font-size: 14px; font-weight: 800; }
-.right-label { margin-top: 3px; color: #626A73; font-size: 11px; }
+.right-value { color: var(--text-primary); font-size: 14px; font-weight: 800; }
+.right-label { margin-top: 3px; color: var(--text-secondary); font-size: 11px; }
 .compare-card { padding: 16px; margin-bottom: 12px; overflow-x: auto; }
-.compare-title { color: #171A1F; font-size: 16px; font-weight: 800; margin-bottom: 12px; }
+.compare-title { color: var(--text-primary); font-size: 16px; font-weight: 800; margin-bottom: 12px; }
 .compare-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.compare-table th { padding: 9px 6px; background: #F8F9FB; color: #626A73; font-weight: 800; }
-.compare-table td { padding: 9px 6px; text-align: center; border-bottom: 1px solid #E7E9ED; color: #626A73; }
-.compare-table td:first-child { text-align: left; color: #171A1F; font-weight: 800; }
+.compare-table th { padding: 9px 6px; background: var(--bg-muted); color: var(--text-secondary); font-weight: 800; }
+.compare-table td { padding: 9px 6px; text-align: center; border-bottom: 1px solid var(--border-color); color: var(--text-secondary); }
+.compare-table td:first-child { text-align: left; color: var(--text-primary); font-weight: 800; }
 .pay-popup { padding: 20px 16px 18px; }
-.popup-title { color: #171A1F; font-size: 17px; font-weight: 800; text-align: center; }
-.pay-package { margin-top: 6px; color: #626A73; font-size: 12px; text-align: center; }
-.pay-summary { display: flex; justify-content: space-between; align-items: center; padding: 14px; margin: 16px 0 12px; border-radius: 14px; background: #F8F9FB; color: #626A73; }
-.pay-summary strong { color: #171A1F; font-size: 23px; }
+.popup-title { color: var(--text-primary); font-size: 17px; font-weight: 800; text-align: center; }
+.pay-package { margin-top: 6px; color: var(--text-secondary); font-size: 12px; text-align: center; }
+.pay-summary { display: flex; justify-content: space-between; align-items: center; padding: 14px; margin: 16px 0 12px; border-radius: 14px; background: var(--bg-muted); color: var(--text-secondary); }
+.pay-summary strong { color: var(--text-primary); font-size: 23px; }
 .pay-methods { margin-bottom: 16px; }
 </style>
