@@ -14,6 +14,7 @@ export const PERMISSIONS: PermissionItem[] = [
   { code: 'product:edit', name: '编辑商品', group: '商城管理', desc: '新增/编辑/上下架/删除商品' },
   { code: 'category:edit', name: '管理分类', group: '商城管理' },
   { code: 'gift:edit', name: '管理礼包', group: '商城管理' },
+  { code: 'banner:config', name: '管理首页轮播图', group: '商城管理' },
   // 订单
   { code: 'order:view', name: '查看订单', group: '订单管理' },
   { code: 'order:ship', name: '发货/确认', group: '订单管理', desc: '单发/批量发货、退款审核' },
@@ -66,7 +67,7 @@ export const BUILTIN_ROLES: { code: string; name: string; description: string; p
     name: '运营',
     description: '负责商城、订单、会员、权益等日常运营',
     permissions: [
-      'dashboard:view', 'product:view', 'product:edit', 'category:edit', 'gift:edit',
+      'dashboard:view', 'product:view', 'product:edit', 'category:edit', 'gift:edit', 'banner:config',
       'order:view', 'order:ship', 'member:view', 'member:edit',
       'benefit:config', 'credit:view', 'credit:adjust', 'resell:view', 'resell:match',
       'relation:view', 'poster:config', 'workorder:view', 'workorder:handle', 'help:manage',

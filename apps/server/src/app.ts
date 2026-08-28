@@ -25,6 +25,7 @@ import helpRoutes from './routes/help.js'
 import logRoutes, { logLogin } from './routes/log.js'
 import roleRoutes from './routes/roles.js'
 import posterRoutes from './routes/posters.js'
+import bannerRoutes from './routes/banners.js'
 import workOrderRoutes from './routes/work-order.js'
 import siteRoutes from './routes/site.js'
 
@@ -63,6 +64,7 @@ export function createApp() {
   api.use('/logs', logRoutes)
   api.use('/roles', roleRoutes)
   api.use('/posters', posterRoutes)
+  api.use('/banners', bannerRoutes)
   api.use('/work-orders', workOrderRoutes)
   api.use('/site', siteRoutes)
 

@@ -442,6 +442,26 @@ export const apiPoster = {
   remove: (id: number) => http.delete(`/posters/${id}`),
 }
 
+// ============ 首页轮播图 ============
+export interface Banner {
+  id: number
+  title: string
+  image: string
+  link: string
+  status: number
+  sort: number
+  createTime: string
+  updateTime: string
+}
+
+export const apiBanner = {
+  getList: () => http.get<Banner[]>('/banners'),
+  create: (payload: { title?: string; image: string; link?: string; status?: number; sort?: number }) =>
+    http.post<{ id: number }>('/banners', payload),
+  update: (id: number, payload: Partial<Banner>) => http.put(`/banners/${id}`, payload),
+  remove: (id: number) => http.delete(`/banners/${id}`),
+}
+
 // ============ 财务总览 ============
 export const apiFinance = {
   /** 平台收支统计 */

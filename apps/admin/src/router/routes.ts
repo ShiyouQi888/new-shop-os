@@ -51,6 +51,12 @@ export const adminRoutes: RouteRecordRaw[] = [
         component: () => import('@/views/product/GiftPackageList.vue'),
         meta: { title: '大礼包管理', icon: 'Present', permission: 'gift:edit' },
       },
+      {
+        path: 'banner',
+        name: 'BannerList',
+        component: () => import('@/views/product/BannerList.vue'),
+        meta: { title: '轮播图管理', icon: 'Picture', permission: 'banner:config' },
+      },
     ],
   },
   {

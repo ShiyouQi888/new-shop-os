@@ -39,11 +39,9 @@ export const api = {
   getHomeData: async () => {
     const d = await http.get<Row>('/shop/home')
     return {
-      banners: [
-        { image: 'https://picsum.photos/seed/banner1/750/320', link: '/gift-zone' },
-        { image: 'https://picsum.photos/seed/banner2/750/320', link: '' },
-        { image: 'https://picsum.photos/seed/banner3/750/320', link: '' },
-      ],
+      banners: (d.banners as Row[] | undefined ?? []).map(b => ({
+        image: String(b.image || ''), link: String(b.link || ''),
+      })),
       categories: (d.categories as Row[] | undefined ?? []).map(c => ({
         id: Number(c.id), name: String(c.name), icon: String(c.icon || 'folder'),
         parentId: 0, isGiftZone: Number(c.isGiftZone ?? 0) === 1, status: 1, sort: 0,

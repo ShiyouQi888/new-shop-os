@@ -26,6 +26,7 @@ router.use((_req, _res, next) => {
 /** GET /shop/home 首页聚合（分类/热销/新品/礼包） */
 router.get('/home', (_req, res, next) => {
   try {
+    const banners = all('SELECT id, image, link FROM home_banner WHERE status = 1 ORDER BY sort ASC, id ASC')
     const categories = all('SELECT id, name, icon, is_gift_zone AS isGiftZone FROM category WHERE status = 1 AND parent_id = 0 ORDER BY sort, id')
     const hotProducts = all(
       `SELECT id, name, main_image AS mainImage, description, is_gift_package AS isGiftPackage,
@@ -54,7 +55,7 @@ router.get('/home', (_req, res, next) => {
       itemMap.set(it.packageId, list)
     })
     giftPackages.forEach((p) => { (p as { items?: typeof items }).items = itemMap.get((p as { id: number }).id) || [] })
-    ok(res, { categories, hotProducts, newProducts, giftPackages })
+    ok(res, { banners, categories, hotProducts, newProducts, giftPackages })
   } catch (e) { next(e) }
 })
 

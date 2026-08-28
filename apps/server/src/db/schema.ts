@@ -532,4 +532,17 @@ CREATE TABLE IF NOT EXISTS resell_pool_item (
   UNIQUE (level, spu_id)
 );
 CREATE INDEX IF NOT EXISTS idx_resell_pool_level ON resell_pool_item(level);
+
+-- 商城首页轮播图（后台维护，前台首页轮播展示）
+CREATE TABLE IF NOT EXISTS home_banner (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  title       TEXT    NOT NULL DEFAULT '',       -- 内部备注名称，前台不展示
+  image       TEXT    NOT NULL DEFAULT '',       -- 轮播图片 URL（/uploads/...）
+  link        TEXT    NOT NULL DEFAULT '',       -- 点击跳转路径（站内相对路径），留空则不可点击
+  status      INTEGER NOT NULL DEFAULT 1,        -- 1 启用 0 停用
+  sort        INTEGER NOT NULL DEFAULT 0,
+  create_time TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
+  update_time TEXT    NOT NULL DEFAULT (datetime('now', 'localtime'))
+);
+CREATE INDEX IF NOT EXISTS idx_home_banner_sort ON home_banner(sort, id);
 `
