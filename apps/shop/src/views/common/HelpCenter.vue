@@ -22,7 +22,7 @@
       <div class="help-detail">
         <div class="help-detail-title">{{ current?.title }}</div>
         <div class="help-detail-body">{{ current?.content }}</div>
-        <van-button block round plain color="#FF6B35" class="detail-close" @click="detailVisible = false">知道了</van-button>
+        <van-button block round plain :color="currentTheme.primary" class="detail-close" @click="detailVisible = false">知道了</van-button>
       </div>
     </van-popup>
   </div>
@@ -33,6 +33,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { api } from '@/api'
+import { currentTheme } from '@/utils/site'
 
 const router = useRouter()
 const helpItems = ref<Array<{ id: number; title: string; category: string }>>([])
@@ -78,7 +79,7 @@ onMounted(async () => {
 .mine-sub-page { min-height: 100vh; padding-top: 46px; }
 .mine-sub-body { padding: 12px 14px 24px; }
 .sub-hero { padding: 22px 18px; border-radius: 20px; color: #fff; background: linear-gradient(135deg, #171A1F, #171A1F); box-shadow: 0 18px 44px rgba(23,32,42,.16); }
-.sub-hero span { color: #FF6B35; font-size: 11px; font-weight: 800; }
+.sub-hero span { color: var(--color-primary); font-size: 11px; font-weight: 800; }
 .sub-hero h1 { margin-top: 8px; font-size: 25px; }
 .sub-hero p { margin-top: 8px; color: rgba(255,255,255,.72); line-height: 1.55; }
 .support-card { margin-top: 12px; overflow: hidden; border: 1px solid rgba(231, 233, 237,.86); border-radius: 14px; box-shadow: 0 8px 24px rgba(17,24,39,.06); }

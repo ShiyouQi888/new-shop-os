@@ -38,9 +38,9 @@ onMounted(() => {
   line-height: 1.4;
 }
 .badge-gold {
-  background: rgba(255, 107, 53, .14);
+  background: rgba(var(--color-primary-rgb), .14);
   color: var(--color-gold);
-  border: 1px solid rgba(255, 107, 53, .2);
+  border: 1px solid rgba(var(--color-primary-rgb), .2);
 }
 .badge-silver {
   background: rgba(21, 31, 46, .08);

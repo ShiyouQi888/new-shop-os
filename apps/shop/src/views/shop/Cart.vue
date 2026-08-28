@@ -31,7 +31,7 @@
     </main>
 
     <van-empty v-else description="购物车是空的">
-      <van-button color="#FF6B35" size="small" round @click="router.push('/home')">去逛逛</van-button>
+      <van-button :color="currentTheme.primary" size="small" round @click="router.push('/home')">去逛逛</van-button>
     </van-empty>
 
     <van-submit-bar
@@ -39,7 +39,7 @@
       class="cart-submit-bar"
       :price="cartStore.memberTotalPrice * 100"
       button-text="去结算"
-      :button-color="'#FF6B35'"
+      :button-color="currentTheme.primary"
       @submit="onCheckout"
     >
       <van-checkbox v-model="selectAll" shape="round">全选</van-checkbox>
@@ -55,6 +55,7 @@ import { formatMoney } from '@shop-os/shared'
 import { useCartStore } from '@/stores/cart'
 import { useUserStore } from '@/stores/user'
 import { api } from '@/api'
+import { currentTheme } from '@/utils/site'
 
 const router = useRouter()
 const cartStore = useCartStore()
@@ -116,7 +117,7 @@ const onCheckout = () => {
 .cart-page { min-height: 100vh; padding-top: 46px; padding-bottom: 132px; }
 .cart-body { padding: 12px 14px 24px; }
 .cart-hero { padding: 20px 18px; border-radius: 20px; color: #fff; background: linear-gradient(135deg, #171A1F, #171A1F); box-shadow: 0 18px 44px rgba(23,32,42,.16); margin-bottom: 12px; }
-.cart-hero span { color: #FF6B35; font-size: 11px; font-weight: 800; }
+.cart-hero span { color: var(--color-primary); font-size: 11px; font-weight: 800; }
 .cart-hero h1 { margin-top: 8px; font-size: 24px; }
 .cart-hero p { margin-top: 8px; color: rgba(255,255,255,.72); line-height: 1.55; }
 .cart-item { display: flex; align-items: center; gap: 10px; padding: 12px; margin-bottom: 10px; }

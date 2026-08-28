@@ -4,7 +4,7 @@
 
     <main class="detail-body">
       <section class="gallery-section">
-        <van-swipe class="detail-swipe" indicator-color="#FF6B35">
+        <van-swipe class="detail-swipe" :indicator-color="currentTheme.primary">
           <van-swipe-item v-for="(img, idx) in data.spu.images" :key="idx">
             <img :src="img" class="detail-img" :alt="`${data.spu.name} 图片 ${idx + 1}`" />
           </van-swipe-item>
@@ -99,13 +99,13 @@
 
     <van-action-bar class="detail-action-bar">
       <van-action-bar-icon icon="chat-o" text="客服" @click="contactService" />
-      <van-action-bar-icon :icon="isFavorited ? 'star' : 'star-o'" :color="isFavorited ? '#FF6B35' : ''" :text="isFavorited ? '已收藏' : '收藏'" @click="toggleFavorite" />
+      <van-action-bar-icon :icon="isFavorited ? 'star' : 'star-o'" :color="isFavorited ? currentTheme.primary : ''" :text="isFavorited ? '已收藏' : '收藏'" @click="toggleFavorite" />
       <template v-if="data.spu.isGiftPackage">
-        <van-action-bar-button class="buy-action" color="#FF6B35" text="立即购买" @click="buyGiftPackage" />
+        <van-action-bar-button class="buy-action" :color="currentTheme.primary" text="立即购买" @click="buyGiftPackage" />
       </template>
       <template v-else>
-        <van-action-bar-button class="cart-action" color="#FFF1EB" text="加入购物车" @click="addToCart" />
-        <van-action-bar-button class="buy-action" color="#FF6B35" text="立即购买" @click="buyNow" />
+        <van-action-bar-button class="cart-action" :color="currentTheme.primaryLight" text="加入购物车" @click="addToCart" />
+        <van-action-bar-button class="buy-action" :color="currentTheme.primary" text="立即购买" @click="buyNow" />
       </template>
     </van-action-bar>
   </div>
@@ -121,6 +121,7 @@ import { api } from '@/api'
 import { formatMoney, calcDiscountPrice, MemberLevelLabels } from '@shop-os/shared'
 import { useUserStore } from '@/stores/user'
 import { useCartStore } from '@/stores/cart'
+import { currentTheme } from '@/utils/site'
 
 const route = useRoute()
 const router = useRouter()
@@ -284,7 +285,7 @@ watch(selectedSkuId, () => { quantity.value = 1 })
 }
 .brand-row {
   justify-content: space-between;
-  color: #E85222;
+  color: var(--color-primary-dark);
   font-size: 12px;
   font-weight: 800;
 }
@@ -313,8 +314,8 @@ h1 {
   margin-top: 10px;
   padding: 6px 10px;
   border-radius: 999px;
-  background: #FFF1EB;
-  color: #E85222;
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
   font-size: 12px;
   font-weight: 700;
 }
@@ -322,15 +323,15 @@ h1 {
   padding: 16px;
   margin-bottom: 12px;
   border-radius: 16px;
-  background: linear-gradient(135deg, #FFFFFF 0%, #FFF1EB 100%);
-  border: 1px solid rgba(255, 107, 53, 0.2);
+  background: linear-gradient(135deg, #FFFFFF 0%, var(--color-primary-light) 100%);
+  border: 1px solid rgba(var(--color-primary-rgb), 0.2);
 }
 .section-heading {
   justify-content: space-between;
   margin-bottom: 12px;
 }
 .section-kicker {
-  color: #E85222;
+  color: var(--color-primary-dark);
   font-size: 10px;
   font-weight: 800;
 }
@@ -351,7 +352,7 @@ h2 {
   line-height: 1.45;
 }
 .benefit-item .van-icon {
-  color: #FF6B35;
+  color: var(--color-primary);
   flex-shrink: 0;
 }
 .sku-list {
@@ -370,8 +371,8 @@ h2 {
   font-weight: 700;
 }
 .sku-item.active {
-  border-color: #FF6B35;
-  background: #FF6B35;
+  border-color: var(--color-primary);
+  background: var(--color-primary);
   color: #fff;
 }
 .qty-section {
@@ -424,10 +425,10 @@ h2 {
   font-weight: 800;
 }
 .detail-action-bar .cart-action {
-  color: #E85222 !important;
+  color: var(--color-primary-dark) !important;
 }
 .detail-action-bar .cart-action .van-button__text {
-  color: #E85222 !important;
+  color: var(--color-primary-dark) !important;
 }
 .detail-action-bar .buy-action,
 .detail-action-bar .buy-action .van-button__text {

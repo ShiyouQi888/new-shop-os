@@ -20,7 +20,7 @@
         </van-field>
         <van-field label="紧急度">
           <template #input>
-            <van-rate v-model="form.priority" :count="3" color="#FF6B35" void-icon="star" />
+            <van-rate v-model="form.priority" :count="3" :color="currentTheme.primary" void-icon="star" />
           </template>
         </van-field>
         <van-field
@@ -33,7 +33,7 @@
           maxlength="1000"
           show-word-limit
         />
-        <van-button block round color="#FF6B35" :loading="submitting" loading-text="提交中..." @click="submitOrder">
+        <van-button block round :color="currentTheme.primary" :loading="submitting" loading-text="提交中..." @click="submitOrder">
           提交工单
         </van-button>
       </section>
@@ -90,6 +90,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { showSuccessToast, showToast } from 'vant'
 import { api } from '@/api'
+import { currentTheme } from '@/utils/site'
 
 interface WorkOrder {
   id: number
@@ -183,21 +184,21 @@ onMounted(loadOrders)
 .work-page { min-height: 100vh; padding-top: 46px; }
 .work-body { padding: 12px 14px 28px; }
 .work-hero { padding: 22px 18px; border-radius: 20px; color: #fff; background: #171A1F; box-shadow: 0 18px 44px rgba(23, 32, 42, .16); }
-.work-hero span { color: #FF6B35; font-size: 11px; font-weight: 800; }
+.work-hero span { color: var(--color-primary); font-size: 11px; font-weight: 800; }
 .work-hero h1 { margin-top: 8px; font-size: 24px; line-height: 1.18; }
 .work-hero p { margin-top: 8px; color: rgba(255,255,255,.72); line-height: 1.55; }
 .submit-card, .list-card { padding: 14px; margin-top: 12px; }
 .card-title { color: #171A1F; font-size: 16px; font-weight: 800; }
 .type-group { display: flex; flex-wrap: wrap; gap: 8px 12px; }
 .list-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.list-head button { border: 0; background: transparent; color: #FF6B35; font-weight: 700; }
+.list-head button { border: 0; background: transparent; color: var(--color-primary); font-weight: 700; }
 .ticket-item { display: flex; justify-content: space-between; gap: 10px; padding: 13px 0; border-bottom: 1px solid #E7E9ED; }
 .ticket-item:last-child { border-bottom: 0; }
 .ticket-title { color: #171A1F; font-size: 14px; font-weight: 800; }
 .ticket-meta { margin-top: 4px; color: #626A73; font-size: 12px; }
 .ticket-side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 86px; }
 .ticket-side small { color: #9AA1AA; font-size: 10px; }
-.status-pill { padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; background: #FFF1EB; color: #E85222; }
+.status-pill { padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; background: var(--color-primary-light); color: var(--color-primary-dark); }
 .st-1 { background: #EDF6FF; color: #2563EB; }
 .st-2 { background: #ECFDF5; color: #18A66A; }
 .st-3 { background: #F2F4F7; color: #626A73; }

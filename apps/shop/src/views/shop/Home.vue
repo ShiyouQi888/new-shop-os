@@ -2,7 +2,7 @@
   <div class="home-page page-shell">
     <main class="home-body">
       <div class="hero-stage">
-        <van-swipe class="banner-swipe hero-swipe" :autoplay="3600" indicator-color="#FF6B35">
+        <van-swipe class="banner-swipe hero-swipe" :autoplay="3600" :indicator-color="currentTheme.primary">
           <van-swipe-item>
             <section class="hero-panel">
               <div class="hero-copy">
@@ -45,7 +45,7 @@
           <div class="gift-title">购买大礼包，开启专属权益</div>
           <div class="gift-desc">月度领货额度、会员购物折扣、团队佣金统一生效。</div>
         </div>
-        <van-icon name="gem-o" size="28" color="#FF6B35" />
+        <van-icon name="gem-o" size="28" :color="currentTheme.primary" />
       </section>
 
       <section class="section" v-if="data">
@@ -75,7 +75,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '@/api'
 import ProductCard from '@/components/ProductCard.vue'
-import { siteBranding, ensureSiteBranding } from '@/utils/site'
+import { siteBranding, ensureSiteBranding, currentTheme } from '@/utils/site'
 
 const router = useRouter()
 ensureSiteBranding()
@@ -231,24 +231,24 @@ onMounted(async () => {
   opacity: 0.28;
 }
 .tone-beauty {
-  color: #E85222;
-  background: linear-gradient(145deg, #FFFFFF, #FFF1EB);
+  color: var(--color-primary-dark);
+  background: linear-gradient(145deg, #FFFFFF, var(--color-primary-light));
 }
 .tone-health {
   color: #18A66A;
   background: linear-gradient(145deg, #FFFFFF, #EAF8F2);
 }
 .tone-home {
-  color: #E85222;
-  background: linear-gradient(145deg, #FFFFFF, #FFF1EB);
+  color: var(--color-primary-dark);
+  background: linear-gradient(145deg, #FFFFFF, var(--color-primary-light));
 }
 .tone-digital {
   color: #626A73;
   background: linear-gradient(145deg, #FFFFFF, #F8F9FB);
 }
 .tone-gift {
-  color: #FF6B35;
-  background: linear-gradient(145deg, #FFFFFF, #FFF1EB);
+  color: var(--color-primary);
+  background: linear-gradient(145deg, #FFFFFF, var(--color-primary-light));
 }
 .tone-default {
   color: #626A73;
@@ -267,11 +267,11 @@ onMounted(async () => {
   padding: 13px 14px;
   margin-bottom: 10px;
   border-radius: 16px;
-  background: linear-gradient(135deg, #FFFFFF 0%, #FFF1EB 100%);
-  border: 1px solid rgba(255, 107, 53, 0.2);
+  background: linear-gradient(135deg, #FFFFFF 0%, var(--color-primary-light) 100%);
+  border: 1px solid rgba(var(--color-primary-rgb), 0.2);
 }
 .gift-kicker {
-  color: #E85222;
+  color: var(--color-primary-dark);
   font-size: 11px;
   font-weight: 800;
 }
@@ -299,7 +299,7 @@ onMounted(async () => {
 .section-more {
   border: 0;
   background: transparent;
-  color: #E85222;
+  color: var(--color-primary-dark);
   font-size: 12px;
   font-weight: 700;
 }

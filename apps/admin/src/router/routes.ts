@@ -246,6 +246,12 @@ export const adminRoutes: RouteRecordRaw[] = [
         meta: { title: '系统参数', icon: 'Tools', permission: 'system:admin' },
       },
       {
+        path: 'theme',
+        name: 'SystemTheme',
+        component: () => import('@/views/system/ThemeConfig.vue'),
+        meta: { title: '主题管理', icon: 'Brush', permission: 'system:admin' },
+      },
+      {
         path: 'payment',
         name: 'PaymentConfig',
         component: () => import('@/views/system/PaymentConfig.vue'),

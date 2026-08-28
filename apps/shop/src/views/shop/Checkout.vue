@@ -10,7 +10,7 @@
       </section>
 
       <section class="address-card premium-card" @click="showAddressList = true">
-        <van-icon name="location-o" size="20" color="#E85222" />
+        <van-icon name="location-o" size="20" :color="currentTheme.primaryDark" />
         <div class="address-info" v-if="selectedAddress">
           <div class="addr-name">{{ selectedAddress.name }} {{ selectedAddress.phone }}</div>
           <div class="addr-detail">{{ selectedAddress.province }}{{ selectedAddress.city }}{{ selectedAddress.district }}{{ selectedAddress.detail }}</div>
@@ -52,7 +52,7 @@
       </section>
     </main>
 
-    <van-submit-bar class="checkout-submit-bar" :price="payAmount * 100" button-text="提交并支付" :button-color="'#FF6B35'" @submit="onSubmit" />
+    <van-submit-bar class="checkout-submit-bar" :price="payAmount * 100" button-text="提交并支付" :button-color="currentTheme.primary" @submit="onSubmit" />
 
     <van-popup v-model:show="showAddressList" position="bottom" round>
       <div class="address-popup">
@@ -82,7 +82,7 @@
             <p>模拟支付环境，不会产生真实扣款。</p>
           </div>
         </div>
-        <van-button block round color="#FF6B35" :loading="isPaying" loading-text="支付中..." @click="confirmPay">确认支付</van-button>
+        <van-button block round :color="currentTheme.primary" :loading="isPaying" loading-text="支付中..." @click="confirmPay">确认支付</van-button>
       </div>
     </van-popup>
   </div>
@@ -98,6 +98,7 @@ import { useUserStore } from '@/stores/user'
 import { useOrderStore } from '@/stores/orders'
 import { useAddressStore } from '@/stores/address'
 import { api } from '@/api'
+import { currentTheme } from '@/utils/site'
 
 const router = useRouter()
 const cartStore = useCartStore()
@@ -181,7 +182,7 @@ const confirmPay = async () => {
 .checkout-page { min-height: 100vh; padding-top: 46px; padding-bottom: 82px; }
 .checkout-body { padding: 12px 14px 24px; }
 .checkout-hero { padding: 20px 18px; border-radius: 20px; color: #fff; background: linear-gradient(135deg, #171A1F, #171A1F); box-shadow: 0 18px 44px rgba(23,32,42,.16); margin-bottom: 12px; }
-.checkout-hero span { color: #FF6B35; font-size: 11px; font-weight: 800; }
+.checkout-hero span { color: var(--color-primary); font-size: 11px; font-weight: 800; }
 .checkout-hero h1 { margin-top: 8px; font-size: 24px; }
 .checkout-hero p { margin-top: 8px; color: rgba(255,255,255,.72); line-height: 1.55; }
 .address-card { display: flex; align-items: center; gap: 10px; padding: 16px; margin-bottom: 12px; }
@@ -201,12 +202,12 @@ const confirmPay = async () => {
 .discount-row { display: flex; justify-content: space-between; padding: 7px 0; color: #626A73; font-size: 14px; }
 .discount-row.discount span:last-child { color: #18A66A; font-weight: 800; }
 .discount-row.payable { color: #171A1F; font-weight: 800; }
-.discount-row.payable span:last-child { color: #E85222; }
+.discount-row.payable span:last-child { color: var(--color-primary-dark); }
 .address-popup { padding: 16px; }
 .popup-title { font-size: 16px; font-weight: 800; margin-bottom: 12px; text-align: center; }
 .addr-list-item { padding: 12px 0; border-bottom: 1px solid #E7E9ED; }
 .addr-list-item .addr-name { display: flex; align-items: center; gap: 8px; }
-.addr-list-item em { padding: 2px 7px; border-radius: 999px; background: #FFF1EB; color: #E85222; font-style: normal; font-size: 11px; font-weight: 700; }
+.addr-list-item em { padding: 2px 7px; border-radius: 999px; background: var(--color-primary-light); color: var(--color-primary-dark); font-style: normal; font-size: 11px; font-weight: 700; }
 .manage-address { width: 100%; height: 40px; margin-top: 12px; border: 1px solid rgba(23,32,42,.14); border-radius: 999px; background: #fff; color: #171A1F; font-weight: 800; }
 .pay-popup { padding: 20px 16px 18px; }
 .pay-summary { display: flex; align-items: center; justify-content: space-between; padding: 14px; margin-bottom: 12px; border-radius: 14px; background: #F8F9FB; color: #626A73; }

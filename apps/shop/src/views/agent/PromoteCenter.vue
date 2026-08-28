@@ -132,6 +132,7 @@ import { useUserStore } from '@/stores/user'
 import { api } from '@/api'
 import { BASE_URL } from '@/api/http'
 import { formatMoney } from '@shop-os/shared'
+import { currentTheme } from '@/utils/site'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -321,14 +322,14 @@ const savePoster = () => {
       if (!ctx) throw new Error('canvas unsupported')
       // 背景
       const bg = ctx.createLinearGradient(0, 0, 0, 560)
-      bg.addColorStop(0, '#FFF1EB')
-      bg.addColorStop(1, '#FFD5C5')
+      bg.addColorStop(0, currentTheme.primaryLight)
+      bg.addColorStop(1, currentTheme.primaryBorder)
       ctx.fillStyle = bg
       ctx.fillRect(0, 0, 400, 560)
       // 品牌区
       ctx.fillStyle = '#171A1F'
       ctx.fillRect(0, 0, 400, 140)
-      ctx.fillStyle = '#FF6B35'
+      ctx.fillStyle = currentTheme.primary
       ctx.font = 'bold 34px sans-serif'
       ctx.fillText('橙选', 28, 62)
       ctx.fillStyle = 'rgba(255,255,255,.62)'
@@ -348,7 +349,7 @@ const savePoster = () => {
         ctx.fillStyle = '#171A1F'
         ctx.font = 'bold 20px sans-serif'
         ctx.fillText(`${member.nickname} 邀请你加入`, 28, 420)
-        ctx.fillStyle = '#E85222'
+        ctx.fillStyle = currentTheme.primaryDark
         ctx.font = '14px sans-serif'
         ctx.fillText(`邀请码 ${member.inviteCode}`, 28, 460)
         ctx.fillStyle = '#626A73'
@@ -383,15 +384,15 @@ const savePoster = () => {
   gap: 12px;
   margin: 12px 14px 0;
   padding: 16px;
-  border-color: rgba(255, 107, 53, 0.3);
-  background: #FFF1EB;
+  border-color: rgba(var(--color-primary-rgb), 0.3);
+  background: var(--color-primary-light);
 }
 .promote-disabled .van-icon {
   color: #F5A623;
   font-size: 26px;
 }
 .promote-disabled strong {
-  color: #E85222;
+  color: var(--color-primary-dark);
   font-size: 14px;
 }
 .promote-disabled p {
@@ -460,7 +461,7 @@ const savePoster = () => {
 }
 
 .poster-preview {
-  background: linear-gradient(135deg, var(--color-gold), #FFF1EB);
+  background: linear-gradient(135deg, var(--color-gold), var(--color-primary-light));
   border-radius: 16px;
   padding: 1px;
   margin-bottom: 12px;
@@ -478,13 +479,13 @@ const savePoster = () => {
 .poster-mode-tip {
   padding: 8px 12px;
   font-size: 12px;
-  color: #E85222;
+  color: var(--color-primary-dark);
   text-align: center;
 }
 
 .poster-inner {
   background:
-    radial-gradient(circle at 50% 0%, rgba(255, 107, 53,.18), transparent 36%),
+    radial-gradient(circle at 50% 0%, rgba(var(--color-primary-rgb), .18), transparent 36%),
     #fff;
   border-radius: 15px;
   padding: 20px;
@@ -517,7 +518,7 @@ const savePoster = () => {
   color: var(--color-muted);
 }
 .poster-qr { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.qr-box { width: 84px; height: 84px; border: 1px solid rgba(255, 107, 53,.45); border-radius: 14px; display: flex; align-items: center; justify-content: center; color: var(--color-gold); background: #fff; }
+.qr-box { width: 84px; height: 84px; border: 1px solid rgba(var(--color-primary-rgb), .45); border-radius: 14px; display: flex; align-items: center; justify-content: center; color: var(--color-gold); background: #fff; }
 .qr-img { width: 72px; height: 72px; display: block; }
 .qr-text { font-size: 12px; color: var(--color-muted); }
 .poster-actions { display: flex; gap: 10px; justify-content: center; }
@@ -550,7 +551,7 @@ const savePoster = () => {
 .cs-row.total { font-weight: 800; border-top: 1px solid var(--color-border); margin-top: 4px; padding-top: 12px; color: var(--color-ink); }
 .guide-card { padding: 16px; }
 .guide-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
-.guide-num { width: 24px; height: 24px; border-radius: 50%; background: rgba(255, 107, 53,.14); color: var(--color-gold); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; }
+.guide-num { width: 24px; height: 24px; border-radius: 50%; background: rgba(var(--color-primary-rgb), .14); color: var(--color-gold); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; }
 .guide-text { font-size: 13px; color: var(--color-text); }
 .guide-empty { padding: 12px 0; font-size: 13px; color: var(--color-muted); text-align: center; }
 </style>

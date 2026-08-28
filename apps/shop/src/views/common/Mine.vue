@@ -35,7 +35,7 @@
 
     <section v-if="userStore.isAgent" class="agent-entry" @click="router.push('/agent')">
       <div class="entry-left">
-        <van-icon name="medal-o" size="24" color="#FF6B35" />
+        <van-icon name="medal-o" size="24" :color="currentTheme.primary" />
         <div>
           <div class="entry-title">会员工作台</div>
           <div class="entry-desc">可提现 {{ formatMoney(userStore.wallet?.balance || 0) }}，管理团队与收益</div>
@@ -45,7 +45,7 @@
     </section>
     <section v-else class="agent-entry" @click="router.push('/agent/credit')">
       <div class="entry-left">
-        <van-icon name="gift-o" size="24" color="#FF6B35" />
+        <van-icon name="gift-o" size="24" :color="currentTheme.primary" />
         <div>
           <div class="entry-title">月度领货</div>
           <div class="entry-desc">购物消费累加额度，{{ formatMoney(userStore.monthlyCredit) }} 可兑换商品</div>
@@ -104,6 +104,7 @@ import { useUserStore } from '@/stores/user'
 import { api } from '@/api'
 import { formatMoney } from '@shop-os/shared'
 import LevelBadge from '@/components/LevelBadge.vue'
+import { currentTheme } from '@/utils/site'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -181,7 +182,7 @@ const onLogout = () => {
 }
 .upgrade-hint {
   margin-top: 5px;
-  color: #FFF1EB;
+  color: var(--color-primary-light);
   font-size: 12px;
 }
 .auth-link {
@@ -268,7 +269,7 @@ const onLogout = () => {
 .section-more {
   border: 0;
   background: transparent;
-  color: #E85222;
+  color: var(--color-primary-dark);
   font-size: 12px;
   font-weight: 700;
 }

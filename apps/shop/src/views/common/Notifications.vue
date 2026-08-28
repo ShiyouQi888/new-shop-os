@@ -55,14 +55,14 @@ onMounted(() => {
 .mine-sub-page { min-height: 100vh; padding-top: 46px; }
 .mine-sub-body { padding: 12px 14px 24px; }
 .sub-hero { padding: 22px 18px; border-radius: 20px; color: #fff; background: linear-gradient(135deg, #171A1F, #171A1F); box-shadow: 0 18px 44px rgba(23,32,42,.16); }
-.sub-hero span { color: #FF6B35; font-size: 11px; font-weight: 800; }
+.sub-hero span { color: var(--color-primary); font-size: 11px; font-weight: 800; }
 .sub-hero h1 { margin-top: 8px; font-size: 25px; }
 .sub-hero p { margin-top: 8px; color: rgba(255,255,255,.72); line-height: 1.55; }
 .notice-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
-.notice-actions button { border: none; background: none; color: #E85222; font-size: 12px; }
+.notice-actions button { border: none; background: none; color: var(--color-primary-dark); font-size: 12px; }
 .notice-card { display: flex; gap: 12px; margin-top: 10px; padding: 14px; border: 1px solid rgba(231, 233, 237,.86); border-radius: 14px; background: rgba(255,255,255,.96); box-shadow: 0 8px 24px rgba(17,24,39,.06); }
-.notice-card.unread { border-color: rgba(255, 107, 53,.35); }
-.notice-card > .van-icon { color: #E85222; margin-top: 2px; }
+.notice-card.unread { border-color: rgba(var(--color-primary-rgb),.35); }
+.notice-card > .van-icon { color: var(--color-primary-dark); margin-top: 2px; }
 .notice-card div { flex: 1; }
 .notice-card strong { color: #171A1F; font-size: 14px; }
 .notice-card p { margin-top: 5px; color: #626A73; line-height: 1.5; }

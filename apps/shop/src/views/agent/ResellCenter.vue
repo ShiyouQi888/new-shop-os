@@ -37,7 +37,7 @@
             <span class="result-price">{{ formatMoney(settleAmount) }}</span>
           </div>
         </div>
-        <van-button block round color="#FF6B35" :loading="submitting" loading-text="提交中..." @click="confirmResell">
+        <van-button block round :color="currentTheme.primary" :loading="submitting" loading-text="提交中..." @click="confirmResell">
           确认发起转卖
         </van-button>
       </div>
@@ -82,6 +82,7 @@ import { showConfirmDialog, showSuccessToast, showToast } from 'vant'
 import { api } from '@/api'
 import { ResellStatus, ResellStatusLabels, formatMoney, type ResellOrder } from '@shop-os/shared'
 import { useUserStore } from '@/stores/user'
+import { currentTheme } from '@/utils/site'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -191,8 +192,8 @@ const loadPageData = async () => {
 .rec-amount { font-size: 15px; }
 .rec-status { font-size: 12px; margin-top: 4px; text-align: right; }
 .st-wait { color: #F5A623; }
-.st-match { color: #FF6B35; }
-.st-matched { color: #FF6B35; }
+.st-match { color: var(--color-primary); }
+.st-matched { color: var(--color-primary); }
 .st-done { color: #18A66A; }
 .st-cancel { color: #626A73; }
 </style>

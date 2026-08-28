@@ -425,11 +425,13 @@ export interface SystemConfig {
   updateOperator?: string
 }
 
-/** 站点品牌配置（公开接口，登录前/无鉴权场景使用：Logo、图标、站点名） */
+/** 站点品牌配置（公开接口，登录前/无鉴权场景使用：Logo、图标、站点名、主题） */
 export interface SiteBranding {
   name: string
   logo: string
   icon: string
+  /** 商城前台主题 ID，对应 SHOP_THEMES（packages/shared/tokens） */
+  theme: string
 }
 
 // ============ 看板数据 ============

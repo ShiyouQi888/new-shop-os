@@ -216,7 +216,7 @@ const onSubmit = async () => {
   padding: 18px 0 6px;
 }
 .eyebrow {
-  color: #FFD5C5;
+  color: var(--color-primary-border);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0;
@@ -283,8 +283,8 @@ p {
   display: grid;
   place-items: center;
   border-radius: 12px;
-  background: #FFF1EB;
-  color: #E85222;
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
 }
 .auth-form {
   margin-top: 0;
@@ -310,7 +310,7 @@ p {
 }
 .auth-form :deep(.van-field--disabled .van-field__control),
 .auth-form :deep(.van-field__control:read-only) {
-  color: #E85222;
+  color: var(--color-primary-dark);
 }
 .invite-hint {
   display: flex;
@@ -318,10 +318,10 @@ p {
   gap: 8px;
   margin: 4px 2px 0;
   padding: 10px 12px;
-  border: 1px solid #FFD5C5;
+  border: 1px solid var(--color-primary-border);
   border-radius: 12px;
-  background: #FFF1EB;
-  color: #E85222;
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -330,9 +330,9 @@ p {
   margin-top: 18px;
   height: 48px;
   font-weight: 700;
-  background: linear-gradient(135deg, #FF6B35, #E85222);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
   border: 0;
-  box-shadow: 0 12px 26px rgba(255, 107, 53, 0.28);
+  box-shadow: 0 12px 26px rgba(var(--color-primary-rgb), 0.28);
 }
 .auth-switch {
   margin-top: 20px;
@@ -343,7 +343,7 @@ p {
 .auth-switch button {
   border: 0;
   background: transparent;
-  color: #E85222;
+  color: var(--color-primary-dark);
   font-weight: 700;
 }
 @media (min-width: 768px) {

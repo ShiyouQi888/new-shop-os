@@ -124,6 +124,36 @@ export const transition = {
   slow: '0.35s ease',
 } as const
 
+/**
+ * 商城前台主题预设：内置配色方案，后台可切换，写入 system_config 的 site.theme 后
+ * 前台在 utils/site.ts 里读取并通过 CSS 变量 + 响应式对象实时应用（无需重新构建/发版）。
+ */
+export interface ShopTheme {
+  id: string
+  name: string
+  /** 主色 */
+  primary: string
+  /** 主色（深），用于渐变/强调价格等 */
+  primaryDark: string
+  /** 主色浅色底（徽标/标签背景等） */
+  primaryLight: string
+  /** 主色浅色边框 */
+  primaryBorder: string
+}
+
+export const SHOP_THEMES: ShopTheme[] = [
+  { id: 'orange', name: '橘意暖阳', primary: '#FF6B35', primaryDark: '#E85222', primaryLight: '#FFF1EB', primaryBorder: '#FFD5C5' },
+  { id: 'blue', name: '海洋蓝', primary: '#1677FF', primaryDark: '#0E4FA8', primaryLight: '#EAF3FF', primaryBorder: '#BFDBFF' },
+  { id: 'green', name: '森林绿', primary: '#18A66A', primaryDark: '#0E7A4D', primaryLight: '#EAFBF3', primaryBorder: '#BEEBD3' },
+  { id: 'purple', name: '至尊紫', primary: '#7C3AED', primaryDark: '#5B21B6', primaryLight: '#F3EBFF', primaryBorder: '#DDC6FA' },
+]
+
+export const DEFAULT_SHOP_THEME = 'orange'
+
+export function getShopTheme(id: string | undefined | null): ShopTheme {
+  return SHOP_THEMES.find(t => t.id === id) || SHOP_THEMES.find(t => t.id === DEFAULT_SHOP_THEME)!
+}
+
 /** z-index 层级 */
 export const zIndex = {
   base: 1,

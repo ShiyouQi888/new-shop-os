@@ -123,5 +123,5 @@ onMounted(async () => {
 .ti-label { font-size: 11px; color: #626A73; }
 .privacy-note { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 16px; font-size: 12px; color: #9AA1AA; }
 .team-disabled { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 12px 14px; padding: 24px; color: #626A73; font-size: 13px; }
-.team-disabled .van-icon { color: #FF6B35; }
+.team-disabled .van-icon { color: var(--color-primary); }
 </style>

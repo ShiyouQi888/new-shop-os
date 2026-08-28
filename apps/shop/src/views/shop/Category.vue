@@ -149,9 +149,9 @@ onMounted(async () => {
   font-weight: 700;
 }
 .cat-side-item.active {
-  background: #FF6B35;
+  background: var(--color-primary);
   color: #fff;
-  box-shadow: 0 12px 26px rgba(255, 107, 53, 0.22);
+  box-shadow: 0 12px 26px rgba(var(--color-primary-rgb), 0.22);
 }
 .side-icon,
 .hero-icon {
@@ -187,7 +187,7 @@ onMounted(async () => {
   box-shadow: 0 14px 34px rgba(23, 32, 42, 0.14);
 }
 .hero-kicker {
-  color: #FF6B35;
+  color: var(--color-primary);
   font-size: 10px;
   font-weight: 800;
 }
@@ -228,9 +228,9 @@ onMounted(async () => {
   font-weight: 700;
 }
 .filter-chip.active {
-  background: #FF6B35;
+  background: var(--color-primary);
   color: #fff;
-  border-color: #FF6B35;
+  border-color: var(--color-primary);
 }
 .result-meta {
   display: flex;
@@ -248,10 +248,10 @@ onMounted(async () => {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
-.tone-beauty { color: #E85222; background: #FFF1EB; }
+.tone-beauty { color: var(--color-primary-dark); background: var(--color-primary-light); }
 .tone-health { color: #18A66A; background: #EAF8F2; }
-.tone-home { color: #E85222; background: #FFF1EB; }
+.tone-home { color: var(--color-primary-dark); background: var(--color-primary-light); }
 .tone-digital { color: #626A73; background: #F8F9FB; }
-.tone-gift { color: #FF6B35; background: #FFF1EB; }
+.tone-gift { color: var(--color-primary); background: var(--color-primary-light); }
 .tone-default { color: #626A73; background: #F8F9FB; }
 </style>

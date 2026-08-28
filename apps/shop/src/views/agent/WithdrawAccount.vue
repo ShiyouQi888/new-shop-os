@@ -113,7 +113,7 @@ const onSave = async () => {
   box-shadow: 0 22px 54px rgba(23, 32, 42, 0.18);
 }
 .section-kicker {
-  color: #FF6B35;
+  color: var(--color-primary);
   font-size: 11px;
   font-weight: 800;
 }
@@ -147,7 +147,7 @@ p {
   font-weight: 800;
 }
 .account-title .van-icon {
-  color: #E85222;
+  color: var(--color-primary-dark);
 }
 .status-pill {
   padding: 4px 9px;
@@ -175,7 +175,7 @@ p {
 }
 .security-note .van-icon {
   margin-top: 2px;
-  color: #E85222;
+  color: var(--color-primary-dark);
 }
 .save-button {
   height: 44px;

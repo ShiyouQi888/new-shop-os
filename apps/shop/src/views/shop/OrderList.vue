@@ -1,7 +1,7 @@
 <template>
   <div class="order-page page-shell">
     <van-nav-bar title="我的订单" left-arrow @click-left="router.back()" fixed safe-area-inset-top />
-    <van-tabs v-model:active="activeTab" sticky offset-top="46px" color="#FF6B35" title-active-color="#FF6B35">
+    <van-tabs v-model:active="activeTab" sticky offset-top="46px" :color="currentTheme.primary" :title-active-color="currentTheme.primary">
       <van-tab title="全部" />
       <van-tab title="待付款" />
       <van-tab title="待发货" />
@@ -27,8 +27,8 @@
           <span class="order-total">共{{ order.items.length }}件，合计 <span class="price">{{ formatMoney(order.payAmount) }}</span></span>
           <div class="order-actions">
             <van-button v-if="order.status === OrderStatus.PendingPayment" size="small" plain round @click="cancelOrder(order)">取消</van-button>
-            <van-button v-if="order.status === OrderStatus.PendingPayment" size="small" color="#FF6B35" round @click="openPay(order)">去支付</van-button>
-            <van-button v-if="order.status === OrderStatus.Shipped" size="small" color="#FF6B35" round @click="confirmReceived(order)">确认收货</van-button>
+            <van-button v-if="order.status === OrderStatus.PendingPayment" size="small" :color="currentTheme.primary" round @click="openPay(order)">去支付</van-button>
+            <van-button v-if="order.status === OrderStatus.Shipped" size="small" :color="currentTheme.primary" round @click="confirmReceived(order)">确认收货</van-button>
             <van-button v-if="order.status === OrderStatus.PaidPendingShip" size="small" round plain @click="remindShip(order)">催发货</van-button>
             <van-button v-if="order.status === OrderStatus.Completed" size="small" round plain @click="rebuy(order)">再次购买</van-button>
           </div>
@@ -49,7 +49,7 @@
           <van-radio name="wechat">微信支付</van-radio>
           <van-radio name="alipay">支付宝</van-radio>
         </van-radio-group>
-        <van-button block round color="#FF6B35" :loading="isPaying" loading-text="支付中..." @click="confirmPay">确认支付</van-button>
+        <van-button block round :color="currentTheme.primary" :loading="isPaying" loading-text="支付中..." @click="confirmPay">确认支付</van-button>
       </div>
     </van-popup>
   </div>
@@ -63,6 +63,7 @@ import { formatMoney, OrderStatusLabels, OrderStatus, type Order } from '@shop-o
 import { useOrderStore } from '@/stores/orders'
 import { useCartStore } from '@/stores/cart'
 import { api } from '@/api'
+import { currentTheme } from '@/utils/site'
 
 const router = useRouter()
 const route = useRoute()
@@ -163,7 +164,7 @@ const rebuy = (order: Order) => {
 .order-no { color: #626A73; font-size: 12px; }
 .order-status { font-size: 13px; font-weight: 800; }
 .st-pending { color: #F5A623; }
-.st-paid, .st-shipped { color: #FF6B35; }
+.st-paid, .st-shipped { color: var(--color-primary); }
 .st-done { color: #18A66A; }
 .st-cancel { color: #626A73; }
 .st-refund { color: #E5484D; }

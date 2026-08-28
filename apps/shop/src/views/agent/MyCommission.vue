@@ -9,7 +9,7 @@
           <div class="ov-val price-lg">{{ formatMoney(stats.available) }}</div>
           <div class="ov-label">可提现</div>
         </div>
-        <van-button color="#FF6B35" size="small" round @click="showWithdraw = true">申请提现</van-button>
+        <van-button :color="currentTheme.primary" size="small" round @click="showWithdraw = true">申请提现</van-button>
       </div>
       <div class="overview-stats">
         <div class="os-item">
@@ -87,6 +87,7 @@ import { showToast, showSuccessToast } from 'vant'
 import { api } from '@/api'
 import { CommissionStatusLabels, formatMoney, type Commission, type CommissionStatus } from '@shop-os/shared'
 import { useUserStore } from '@/stores/user'
+import { currentTheme } from '@/utils/site'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -195,8 +196,8 @@ onMounted(async () => {
 .commission-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; margin-bottom: 8px; }
 .ci-left { display: flex; gap: 12px; align-items: center; }
 .ci-level { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #fff; flex-shrink: 0; }
-.level-1 { background: #FF6B35; }
-.level-2 { background: #E85222; }
+.level-1 { background: var(--color-primary); }
+.level-2 { background: var(--color-primary-dark); }
 .level-3 { background: #626A73; }
 .ci-amount { font-size: 16px; }
 .ci-meta { font-size: 12px; color: #626A73; margin-top: 2px; }
@@ -214,7 +215,7 @@ onMounted(async () => {
 .withdraw-tip button {
   border: 0;
   background: transparent;
-  color: #E85222;
+  color: var(--color-primary-dark);
   font-weight: 700;
 }
 .pay-type-group :deep(.van-radio) {
@@ -229,9 +230,9 @@ onMounted(async () => {
   gap: 6px;
   margin-top: 8px;
   padding: 8px 12px;
-  background: #FFF1EB;
+  background: var(--color-primary-light);
   border-radius: 8px;
   font-size: 12px;
-  color: #E85222;
+  color: var(--color-primary-dark);
 }
 </style>

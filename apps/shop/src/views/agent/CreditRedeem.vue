@@ -45,7 +45,7 @@
         <div class="bar-value" :class="{ danger: overBudget }">{{ formatMoney(cartTotal) }}</div>
       </div>
       <div class="bar-hint" :class="{ danger: overBudget }" v-if="hintText">{{ hintText }}</div>
-      <van-button block round color="#FF6B35" :disabled="!canSubmit" @click="showConfirm = true">去结算</van-button>
+      <van-button block round :color="currentTheme.primary" :disabled="!canSubmit" @click="showConfirm = true">去结算</van-button>
     </div>
 
     <!-- 确认兑换 -->
@@ -65,7 +65,7 @@
         </div>
 
         <div class="address-row" @click="showAddressList = true">
-          <van-icon name="location-o" size="18" color="#E85222" />
+          <van-icon name="location-o" size="18" :color="currentTheme.primaryDark" />
           <div class="address-info" v-if="selectedAddress">
             <div class="addr-name">{{ selectedAddress.name }} {{ selectedAddress.phone }}</div>
             <div class="addr-detail">{{ selectedAddress.province }}{{ selectedAddress.city }}{{ selectedAddress.district }}{{ selectedAddress.detail }}</div>
@@ -75,7 +75,7 @@
         </div>
 
         <van-button
-          block round color="#FF6B35" class="confirm-btn"
+          block round :color="currentTheme.primary" class="confirm-btn"
           :loading="redeeming" :disabled="!selectedAddress"
           @click="confirmRedeem"
         >
@@ -109,6 +109,7 @@ import { formatMoney, type CreditPoolProduct } from '@shop-os/shared'
 import { useAddressStore } from '@/stores/address'
 import { useUserStore } from '@/stores/user'
 import { api } from '@/api'
+import { currentTheme } from '@/utils/site'
 
 const router = useRouter()
 const addressStore = useAddressStore()
@@ -220,7 +221,7 @@ onMounted(async () => {
 .redeem-body { padding: 12px 14px 24px; }
 .quota-card { padding: 16px; margin-bottom: 12px; text-align: center; }
 .quota-label { font-size: 13px; color: #626A73; }
-.quota-val { margin-top: 6px; font-size: 24px; font-weight: 800; color: #E85222; }
+.quota-val { margin-top: 6px; font-size: 24px; font-weight: 800; color: var(--color-primary-dark); }
 .mode-hint { margin-top: 8px; font-size: 12px; color: #9AA1AA; }
 .pool-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 .pool-item { padding: 0; overflow: hidden; }
@@ -230,9 +231,9 @@ onMounted(async () => {
 .pool-name { font-size: 13px; font-weight: 650; color: #171A1F; line-height: 1.4; min-height: 36px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .sku-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .sku-pill { padding: 3px 9px; border-radius: 999px; border: 1px solid #E7E9ED; background: #F8F9FB; color: #171A1F; font-size: 11px; }
-.sku-pill.active { border-color: #FF6B35; background: #FFF1EB; color: #E85222; font-weight: 700; }
+.sku-pill.active { border-color: var(--color-primary); background: var(--color-primary-light); color: var(--color-primary-dark); font-weight: 700; }
 .sku-pill:disabled { opacity: 0.4; }
-.pool-price { margin-top: 6px; font-size: 14px; font-weight: 800; color: #E85222; }
+.pool-price { margin-top: 6px; font-size: 14px; font-weight: 800; color: var(--color-primary-dark); }
 .pool-info :deep(.van-stepper) { margin-top: 8px; }
 
 .redeem-bar {
@@ -259,7 +260,7 @@ onMounted(async () => {
 .confirm-list { max-height: 30vh; overflow-y: auto; }
 .confirm-item { display: flex; justify-content: space-between; padding: 8px 0; font-size: 13px; color: #626A73; }
 .cost-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; margin-top: 4px; border-top: 1px solid #E7E9ED; font-size: 14px; color: #626A73; }
-.cost-row strong { color: #E85222; font-size: 18px; }
+.cost-row strong { color: var(--color-primary-dark); font-size: 18px; }
 .address-row { display: flex; align-items: center; gap: 10px; padding: 12px; margin: 6px 0 16px; border-radius: 12px; background: #F8F9FB; }
 .address-info { flex: 1; min-width: 0; }
 .addr-name { color: #171A1F; font-size: 14px; font-weight: 700; }
@@ -271,6 +272,6 @@ onMounted(async () => {
 .popup-title { font-size: 16px; font-weight: 800; margin-bottom: 12px; text-align: center; }
 .addr-list-item { padding: 12px 0; border-bottom: 1px solid #E7E9ED; }
 .addr-list-item .addr-name { display: flex; align-items: center; gap: 8px; }
-.addr-list-item em { padding: 2px 7px; border-radius: 999px; background: #FFF1EB; color: #E85222; font-style: normal; font-size: 11px; font-weight: 700; }
+.addr-list-item em { padding: 2px 7px; border-radius: 999px; background: var(--color-primary-light); color: var(--color-primary-dark); font-style: normal; font-size: 11px; font-weight: 700; }
 .manage-address { width: 100%; height: 40px; margin-top: 12px; border: 1px solid rgba(23,32,42,.14); border-radius: 999px; background: #fff; color: #171A1F; font-weight: 800; }
 </style>

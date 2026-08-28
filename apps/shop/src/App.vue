@@ -55,7 +55,7 @@ const cartBadge = computed(() => cartStore.totalCount > 0 ? cartStore.totalCount
 }
 
 .premium-tabbar .van-tabbar-item--active {
-  color: #FF6B35;
+  color: var(--color-primary);
   background: transparent;
 }
 

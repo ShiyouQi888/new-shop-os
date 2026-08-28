@@ -63,7 +63,7 @@
             <span class="section-kicker">PAYOUT ACCOUNT</span>
             <h2>提现账号</h2>
           </div>
-          <van-icon name="arrow" color="#E85222" />
+          <van-icon name="arrow" :color="currentTheme.primaryDark" />
         </div>
         <div class="account-preview">
           <div class="account-chip primary">
@@ -121,6 +121,7 @@ import { api } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { formatMoney } from '@shop-os/shared'
 import LevelBadge from '@/components/LevelBadge.vue'
+import { currentTheme } from '@/utils/site'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -275,7 +276,7 @@ onMounted(async () => {
   padding: 16px;
 }
 .agent-home .section-kicker {
-  color: #E85222;
+  color: var(--color-primary-dark);
   font-size: 10px;
   font-weight: 800;
 }
@@ -303,8 +304,8 @@ onMounted(async () => {
   font-weight: 650;
 }
 .agent-home .account-chip.primary {
-  color: #E85222;
-  background: #FFF1EB;
+  color: var(--color-primary-dark);
+  background: var(--color-primary-light);
 }
 .agent-home .quick-grid {
   display: grid;
@@ -329,11 +330,11 @@ onMounted(async () => {
   margin: 0 auto 8px;
   border-radius: 12px;
 }
-.agent-home .tone-gold { color: #FF6B35; background: #FFF1EB; }
+.agent-home .tone-gold { color: var(--color-primary); background: var(--color-primary-light); }
 .agent-home .tone-blue { color: #626A73; background: #F8F9FB; }
 .agent-home .tone-green { color: #18A66A; background: #EAF8F2; }
 .agent-home .tone-ink { color: #171A1F; background: #F8F9FB; }
-.agent-home .tone-amber { color: #F5A623; background: #FFF1EB; }
+.agent-home .tone-amber { color: #F5A623; background: var(--color-primary-light); }
 .agent-home .tone-slate { color: #626A73; background: #F8F9FB; }
 .agent-home .todo-card {
   margin-bottom: 8px;

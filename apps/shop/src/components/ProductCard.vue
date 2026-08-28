@@ -92,8 +92,8 @@ const onClick = () => {
   font-size: 10px;
   font-weight: 700;
 }
-.tag-gift { background: rgba(23, 32, 42, 0.9); color: #FFF1EB; }
-.tag-monthly { background: rgba(247, 239, 226, 0.94); color: #E85222; }
+.tag-gift { background: rgba(23, 32, 42, 0.9); color: var(--color-primary-light); }
+.tag-monthly { background: rgba(247, 239, 226, 0.94); color: var(--color-primary-dark); }
 .product-info {
   padding: 9px 9px 10px;
 }
@@ -111,7 +111,7 @@ const onClick = () => {
 }
 .product-brand {
   font-size: 11px;
-  color: #E85222;
+  color: var(--color-primary-dark);
   font-weight: 700;
 }
 .product-price {
@@ -131,8 +131,8 @@ const onClick = () => {
 }
 .member-tag {
   font-size: 10px;
-  color: #E85222;
-  background: #FFF1EB;
+  color: var(--color-primary-dark);
+  background: var(--color-primary-light);
   padding: 2px 5px;
   border-radius: 999px;
   white-space: nowrap;

@@ -11,7 +11,7 @@
           </div>
           <LevelBadge :level="userStore.level" />
         </div>
-        <van-progress :percentage="usagePercent" color="#FF6B35" stroke-width="10" />
+        <van-progress :percentage="usagePercent" :color="currentTheme.primary" stroke-width="10" />
         <div class="current-stats">
           <div class="cs-item">
             <div class="cs-val price-lg">{{ formatMoney(currentCredit?.remainAmount || 0) }}</div>
@@ -30,8 +30,8 @@
 
       <!-- 领货操作 -->
       <div class="action-row">
-        <van-button color="#FF6B35" block round @click="goPickProducts">领取商品自用</van-button>
-        <van-button v-if="hasResellable" plain color="#E85222" block round @click="goResell">一键转卖变现</van-button>
+        <van-button :color="currentTheme.primary" block round @click="goPickProducts">领取商品自用</van-button>
+        <van-button v-if="hasResellable" plain :color="currentTheme.primaryDark" block round @click="goResell">一键转卖变现</van-button>
       </div>
 
       <!-- 领货进度（代理商入会权益周期，普通会员消费返还额度无周期限制） -->
@@ -74,6 +74,7 @@ import { api } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { formatMoney, CreditStatusLabels, type MonthlyCredit } from '@shop-os/shared'
 import LevelBadge from '@/components/LevelBadge.vue'
+import { currentTheme } from '@/utils/site'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -124,7 +125,7 @@ onMounted(async () => {
   background: #F8F9FB; color: #9AA1AA;
 }
 .month-dot.used { background: #18A66A; color: #fff; }
-.month-dot.current { background: #FF6B35; color: #fff; }
+.month-dot.current { background: var(--color-primary); color: #fff; }
 .history-card { padding: 16px; }
 .history-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #E7E9ED; }
 .history-item:last-child { border-bottom: none; }

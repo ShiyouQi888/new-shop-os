@@ -28,7 +28,7 @@
           <div class="right-item"><div class="right-value">{{ monthsOf(pkg) }}</div><div class="right-label">领货周期</div></div>
           <div class="right-item"><div class="right-value">{{ commissionText(pkg.level) }}</div><div class="right-label">分享佣金</div></div>
         </div>
-        <van-button block round color="#FF6B35" @click="buyPackage(pkg)">立即购买入会</van-button>
+        <van-button block round :color="currentTheme.primary" @click="buyPackage(pkg)">立即购买入会</van-button>
       </section>
 
       <section class="compare-card premium-card">
@@ -64,7 +64,7 @@
           <van-radio name="wechat">微信支付</van-radio>
           <van-radio name="alipay">支付宝</van-radio>
         </van-radio-group>
-        <van-button block round color="#FF6B35" :loading="isPaying" loading-text="权益开通中..." @click="confirmPackagePay">确认支付并开通</van-button>
+        <van-button block round :color="currentTheme.primary" :loading="isPaying" loading-text="权益开通中..." @click="confirmPackagePay">确认支付并开通</van-button>
       </div>
     </van-popup>
   </div>
@@ -78,6 +78,7 @@ import { api } from '@/api'
 import { formatMoney, type GiftPackage } from '@shop-os/shared'
 import { useOrderStore } from '@/stores/orders'
 import { useUserStore } from '@/stores/user'
+import { currentTheme } from '@/utils/site'
 
 interface LevelRow {
   level: number
@@ -203,7 +204,7 @@ onMounted(async () => {
 .gift-page { min-height: 100vh; padding-top: 46px; }
 .gift-body { padding: 12px 14px 24px; }
 .intro-banner { padding: 24px 18px; border-radius: 20px; color: #fff; background: linear-gradient(135deg, #171A1F, #171A1F); box-shadow: 0 18px 44px rgba(23,32,42,.16); margin-bottom: 12px; }
-.intro-banner span, .package-level { color: #FF6B35; font-size: 11px; font-weight: 800; }
+.intro-banner span, .package-level { color: var(--color-primary); font-size: 11px; font-weight: 800; }
 .intro-banner h1 { margin-top: 8px; font-size: 25px; line-height: 1.2; }
 .intro-banner p { margin-top: 8px; color: rgba(255,255,255,.72); line-height: 1.55; }
 .package-card { padding: 16px; margin-bottom: 12px; border-width: 1px; }
@@ -211,7 +212,7 @@ onMounted(async () => {
 .package-name { margin-top: 5px; color: #171A1F; font-size: 18px; font-weight: 800; }
 .package-benefits { display: grid; gap: 8px; margin-bottom: 14px; }
 .benefit-item { display: flex; align-items: center; gap: 7px; color: #626A73; font-size: 13px; }
-.benefit-item .van-icon { color: #FF6B35; }
+.benefit-item .van-icon { color: var(--color-primary); }
 .package-rights { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; padding: 12px; background: #F8F9FB; border-radius: 12px; }
 .right-item { text-align: center; }
 .right-value { color: #171A1F; font-size: 14px; font-weight: 800; }

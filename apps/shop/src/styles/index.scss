@@ -12,7 +12,7 @@ html, body, #app {
   font-size: 14px;
   color: $text-primary;
   background:
-    radial-gradient(circle at 16% 0%, rgba(255, 107, 53, 0.12), transparent 28%),
+    radial-gradient(circle at 16% 0%, rgba(var(--color-primary-rgb), 0.12), transparent 28%),
     linear-gradient(180deg, #F8F9FB 0%, $bg-page 52%, #EEF1F5 100%);
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
@@ -28,11 +28,11 @@ button { -webkit-tap-highlight-color: transparent; }
 
 // 价格
 .price {
-  color: $color-primary;
+  color: var(--color-primary);
   font-weight: 600;
 }
 .price-lg {
-  color: $color-primary;
+  color: var(--color-primary);
   font-size: 20px;
   font-weight: 700;
 }
@@ -70,19 +70,24 @@ button { -webkit-tap-highlight-color: transparent; }
 .text-danger { color: $color-danger; }
 .text-success { color: $color-success; }
 .text-warning { color: $color-warning; }
-.text-gold { color: $color-gold; }
+.text-gold { color: var(--color-gold); }
 .text-secondary { color: $text-secondary; }
 .text-sm { font-size: 12px; }
 .text-lg { font-size: 16px; }
 .font-bold { font-weight: 600; }
 
 // Vant 主题覆盖
+// 主题相关变量（--color-primary* 及所有引用它们的 --van-*）只在这里定义一次原始值，
+// 其余全部用 var() 互相引用；这样运行时只需要 JS 改 --color-primary* 这几个根变量
+// （见 apps/shop/src/utils/site.ts 的 applyTheme），下面所有 --van-* 会自动联动，
+// 不需要逐个 setProperty。
 :root {
   --color-primary: #{$color-primary};
   --color-primary-dark: #{$color-primary-dark};
+  --color-primary-rgb: #{red($color-primary)}, #{green($color-primary)}, #{blue($color-primary)};
   --color-primary-light: #{$color-primary-light};
   --color-primary-border: #{$color-primary-border};
-  --color-gold: #{$color-primary};
+  --color-gold: var(--color-primary);
   --color-success: #{$color-success};
   --color-warning: #{$color-warning};
   --color-danger: #{$color-danger};
@@ -93,21 +98,21 @@ button { -webkit-tap-highlight-color: transparent; }
   --border-color: #{$border-color};
   --bg-page: #{$bg-page};
   --bg-card: #{$bg-card};
-  --van-primary-color: #{$color-primary};
+  --van-primary-color: var(--color-primary);
   --van-danger-color: #{$color-danger};
   --van-warning-color: #{$color-warning};
-  --van-tabbar-item-active-color: #{$color-primary};
-  --van-tabs-bottom-bar-color: #{$color-primary};
-  --van-button-primary-background: #{$color-primary};
-  --van-button-primary-border-color: #{$color-primary};
+  --van-tabbar-item-active-color: var(--color-primary);
+  --van-tabs-bottom-bar-color: var(--color-primary);
+  --van-button-primary-background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+  --van-button-primary-border-color: transparent;
   --van-button-default-color: #{$text-primary};
   --van-button-default-border-color: #{$border-color};
-  --van-submit-bar-price-color: #{$color-primary-dark};
+  --van-submit-bar-price-color: var(--color-primary-dark);
   --van-stepper-input-background: #{$bg-page};
-  --van-stepper-button-round-theme-color: #{$color-primary};
-  --van-switch-on-background: #{$color-primary};
-  --van-checkbox-checked-icon-color: #{$color-primary};
-  --van-radio-checked-icon-color: #{$color-primary};
+  --van-stepper-button-round-theme-color: var(--color-primary);
+  --van-switch-on-background: var(--color-primary);
+  --van-checkbox-checked-icon-color: var(--color-primary);
+  --van-radio-checked-icon-color: var(--color-primary);
   --van-search-left-icon-color: #{$text-placeholder};
   --van-search-content-background: #{$bg-page};
   --van-nav-bar-background: rgba(255, 255, 255, 0.92);
@@ -126,8 +131,6 @@ button { -webkit-tap-highlight-color: transparent; }
   --van-toast-icon-size: 30px;
   --van-cell-background: transparent;
   --van-cell-group-background: transparent;
-  --van-button-primary-background: linear-gradient(135deg, #{$color-primary}, #{$color-primary-dark});
-  --van-button-primary-border-color: transparent;
 }
 
 .van-nav-bar {
@@ -218,17 +221,17 @@ button { -webkit-tap-highlight-color: transparent; }
   min-height: 24px;
   padding: 0 10px;
   border-radius: $radius-round;
-  color: $color-gold;
-  background: $color-gold-light;
-  border: 1px solid rgba(255, 107, 53, 0.18);
+  color: var(--color-gold);
+  background: var(--color-primary-light);
+  border: 1px solid rgba(var(--color-primary-rgb), 0.18);
   font-size: 11px;
   font-weight: 600;
 }
 
 .van-button--primary {
-  background: linear-gradient(135deg, #{$color-primary}, #{$color-primary-dark}) !important;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark)) !important;
   border-color: transparent !important;
-  box-shadow: 0 10px 22px rgba(255, 107, 53, 0.22);
+  box-shadow: 0 10px 22px rgba(var(--color-primary-rgb), 0.22);
 }
 
 .van-cell-group--inset {
