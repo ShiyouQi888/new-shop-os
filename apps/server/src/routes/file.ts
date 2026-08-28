@@ -14,10 +14,13 @@ import { config } from '../config.js'
 fs.mkdirSync(config.uploadDir, { recursive: true })
 /** 仅允许图片/视频，避免任意文件类型被 /uploads 静态目录当作可执行内容公开托管 */
 const ALLOWED_MIME = /^(image\/(jpeg|png|gif|webp)|video\/(mp4|quicktime|webm))$/
+/** multer/busboy 默认按 latin1 解析 multipart 头部字段，中文等非 ASCII 文件名会被错误解码成乱码，这里转回 utf8 */
+const fixFileName = (name: string) => Buffer.from(name, 'latin1').toString('utf8')
+
 const upload = multer({
   storage: multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, config.uploadDir),
-    filename: (_req, file, cb) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${path.extname(file.originalname)}`),
+    filename: (_req, file, cb) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${path.extname(fixFileName(file.originalname))}`),
   }),
   limits: { fileSize: 200 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
@@ -52,13 +55,14 @@ fileRouter.post('/upload', requirePermission('system:file'), upload.single('file
   try {
     if (!req.file) throw badRequest('未收到文件')
     const f = req.file
-    const groupId = req.body.groupId ? int(req.body.groupId) : matchGroup(f.originalname, f.mimetype)
+    const originalName = fixFileName(f.originalname)
+    const groupId = req.body.groupId ? int(req.body.groupId) : matchGroup(originalName, f.mimetype)
     const isVideo = f.mimetype.startsWith('video/')
     const r = run(
       `INSERT INTO file_asset (name, url, thumb_url, size, mime_type, ext, type, width, height, duration, group_id, uploader_id, create_time)
        VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, ?, ?, ?)`,
-      f.originalname, `${config.baseUrl}/uploads/${f.filename}`, isVideo ? '' : `${config.baseUrl}/uploads/${f.filename}`,
-      f.size, f.mimetype, path.extname(f.originalname).slice(1).toLowerCase(), isVideo ? 2 : 1, groupId, req.auth!.uid, now(),
+      originalName, `${config.baseUrl}/uploads/${f.filename}`, isVideo ? '' : `${config.baseUrl}/uploads/${f.filename}`,
+      f.size, f.mimetype, path.extname(originalName).slice(1).toLowerCase(), isVideo ? 2 : 1, groupId, req.auth!.uid, now(),
     )
     const id = Number(r.lastInsertRowid)
     const row = get('SELECT * FROM file_asset WHERE id = ?', id)
