@@ -20,3 +20,4 @@ apps/**/package-lock.json
 *.timestamp-*.mjs
 .env
 .env.local
+.env.android

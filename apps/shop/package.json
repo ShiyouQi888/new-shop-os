@@ -7,8 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "android:sync": "pnpm build && cap sync android",
-    "android:apk": "pnpm android:sync && cd android && gradlew assembleDebug"
+    "android:sync": "vite build --mode android && cap sync android",
+    "android:apk": "pnpm android:sync && cd android && gradlew.bat assembleDebug"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

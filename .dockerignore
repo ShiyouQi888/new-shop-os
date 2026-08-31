@@ -10,6 +10,7 @@ node_modules
 **/*.tsbuildinfo
 .env
 .env.local
+.env.android
 .workbuddy
 .shop-git-backup
 .qr_fix
