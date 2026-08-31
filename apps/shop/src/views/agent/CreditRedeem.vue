@@ -7,6 +7,11 @@
         <div class="quota-label">本月剩余可兑换额度</div>
         <div class="quota-val">{{ formatMoney(remainAmount) }}</div>
         <div class="mode-hint" v-if="isLumpSum">当前为一次性领取模式，需选满剩余额度后再提交</div>
+        <van-button
+          v-if="pool.length" class="auto-btn" block round plain
+          :color="currentTheme.primary" :loading="composing" :disabled="remainAmount <= 0"
+          @click="onAutoCompose"
+        >一键智能选购</van-button>
       </div>
 
       <div class="pool-grid" v-if="pool.length">
@@ -42,9 +47,9 @@
     <div class="redeem-bar" v-if="pool.length">
       <div class="bar-info">
         <div class="bar-label">已选 {{ selectedCount }} 件</div>
-        <div class="bar-value" :class="{ danger: overBudget }">{{ formatMoney(cartTotal) }}</div>
+        <div class="bar-value">{{ formatMoney(cartTotal) }}</div>
       </div>
-      <div class="bar-hint" :class="{ danger: overBudget }" v-if="hintText">{{ hintText }}</div>
+      <div class="bar-hint" :class="{ danger: underFilled }" v-if="hintText">{{ hintText }}</div>
       <van-button block round :color="currentTheme.primary" :disabled="!canSubmit" @click="showConfirm = true">去结算</van-button>
     </div>
 
@@ -62,6 +67,21 @@
         <div class="cost-row">
           <span>合计消耗额度</span>
           <strong>{{ formatMoney(cartTotal) }}</strong>
+        </div>
+
+        <div class="excess-block" v-if="excess > 0.004">
+          <div class="excess-row">
+            <span>超出额度</span>
+            <strong>{{ formatMoney(excess) }}</strong>
+          </div>
+          <div class="wallet-toggle" :class="{ disabled: walletBalance <= 0 }" @click="walletBalance > 0 && (useWallet = !useWallet)">
+            <van-checkbox :model-value="useWallet" :disabled="walletBalance <= 0" />
+            <span>使用佣金余额抵扣（可用 {{ formatMoney(walletBalance) }}）</span>
+          </div>
+          <div class="cash-row" v-if="cashDue > 0.004">
+            <span>还需现金支付</span>
+            <strong>{{ formatMoney(cashDue) }}</strong>
+          </div>
         </div>
 
         <div class="address-row" @click="showAddressList = true">
@@ -98,11 +118,27 @@
         <button class="manage-address" type="button" @click="router.push('/mine/address')">管理或新增地址</button>
       </div>
     </van-popup>
+
+    <!-- 支付现金差价 -->
+    <van-popup v-model:show="showPayment" position="bottom" round closeable>
+      <div class="pay-sheet">
+        <div class="sheet-title">支付差价</div>
+        <div class="pay-amount">{{ formatMoney(pendingCashAmount) }}</div>
+        <van-radio-group v-model="payType" direction="horizontal" class="pay-type-group">
+          <van-radio name="wechat">微信支付</van-radio>
+          <van-radio name="alipay">支付宝</van-radio>
+        </van-radio-group>
+        <van-button
+          block round :color="currentTheme.primary" class="confirm-btn"
+          :loading="isPaying" @click="confirmPay"
+        >确认支付</van-button>
+      </div>
+    </van-popup>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, onMounted } from 'vue'
+import { ref, computed, reactive, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { showSuccessToast, showToast } from 'vant'
 import { formatMoney, type CreditPoolProduct } from '@shop-os/shared'
@@ -139,6 +175,100 @@ const setQty = (p: CreditPoolProduct, v: number) => {
   quantities[p.id] = Math.max(0, Math.min(v, max))
 }
 
+/** 每个 SPU 的代表 SKU：库存 > 0 中价格最低的那个（更小单价能更精细地凑近目标金额） */
+const cheapestSku = (p: CreditPoolProduct) => {
+  const inStock = p.skus.filter(s => s.stock > 0)
+  if (!inStock.length) return null
+  return inStock.reduce((min, s) => (s.price < min.price ? s : min), inStock[0])
+}
+
+const composing = ref(false)
+
+/**
+ * 一键智能选购：有界背包 DP，在不超过剩余额度的前提下让选购总价尽量接近目标。
+ * 每个 SPU 只能选一个 SKU（沿用现有数据模型的约束），代表 SKU 取最低价那个。
+ * 金额换算成整数「分」做 DP 避免浮点误差；分数过大时放大计算单位，防止 DP 数组过大导致卡顿。
+ */
+const autoCompose = () => {
+  const targetCents = Math.round(remainAmount.value * 100)
+  if (targetCents <= 0 || !pool.value.length) return
+
+  const unit = Math.max(1, Math.ceil(targetCents / 300000))
+  const capacity = Math.floor(targetCents / unit)
+
+  interface KnapItem { spuId: number; skuId: number; unitCost: number; maxQty: number }
+  const items: KnapItem[] = []
+  for (const p of pool.value) {
+    const sku = cheapestSku(p)
+    if (!sku) continue
+    const unitCost = Math.round((sku.price * 100) / unit)
+    if (unitCost <= 0 || unitCost > capacity) continue
+    const maxQty = Math.min(sku.stock, Math.floor(capacity / unitCost))
+    if (maxQty <= 0) continue
+    items.push({ spuId: p.id, skuId: sku.id, unitCost, maxQty })
+  }
+
+  const picks = new Map<number, { skuId: number; qty: number }>()
+  if (items.length) {
+    // history[i] = 只考虑前 i 个商品时，容量 0..capacity 各自能凑到的最大总价
+    const history: Int32Array[] = [new Int32Array(capacity + 1)]
+    for (const item of items) {
+      const prev = history[history.length - 1]
+      const next = prev.slice()
+      // 有界背包的二进制拆分优化：把「最多买 maxQty 件」拆成若干个「买 2^k 件」的 0/1 选项
+      let remaining = item.maxQty
+      let chunk = 1
+      while (remaining > 0) {
+        const take = Math.min(chunk, remaining)
+        const cost = take * item.unitCost
+        for (let c = capacity; c >= cost; c--) {
+          const candidate = next[c - cost] + cost
+          if (candidate > next[c]) next[c] = candidate
+        }
+        remaining -= take
+        chunk *= 2
+      }
+      history.push(next)
+    }
+
+    // 回溯：从最终容量倒推每个商品实际选了几件
+    let c = capacity
+    for (let i = items.length - 1; i >= 0; i--) {
+      const item = items[i]
+      const before = history[i]
+      const after = history[i + 1]
+      for (let qty = Math.min(item.maxQty, Math.floor(c / item.unitCost)); qty >= 0; qty--) {
+        const cost = qty * item.unitCost
+        if (before[c - cost] + cost === after[c]) {
+          if (qty > 0) picks.set(item.spuId, { skuId: item.skuId, qty })
+          c -= cost
+          break
+        }
+      }
+    }
+  }
+
+  for (const p of pool.value) {
+    const pick = picks.get(p.id)
+    if (pick) {
+      activeSkuIds[p.id] = pick.skuId
+      quantities[p.id] = pick.qty
+    } else {
+      quantities[p.id] = 0
+    }
+  }
+}
+
+const onAutoCompose = async () => {
+  composing.value = true
+  await nextTick()
+  try {
+    autoCompose()
+  } finally {
+    composing.value = false
+  }
+}
+
 interface CartLine { spuId: number; skuId: number; name: string; price: number; quantity: number }
 
 const cartLines = computed<CartLine[]>(() => {
@@ -154,18 +284,26 @@ const cartLines = computed<CartLine[]>(() => {
 const selectedCount = computed(() => cartLines.value.reduce((s, l) => s + l.quantity, 0))
 const cartTotal = computed(() => Math.round(cartLines.value.reduce((s, l) => s + l.price * l.quantity, 0) * 100) / 100)
 const diffToTarget = computed(() => Math.round((remainAmount.value - cartTotal.value) * 100) / 100)
-const overBudget = computed(() => diffToTarget.value < -0.004)
+/** 未选满一次性模式所需额度时仍然阻塞提交；超出额度不再阻塞，走额度+佣金/现金混合支付 */
+const underFilled = computed(() => isLumpSum.value && diffToTarget.value > 0.004)
+
+/** 超出额度的部分：可选用佣金钱包余额抵扣，抵扣后仍不够的部分需要现金补差价 */
+const excess = computed(() => Math.max(0, Math.round((cartTotal.value - remainAmount.value) * 100) / 100))
+const walletBalance = computed(() => userStore.wallet?.balance || 0)
+const useWallet = ref(false)
+const walletApplied = computed(() => (useWallet.value && excess.value > 0) ? Math.min(excess.value, walletBalance.value) : 0)
+const cashDue = computed(() => Math.round((excess.value - walletApplied.value) * 100) / 100)
 
 const canSubmit = computed(() => {
   if (cartLines.value.length === 0) return false
-  if (isLumpSum.value) return Math.abs(diffToTarget.value) < 0.005
-  return cartTotal.value > 0 && !overBudget.value
+  if (isLumpSum.value) return cartTotal.value >= remainAmount.value - 0.005
+  return cartTotal.value > 0
 })
 
 const hintText = computed(() => {
   if (cartLines.value.length === 0) return ''
-  if (overBudget.value) return `已超出额度 ${formatMoney(-diffToTarget.value)}，请减少选购数量`
-  if (isLumpSum.value && diffToTarget.value > 0.004) return `还差 ${formatMoney(diffToTarget.value)} 未选满，需一次性选满剩余额度`
+  if (underFilled.value) return `还差 ${formatMoney(diffToTarget.value)} 未选满，需一次性选满剩余额度`
+  if (excess.value > 0.004) return `超出额度 ${formatMoney(excess.value)}，下一步可用佣金或现金补齐差价`
   return ''
 })
 
@@ -180,6 +318,13 @@ const selectAddress = (id: number) => {
   showAddressList.value = false
 }
 
+/** 兑换后若仍有现金差价，走这个弹窗；金额/单号由 confirmRedeem 返回结果填入 */
+const showPayment = ref(false)
+const pendingOrderId = ref(0)
+const pendingCashAmount = ref(0)
+const payType = ref<'wechat' | 'alipay'>('wechat')
+const isPaying = ref(false)
+
 const confirmRedeem = async () => {
   if (!selectedAddress.value || !canSubmit.value) return
   redeeming.value = true
@@ -187,14 +332,21 @@ const confirmRedeem = async () => {
     const addr = selectedAddress.value
     const result = await api.redeemCredit(creditId.value, {
       items: cartLines.value.map(l => ({ skuId: l.skuId, quantity: l.quantity })),
+      useWalletAmount: walletApplied.value,
       receiverName: addr.name,
       receiverPhone: addr.phone,
       receiverAddress: `${addr.province}${addr.city}${addr.district}${addr.detail}`,
     })
     remainAmount.value = result.remainAmount
     showConfirm.value = false
-    showSuccessToast('兑换成功，等待发货')
-    setTimeout(() => router.replace('/orders'), 800)
+    if (result.cashShortfall > 0.004) {
+      pendingOrderId.value = result.orderId
+      pendingCashAmount.value = result.cashShortfall
+      showPayment.value = true
+    } else {
+      showSuccessToast('兑换成功，等待发货')
+      setTimeout(() => router.replace('/orders'), 800)
+    }
   } catch (e) {
     showToast(e instanceof Error ? e.message : '兑换失败，请稍后重试')
   } finally {
@@ -202,11 +354,31 @@ const confirmRedeem = async () => {
   }
 }
 
+/** 支付现金差价：和 Checkout.vue 里的模拟支付走同一套 createPayment → simulatePayment 流程 */
+const confirmPay = async () => {
+  isPaying.value = true
+  try {
+    const payment = await api.createPayment({ orderId: pendingOrderId.value, payType: payType.value })
+    if (!payment.mock) {
+      showToast(String(payment.credential?.message || '支付单已创建，请在收银台完成支付'))
+      return
+    }
+    await api.simulatePayment(payment.paymentNo)
+    showPayment.value = false
+    showSuccessToast('支付成功，兑换完成')
+    setTimeout(() => router.replace('/orders'), 800)
+  } catch {
+    showToast('支付失败，请稍后重试')
+  } finally {
+    isPaying.value = false
+  }
+}
+
 onMounted(async () => {
   if (!userStore.member) return
   await addressStore.load()
   selectedAddressId.value = addressStore.defaultAddress?.id ?? null
-  const [credits, poolData] = await Promise.all([api.getMonthlyCredit(userStore.member.id), api.getCreditPool()])
+  const [credits, poolData] = await Promise.all([api.getMonthlyCredit(userStore.member.id), api.getCreditPool(), userStore.refreshMe()])
   const activeCredit = credits[0]
   if (activeCredit) {
     creditId.value = activeCredit.id
@@ -223,6 +395,7 @@ onMounted(async () => {
 .quota-label { font-size: 13px; color: var(--text-secondary); }
 .quota-val { margin-top: 6px; font-size: 24px; font-weight: 800; color: var(--color-primary-dark); }
 .mode-hint { margin-top: 8px; font-size: 12px; color: var(--text-placeholder); }
+.auto-btn { margin-top: 12px; height: 38px; font-weight: 700; }
 .pool-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 .pool-item { padding: 0; overflow: hidden; }
 .pool-img { width: 100%; aspect-ratio: 1; background: var(--bg-muted); }
@@ -261,6 +434,12 @@ onMounted(async () => {
 .confirm-item { display: flex; justify-content: space-between; padding: 8px 0; font-size: 13px; color: var(--text-secondary); }
 .cost-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; margin-top: 4px; border-top: 1px solid var(--border-color); font-size: 14px; color: var(--text-secondary); }
 .cost-row strong { color: var(--color-primary-dark); font-size: 18px; }
+.excess-block { padding: 12px; margin-bottom: 12px; border-radius: 12px; background: var(--bg-muted); }
+.excess-row, .cash-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--text-secondary); }
+.excess-row strong, .cash-row strong { color: #F5A623; font-size: 15px; }
+.cash-row { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-color); }
+.wallet-toggle { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; color: var(--text-primary); }
+.wallet-toggle.disabled { color: var(--text-placeholder); }
 .address-row { display: flex; align-items: center; gap: 10px; padding: 12px; margin: 6px 0 16px; border-radius: 12px; background: var(--bg-muted); }
 .address-info { flex: 1; min-width: 0; }
 .addr-name { color: var(--text-primary); font-size: 14px; font-weight: 700; }
@@ -274,4 +453,8 @@ onMounted(async () => {
 .addr-list-item .addr-name { display: flex; align-items: center; gap: 8px; }
 .addr-list-item em { padding: 2px 7px; border-radius: 999px; background: var(--color-primary-light); color: var(--color-primary-dark); font-style: normal; font-size: 11px; font-weight: 700; }
 .manage-address { width: 100%; height: 40px; margin-top: 12px; border: 1px solid rgba(23,32,42,.14); border-radius: 999px; background: var(--bg-card); color: var(--text-primary); font-weight: 800; }
+
+.pay-sheet { padding: 20px 16px calc(18px + env(safe-area-inset-bottom)); }
+.pay-amount { margin: 16px 0; text-align: center; font-size: 26px; font-weight: 800; color: var(--color-primary-dark); }
+.pay-type-group { display: flex; justify-content: center; gap: 24px; margin-bottom: 18px; }
 </style>

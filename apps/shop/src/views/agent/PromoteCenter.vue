@@ -96,17 +96,9 @@
         </div>
       </div>
       <div class="commission-stats">
-        <div class="cs-row">
-          <span>一级佣金</span>
-          <span class="price">{{ formatMoney(levelCommission(1)) }}</span>
-        </div>
-        <div class="cs-row">
-          <span>二级佣金</span>
-          <span class="price">{{ formatMoney(levelCommission(2)) }}</span>
-        </div>
-        <div class="cs-row">
-          <span>三级佣金</span>
-          <span class="price">{{ formatMoney(levelCommission(3)) }}</span>
+        <div class="cs-row" v-for="l in activeLevels" :key="l">
+          <span>{{ levelLabel(l) }}佣金</span>
+          <span class="price">{{ formatMoney(levelCommission(l)) }}</span>
         </div>
       </div>
     </div>
@@ -137,6 +129,9 @@ import { currentTheme } from '@/utils/site'
 const router = useRouter()
 const userStore = useUserStore()
 const enabled = ref(true)
+/** 生效的分销层级：由后台"分销关系"配置决定，未开启的级别不展示对应佣金行 */
+const activeLevels = ref<number[]>([1, 2, 3])
+const levelLabel = (level: number) => (level === 1 ? '一级' : level === 2 ? '二级' : '三级')
 
 /** 后端服务源（用于把 /uploads 相对路径补全为可跨域加载的绝对地址） */
 const API_ORIGIN = BASE_URL.replace(/\/api\/v1\/?$/, '')
@@ -266,7 +261,8 @@ onMounted(async () => {
   try {
     const dist = await api.getDistributionConfig()
     enabled.value = dist.enabled
-  } catch { /* 默认开启 */ }
+    activeLevels.value = dist.activeLevels?.length ? dist.activeLevels : [1, 2, 3]
+  } catch { /* 默认开启，三级全展示 */ }
   // 加载推广配置（站点域名）→ 生成二维码 → 加载海报（合成需要二维码）
   try {
     const cfg = await api.getPromoteConfig()

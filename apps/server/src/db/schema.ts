@@ -218,6 +218,17 @@ CREATE TABLE IF NOT EXISTS credit_flow (
   create_time   TEXT    NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
+-- 领货兑换的现金差价待支付记录：超出额度部分需要现金补差价时，额度/佣金扣减推迟到现金支付成功后才生效
+-- （避免会员在付现金前取消订单，导致额度/佣金已扣但订单已退的资金黑洞），见 finalizeCreditRedeem
+CREATE TABLE IF NOT EXISTS credit_redeem_pending (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id      INTEGER NOT NULL UNIQUE REFERENCES "order"(id),
+  credit_id     INTEGER NOT NULL REFERENCES credit_record(id),
+  credit_amount REAL    NOT NULL DEFAULT 0,
+  wallet_amount REAL    NOT NULL DEFAULT 0,
+  create_time   TEXT    NOT NULL DEFAULT (datetime('now', 'localtime'))
+);
+
 -- 转卖单
 CREATE TABLE IF NOT EXISTS resell_order (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -2,7 +2,7 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
-import { all, get, run } from '../db/index.js'
+import { all, get, run, transaction } from '../db/index.js'
 import { ok, badRequest, notFound, conflict } from '../utils/response.js'
 import { now, int, genNo, monthOf, parseJson, money } from '../utils/index.js'
 import { requireMember, signMemberToken } from '../middlewares/auth.js'
@@ -247,7 +247,9 @@ router.get('/credit-pool', requireMember, (req, res, next) => {
 })
 
 /** POST /shop/member/credits/:id/redeem 用月度领货额度兑换商品池内商品（需登录，生成待发货订单）
- * 一次性模式（lump_sum）：兑换总额必须等于剩余额度；自由模式（flexible）：允许部分兑换 */
+ * 一次性模式（lump_sum）：兑换总额不能低于剩余额度；自由模式（flexible）：允许部分兑换。
+ * 超出剩余额度的部分可选用佣金钱包余额（useWalletAmount）抵扣，抵扣后仍有差价则需现金支付——
+ * 现金差价存在时额度和佣金钱包扣减会推迟到支付成功后才生效，见 credit_redeem_pending / finalizeCreditRedeem。 */
 router.post('/credits/:id/redeem', requireMember, (req, res, next) => {
   try {
     const mid = req.member!.mid
@@ -257,6 +259,7 @@ router.post('/credits/:id/redeem', requireMember, (req, res, next) => {
         skuId: z.number().int(),
         quantity: z.number().int().min(1),
       })).min(1),
+      useWalletAmount: z.number().min(0).optional().default(0),
       receiverName: z.string().min(1).max(30),
       receiverPhone: z.string().min(5).max(20),
       receiverAddress: z.string().min(1).max(120),
@@ -292,43 +295,66 @@ router.post('/credits/:id/redeem', requireMember, (req, res, next) => {
     if (totalCost <= 0) throw badRequest('兑换金额异常')
 
     const remainAmount = money(Number(credit.remainAmount))
-    if (claimMode() === 'lump_sum') {
-      if (totalCost !== remainAmount) {
-        throw badRequest(`当前为一次性领取模式，需一次性兑换完剩余额度（¥${remainAmount.toFixed(2)}），当前合计 ¥${totalCost.toFixed(2)}`)
-      }
-    } else if (totalCost > remainAmount) {
-      throw badRequest('剩余额度不足')
+    const excess = money(totalCost - remainAmount)
+    if (excess <= 0 && claimMode() === 'lump_sum' && totalCost !== remainAmount) {
+      throw badRequest(`当前为一次性领取模式，需一次性兑换完剩余额度（¥${remainAmount.toFixed(2)}），当前合计 ¥${totalCost.toFixed(2)}`)
     }
+
+    // 超出额度部分：先用佣金钱包抵扣（不能超过实际可用余额），仍不够的算作现金差价
+    const creditUsed = excess > 0 ? remainAmount : totalCost
+    let walletApplied = 0
+    if (excess > 0 && body.useWalletAmount > 0) {
+      const wallet = get<{ balance: number }>('SELECT balance FROM wallet WHERE member_id = ?', mid)
+      walletApplied = money(Math.min(body.useWalletAmount, excess, Number(wallet?.balance ?? 0)))
+    }
+    const cashShortfall = excess > 0 ? money(excess - walletApplied) : 0
 
     const ts = now()
-    const orderRes = run(
-      `INSERT INTO "order" (order_no, member_id, member_name, order_type, total_amount, discount_amount, shipping_fee, pay_amount, status,
-        receiver_name, receiver_phone, receiver_address, remark, create_time, pay_time)
-       VALUES (?, ?, ?, 3, ?, ?, 0, 0, 1, ?, ?, ?, ?, ?, ?)`,
-      genNo('CR'), mid, member.nickname, totalCost, totalCost, body.receiverName, body.receiverPhone, body.receiverAddress,
-      '月度领货兑换', ts, ts,
-    )
-    const orderId = Number(orderRes.lastInsertRowid)
-    for (const { sku, quantity, lineCost } of lines) {
-      run(
-        `INSERT INTO order_item (order_id, sku_id, sku_name, spec_info, image, quantity, original_price, unit_price, total_price, member_level)
-         VALUES (?, ?, ?, '{}', ?, ?, ?, ?, ?, ?)`,
-        orderId, Number(sku.id), String(sku.skuName), String(sku.image || ''), quantity, Number(sku.price), Number(sku.price), lineCost, member.level,
-      )
-      run('UPDATE product_sku SET stock = stock - ?, sales = sales + ? WHERE id = ?', quantity, quantity, Number(sku.id))
-    }
-
-    const remain = money(remainAmount - totalCost)
-    const used = money(Number(credit.usedAmount) + totalCost)
-    // 兑换不区分额度来源，消耗后可转卖部分不能超过剩余额度
-    const resellable = money(Math.min(Number(credit.resellableAmount ?? 0), remain))
-    run('UPDATE credit_record SET used_amount = ?, remain_amount = ?, resellable_amount = ?, status = ?, update_time = ? WHERE id = ?',
-      used, remain, resellable, remain <= 0 ? 2 : 1, ts, creditId)
     const summary = lines.map(l => `${String(l.sku.skuName)} x${l.quantity}`).join('、')
-    run('INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, create_time) VALUES (?, ?, ?, ?, 2, ?, ?)',
-      creditId, mid, -totalCost, remain, `领取商品自用：${summary}`, ts)
+    const discountAmount = money(creditUsed + walletApplied)
+    const orderStatus = cashShortfall > 0 ? 0 : 1
 
-    ok(res, { orderId, cost: totalCost, remainAmount: remain }, '兑换成功，等待发货', 201)
+    const orderId = transaction(() => {
+      const orderRes = run(
+        `INSERT INTO "order" (order_no, member_id, member_name, order_type, total_amount, discount_amount, shipping_fee, pay_amount, status,
+          receiver_name, receiver_phone, receiver_address, remark, create_time, pay_time)
+         VALUES (?, ?, ?, 3, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        genNo('CR'), mid, member.nickname, totalCost, discountAmount, cashShortfall, orderStatus,
+        body.receiverName, body.receiverPhone, body.receiverAddress, '月度领货兑换', ts, cashShortfall > 0 ? null : ts,
+      )
+      const id = Number(orderRes.lastInsertRowid)
+      for (const { sku, quantity, lineCost } of lines) {
+        run(
+          `INSERT INTO order_item (order_id, sku_id, sku_name, spec_info, image, quantity, original_price, unit_price, total_price, member_level)
+           VALUES (?, ?, ?, '{}', ?, ?, ?, ?, ?, ?)`,
+          id, Number(sku.id), String(sku.skuName), String(sku.image || ''), quantity, Number(sku.price), Number(sku.price), lineCost, member.level,
+        )
+        run('UPDATE product_sku SET stock = stock - ?, sales = sales + ? WHERE id = ?', quantity, quantity, Number(sku.id))
+      }
+
+      if (cashShortfall > 0) {
+        // 现金差价还没付：额度和佣金钱包暂不扣减，记下来等支付成功后由 finalizeCreditRedeem 处理
+        run('INSERT INTO credit_redeem_pending (order_id, credit_id, credit_amount, wallet_amount, create_time) VALUES (?, ?, ?, ?, ?)',
+          id, creditId, creditUsed, walletApplied, ts)
+      } else {
+        const remain = money(remainAmount - creditUsed)
+        const used = money(Number(credit.usedAmount) + creditUsed)
+        // 兑换不区分额度来源，消耗后可转卖部分不能超过剩余额度
+        const resellable = money(Math.min(Number(credit.resellableAmount ?? 0), remain))
+        run('UPDATE credit_record SET used_amount = ?, remain_amount = ?, resellable_amount = ?, status = ?, update_time = ? WHERE id = ?',
+          used, remain, resellable, remain <= 0 ? 2 : 1, ts, creditId)
+        run('INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, order_id, create_time) VALUES (?, ?, ?, ?, 2, ?, ?, ?)',
+          creditId, mid, -creditUsed, remain, `领取商品自用：${summary}`, id, ts)
+        if (walletApplied > 0) {
+          run('UPDATE wallet SET balance = balance - ?, updated_at = ? WHERE member_id = ?', walletApplied, ts, mid)
+        }
+      }
+      return id
+    })
+
+    const remainAfter = cashShortfall > 0 ? remainAmount : money(remainAmount - creditUsed)
+    const message = cashShortfall > 0 ? '订单已创建，请支付差价' : '兑换成功，等待发货'
+    ok(res, { orderId, cost: totalCost, remainAmount: remainAfter, walletApplied, cashShortfall }, message, 201)
   } catch (e) { next(e) }
 })
 

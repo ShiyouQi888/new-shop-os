@@ -3,7 +3,7 @@ import { badRequest } from '../utils/response.js'
 import { genNo, now } from '../utils/index.js'
 import { createPendingCommissions, scheduleOrderCommissions } from './distribution.js'
 import { recordFinanceFlow } from './finance.js'
-import { grantConsumptionCredit } from './credit.js'
+import { grantConsumptionCredit, finalizeCreditRedeem } from './credit.js'
 import { tryAutoMatchResell } from './resellMatch.js'
 
 export type PayType = 'wechat' | 'alipay'
@@ -181,6 +181,7 @@ export function completeMockPayment(paymentNo: string, memberId: number) {
   createPendingCommissions(Number(pay.orderId))
   grantConsumptionCredit(Number(pay.orderId))
   tryAutoMatchResell(Number(pay.orderId))
+  if (Number(order?.orderType) === 3) finalizeCreditRedeem(Number(pay.orderId))
   if (nextStatus === 3) scheduleOrderCommissions(Number(pay.orderId))
   return { orderId: Number(pay.orderId), autoSuccess: config.mockAutoSuccess }
 }

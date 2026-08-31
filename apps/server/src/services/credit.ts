@@ -1,5 +1,5 @@
 // ===== 消费返还额度：购物消费按身份比例累加当月领货额度（是否支持转卖按身份配置） =====
-import { get, run } from '../db/index.js'
+import { get, run, transaction } from '../db/index.js'
 import { money, now, monthOf } from '../utils/index.js'
 
 const cfg = (key: string, fallback = '0') =>
@@ -75,4 +75,41 @@ export function grantConsumptionCredit(orderId: number) {
     'INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, order_id, create_time) VALUES (?, ?, ?, ?, 1, ?, ?, ?)',
     recordId, order.memberId, bonus, remain, `购物消费返还：订单 ${order.orderNo}`, orderId, ts,
   )
+}
+
+/**
+ * 领货兑换的现金差价支付成功后，才真正扣减额度和佣金钱包余额（见 credit_redeem_pending 表注释：
+ * 下单时只扣库存，额度/佣金扣减推迟到这里，避免会员付现金前取消订单导致资金黑洞）。
+ * 幂等：找不到待处理记录时说明不是混合支付订单或已处理过，直接返回。
+ */
+export function finalizeCreditRedeem(orderId: number) {
+  const pending = get<{ id: number; creditId: number; creditAmount: number; walletAmount: number }>(
+    'SELECT id, credit_id AS creditId, credit_amount AS creditAmount, wallet_amount AS walletAmount FROM credit_redeem_pending WHERE order_id = ?',
+    orderId,
+  )
+  if (!pending) return
+
+  const order = get<{ memberId: number; orderNo: string }>('SELECT member_id AS memberId, order_no AS orderNo FROM "order" WHERE id = ?', orderId)
+  if (!order) return
+
+  transaction(() => {
+    const credit = get<{ usedAmount: number; remainAmount: number; resellableAmount: number }>(
+      'SELECT used_amount AS usedAmount, remain_amount AS remainAmount, resellable_amount AS resellableAmount FROM credit_record WHERE id = ?',
+      pending.creditId,
+    )
+    if (credit) {
+      const ts = now()
+      const used = money(Number(credit.usedAmount) + Number(pending.creditAmount))
+      const remain = money(Number(credit.remainAmount) - Number(pending.creditAmount))
+      const resellable = money(Math.min(Number(credit.resellableAmount ?? 0), Math.max(0, remain)))
+      run('UPDATE credit_record SET used_amount = ?, remain_amount = ?, resellable_amount = ?, status = ?, update_time = ? WHERE id = ?',
+        used, remain, resellable, remain <= 0 ? 2 : 1, ts, pending.creditId)
+      run('INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, order_id, create_time) VALUES (?, ?, ?, ?, 2, ?, ?, ?)',
+        pending.creditId, order.memberId, -pending.creditAmount, remain, `领取商品自用：订单 ${order.orderNo}`, orderId, ts)
+    }
+    if (Number(pending.walletAmount) > 0) {
+      run('UPDATE wallet SET balance = balance - ?, updated_at = ? WHERE member_id = ?', pending.walletAmount, now(), order.memberId)
+    }
+    run('DELETE FROM credit_redeem_pending WHERE id = ?', pending.id)
+  })
 }

@@ -171,8 +171,8 @@ export const api = {
   /** 我的等级可兑换的领货商品池 */
   getCreditPool: () => http.get<CreditPoolProduct[]>('/shop/member/credit-pool'),
   /** 用领货额度兑换商品池内商品，生成待发货订单（一次性模式下 items 合计须等于剩余额度） */
-  redeemCredit: (creditId: number, payload: { items: { skuId: number; quantity: number }[]; receiverName: string; receiverPhone: string; receiverAddress: string }) =>
-    http.post<{ orderId: number; cost: number; remainAmount: number }>(`/shop/member/credits/${creditId}/redeem`, payload),
+  redeemCredit: (creditId: number, payload: { items: { skuId: number; quantity: number }[]; useWalletAmount?: number; receiverName: string; receiverPhone: string; receiverAddress: string }) =>
+    http.post<{ orderId: number; cost: number; remainAmount: number; walletApplied: number; cashShortfall: number }>(`/shop/member/credits/${creditId}/redeem`, payload),
   getResellOrders: (memberId: number) => http.get<ResellOrder[]>('/shop/member/resells', { memberId }),
   /** 发起转卖（落库，后台可见）：固定一次性转卖全部可转卖额度，金额与费用均由服务端权威计算 */
   createResell: (payload: { creditId?: number; skuName?: string }) =>

@@ -345,6 +345,8 @@ router.post('/orders/:id/cancel', requireMember, (req, res, next) => {
     if (Number(order.status) !== 0) throw badRequest('仅待支付订单可取消')
     run('UPDATE "order" SET status = 4, cancel_time = ? WHERE id = ?', now(), id)
     restoreOrderStock(id)
+    // 领货兑换的现金差价订单：额度/佣金钱包从未扣减过（见 finalizeCreditRedeem），这里只需清掉待处理记录
+    run('DELETE FROM credit_redeem_pending WHERE order_id = ?', id)
     ok(res, null, '订单已取消')
   } catch (e) { next(e) }
 })
