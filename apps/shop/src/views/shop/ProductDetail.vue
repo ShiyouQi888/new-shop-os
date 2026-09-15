@@ -233,7 +233,7 @@ watch(selectedSkuId, () => { quantity.value = 1 })
 .detail-page {
   min-height: 100vh;
   padding-top: 46px;
-  padding-bottom: 78px;
+  padding-bottom: calc(72px + env(safe-area-inset-bottom));
 }
 .detail-body {
   padding: 0 14px 20px;
@@ -409,14 +409,19 @@ h2 {
 
 <style>
 .detail-action-bar {
-  left: 12px;
-  right: 12px;
-  bottom: calc(74px + env(safe-area-inset-bottom));
-  width: auto;
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
+  left: 50% !important;
+  right: auto !important;
+  bottom: 0;
+  width: min(430px, 100vw) !important;
+  min-height: calc(54px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  transform: translateX(-50%);
+  border: 0;
+  border-top: 1px solid var(--border-color);
+  border-radius: 0;
   overflow: hidden;
-  box-shadow: 0 14px 34px rgba(17, 24, 39, 0.13);
+  background: var(--bg-card);
+  box-shadow: 0 -8px 24px rgba(17, 24, 39, 0.08);
 }
 .detail-action-bar::after {
   display: none;

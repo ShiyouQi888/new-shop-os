@@ -17,7 +17,7 @@ const route = useRoute()
 const cartStore = useCartStore()
 const authRoutes = new Set(['/login', '/register'])
 
-const showGlobalTabbar = computed(() => !authRoutes.has(route.path))
+const showGlobalTabbar = computed(() => !authRoutes.has(route.path) && route.meta.hideTabbar !== true)
 const cartBadge = computed(() => cartStore.totalCount > 0 ? cartStore.totalCount : '')
 </script>
 
@@ -26,16 +26,18 @@ const cartBadge = computed(() => cartStore.totalCount > 0 ? cartStore.totalCount
   position: fixed;
   left: 50% !important;
   right: auto !important;
-  bottom: calc(8px + env(safe-area-inset-bottom)) !important;
+  bottom: 0 !important;
   z-index: 1000;
-  width: min(398px, calc(100vw - 24px)) !important;
-  height: 58px;
+  width: min(430px, 100vw) !important;
+  height: calc(58px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
   transform: translateX(-50%);
-  border: 1px solid var(--border-color);
-  border-radius: 18px;
+  border: 0;
+  border-top: 1px solid var(--border-color);
+  border-radius: 0;
   overflow: hidden;
   background: var(--bg-card);
-  box-shadow: 0 18px 42px rgba(17, 24, 39, 0.16);
+  box-shadow: 0 -8px 24px rgba(17, 24, 39, 0.07);
   backdrop-filter: blur(18px);
 }
 
@@ -63,13 +65,26 @@ const cartBadge = computed(() => cartStore.totalCount > 0 ? cartStore.totalCount
   transform: translateY(-1px);
 }
 
-.page-shell {
-  padding-bottom: calc(84px + env(safe-area-inset-bottom)) !important;
+.premium-tabbar .van-tabbar-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 20px;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: transparent;
 }
 
-.detail-page,
+.premium-tabbar .van-tabbar-item--active::before {
+  background: var(--color-primary);
+}
+
+.page-shell {
+  padding-bottom: calc(72px + env(safe-area-inset-bottom)) !important;
+}
+
 .checkout-page,
 .cart-page {
-  padding-bottom: calc(146px + env(safe-area-inset-bottom)) !important;
+  padding-bottom: calc(136px + env(safe-area-inset-bottom)) !important;
 }
 </style>

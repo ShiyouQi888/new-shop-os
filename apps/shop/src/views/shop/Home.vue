@@ -1,5 +1,12 @@
 <template>
   <div class="home-page page-shell">
+    <header class="app-header">
+      <img :src="siteBranding.logo || '/logo.png'" alt="橙选商城" class="app-logo" />
+      <div class="header-actions">
+        <button type="button" aria-label="消息通知" @click="router.push('/mine/notifications')"><van-icon name="bell" /></button>
+        <button type="button" aria-label="个人中心" @click="router.push('/mine')"><van-icon name="user-o" /></button>
+      </div>
+    </header>
     <main class="home-body">
       <div class="hero-stage">
         <van-swipe class="banner-swipe hero-swipe" :autoplay="3600" :indicator-color="currentTheme.primary">
@@ -22,13 +29,18 @@
             </van-swipe-item>
           </template>
         </van-swipe>
-        <img :src="siteBranding.logo || '/logo.png'" alt="橙选商城" class="hero-brand-logo" />
       </div>
 
       <button class="search-bar" type="button" @click="router.push('/category')">
         <van-icon name="search" size="17" />
         <span>搜索商品、品牌或礼包</span>
       </button>
+
+      <section class="service-strip" aria-label="商城服务保障">
+        <span><van-icon name="shield-o" /> 平台严选</span>
+        <span><van-icon name="certificate" /> 正品保障</span>
+        <span><van-icon name="after-sale" /> 售后无忧</span>
+      </section>
 
       <section class="category-nav premium-card" v-if="data" aria-label="商品分类">
         <button class="category-item" type="button" v-for="cat in data.categories" :key="cat.id" @click="goCategory(cat.id)">
@@ -101,12 +113,43 @@ onMounted(async () => {
 .home-page {
   padding-top: env(safe-area-inset-top);
 }
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 50px;
+  padding: 7px 14px;
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom: 1px solid var(--border-color);
+  backdrop-filter: blur(16px);
+}
+.app-logo {
+  width: 118px;
+  height: 34px;
+  object-fit: contain;
+  object-position: left center;
+}
+.header-actions {
+  display: flex;
+  gap: 7px;
+}
+.header-actions button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 18px;
+}
 .home-body {
-  padding: 10px 12px 18px;
+  padding: 10px 12px 16px;
 }
 .hero-panel {
-  height: 194px;
-  padding: 18px 16px 16px;
+  height: 174px;
+  padding: 16px;
   color: #fff;
   background:
     linear-gradient(135deg, rgba(23, 32, 42, 0.9), rgba(48, 56, 66, 0.76)),
@@ -119,7 +162,7 @@ onMounted(async () => {
 .hero-copy h1 {
   margin-top: 10px;
   max-width: 286px;
-  font-size: 24px;
+  font-size: 22px;
   line-height: 1.16;
   letter-spacing: 0;
 }
@@ -166,18 +209,8 @@ onMounted(async () => {
   overflow: hidden;
   box-shadow: 0 16px 40px rgba(23, 32, 42, 0.13);
 }
-.hero-brand-logo {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  height: 24px;
-  width: auto;
-  z-index: 5;
-  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.45));
-  pointer-events: none;
-}
 .hero-swipe {
-  height: 194px;
+  height: 174px;
 }
 .hero-swipe :deep(.van-swipe__track),
 .hero-swipe :deep(.van-swipe-item) {
@@ -188,9 +221,29 @@ onMounted(async () => {
 }
 .banner-img {
   width: 100%;
-  height: 194px;
+  height: 174px;
   object-fit: cover;
   display: block;
+}
+.service-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: center;
+  min-height: 32px;
+  margin: -2px 0 10px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 650;
+}
+.service-strip span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.service-strip .van-icon {
+  color: var(--color-primary);
+  font-size: 13px;
 }
 .category-nav {
   display: grid;

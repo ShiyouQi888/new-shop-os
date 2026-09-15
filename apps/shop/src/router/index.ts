@@ -60,7 +60,7 @@ const routes: RouteRecordRaw[] = [
     path: '/product/:id',
     name: 'ProductDetail',
     component: () => import('@/views/shop/ProductDetail.vue'),
-    meta: { title: '商品详情' },
+    meta: { title: '商品详情', hideTabbar: true },
   },
   {
     path: '/checkout',
