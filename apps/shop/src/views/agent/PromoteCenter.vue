@@ -13,14 +13,25 @@
 
     <section class="promote-hero">
       <div>
-        <p class="eyebrow">PRIVATE GROWTH</p>
-        <h1>专属推广资产</h1>
-        <p>统一的邀请码、海报与佣金路径，适合社群、私域和线下客户场景。</p>
+        <p class="eyebrow">PROMOTION CENTER</p>
+        <h1>推广中心</h1>
+        <p>分享专属海报或链接，邀请好友注册并解锁推广收益。</p>
+        <div class="hero-metrics">
+          <span><strong>{{ promoteStats.directCount }}</strong> 直属伙伴</span>
+          <span><strong>{{ formatMoney(promoteStats.commissionTotal, 0) }}</strong> 累计佣金</span>
+        </div>
       </div>
       <van-icon name="share-o" />
     </section>
 
     <div class="poster-card premium-card">
+      <div class="card-heading">
+        <div>
+          <span class="section-kicker">SHARE POSTER</span>
+          <h2>专属推广海报</h2>
+        </div>
+        <span class="status-badge"><i></i>{{ posterTitle || '系统海报' }}</span>
+      </div>
       <!-- 后台配置的海报（固定或随机千人千面）：已叠加专属二维码，点击查看大图 -->
       <div class="poster-preview" v-if="currentPoster">
         <van-image
@@ -31,7 +42,6 @@
           :preview-src-list="[composedPosterUrl || currentPoster.image]"
           preview-teleported
         />
-        <div class="poster-mode-tip" v-if="posterTitle">{{ posterTitle }}</div>
       </div>
       <!-- 无海报配置时的默认模拟海报 -->
       <div class="poster-preview" v-else>
@@ -62,21 +72,38 @@
         </div>
       </div>
       <div class="poster-actions">
-        <van-button class="outline-btn" plain size="small" icon="share-o" @click="copyLink">复制推广链接</van-button>
-        <van-button class="outline-btn" plain size="small" icon="save" @click="savePoster">保存海报</van-button>
+        <van-button class="outline-btn" plain icon="link-o" @click="copyLink">复制推广链接</van-button>
+        <van-button class="primary-btn" type="primary" icon="down" @click="savePoster">保存推广海报</van-button>
       </div>
     </div>
 
     <div class="invite-card premium-card">
+      <div class="card-heading compact">
+        <div>
+          <span class="section-kicker">INVITATION</span>
+          <h2>邀请信息</h2>
+        </div>
+        <van-icon name="qr" />
+      </div>
       <div class="invite-row">
         <div class="invite-label">专属邀请码</div>
         <div class="invite-code">{{ userStore.member?.inviteCode }}</div>
         <van-button class="copy-btn" size="small" @click="copyCode">复制</van-button>
       </div>
+      <button class="link-row" type="button" @click="copyLink">
+        <span>{{ link }}</span>
+        <van-icon name="description" />
+      </button>
     </div>
 
     <div class="stats-card premium-card">
-      <div class="card-title">推广数据</div>
+      <div class="card-heading compact">
+        <div>
+          <span class="section-kicker">PERFORMANCE</span>
+          <h2>推广数据</h2>
+        </div>
+        <button class="detail-link" type="button" @click="router.push('/agent/team')">查看团队 <van-icon name="arrow" /></button>
+      </div>
       <div class="stats-grid">
         <div class="stat-item">
           <div class="stat-val">{{ promoteStats.directCount }}</div>
@@ -96,6 +123,7 @@
         </div>
       </div>
       <div class="commission-stats">
+        <div class="commission-title">佣金构成</div>
         <div class="cs-row" v-for="l in activeLevels" :key="l">
           <span>{{ levelLabel(l) }}佣金</span>
           <span class="price">{{ formatMoney(levelCommission(l)) }}</span>
@@ -104,11 +132,17 @@
     </div>
 
     <div class="guide-card premium-card">
-      <div class="card-title">推广新手指南</div>
-      <div class="guide-item" v-for="(g, i) in guideList" :key="g.id" @click="router.push('/mine/help')">
+      <div class="card-heading compact">
+        <div>
+          <span class="section-kicker">QUICK START</span>
+          <h2>推广指南</h2>
+        </div>
+      </div>
+      <button class="guide-item" type="button" v-for="(g, i) in guideList" :key="g.id" @click="router.push('/mine/help')">
         <div class="guide-num">{{ i + 1 }}</div>
         <div class="guide-text">{{ g.title }}</div>
-      </div>
+        <van-icon name="arrow" />
+      </button>
       <div class="guide-empty" v-if="!guideList.length">暂无推广指南</div>
     </div>
     </main>
@@ -399,14 +433,14 @@ const savePoster = () => {
 }
 
 .promote-body {
-  padding: 12px 14px 24px;
+  padding: 10px 12px 24px;
 }
 
 .promote-hero {
-  min-height: 142px;
-  border-radius: var(--radius-lg);
-  padding: 20px;
-  margin-bottom: 12px;
+  min-height: 154px;
+  border-radius: 16px;
+  padding: 18px;
+  margin-bottom: 10px;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
@@ -420,7 +454,7 @@ const savePoster = () => {
 
 .promote-hero h1 {
   margin: 4px 0 8px;
-  font-size: 24px;
+  font-size: 23px;
   line-height: 1.2;
 }
 
@@ -429,14 +463,14 @@ const savePoster = () => {
   margin: 0;
   color: rgba(255,255,255,.78);
   font-size: 12px;
-  line-height: 1.7;
+  line-height: 1.55;
 }
 
 .promote-hero .eyebrow {
   color: var(--color-gold);
   font-size: 10px;
   font-weight: 800;
-  letter-spacing: .12em;
+  letter-spacing: 0;
 }
 
 .promote-hero .van-icon {
@@ -450,46 +484,71 @@ const savePoster = () => {
   border: 1px solid rgba(255,255,255,.18);
   font-size: 22px;
 }
+.hero-metrics {
+  display: flex;
+  gap: 18px;
+  margin-top: 14px;
+  color: rgba(255,255,255,.7);
+  font-size: 11px;
+}
+.hero-metrics strong {
+  margin-right: 4px;
+  color: #fff;
+  font-size: 14px;
+}
 
 .poster-card {
   padding: 14px;
+  margin-bottom: 10px;
+}
+.card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 12px;
 }
+.card-heading.compact { margin-bottom: 10px; }
+.section-kicker { display: block; margin-bottom: 3px; color: var(--color-primary-dark); font-size: 9px; font-weight: 800; }
+.card-heading h2 { color: var(--text-primary); font-size: 16px; line-height: 1.25; }
+.status-badge { display: inline-flex; align-items: center; gap: 5px; max-width: 145px; padding: 5px 8px; border-radius: 6px; background: var(--color-primary-light); color: var(--color-primary-dark); font-size: 10px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.status-badge i { width: 5px; height: 5px; border-radius: 50%; background: var(--color-success); flex-shrink: 0; }
 
 .poster-preview {
-  background: linear-gradient(135deg, var(--color-gold), var(--color-primary-light));
-  border-radius: 16px;
-  padding: 1px;
+  display: grid;
+  place-items: center;
+  min-height: 300px;
+  max-height: 390px;
+  background: var(--bg-muted);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 8px;
   margin-bottom: 12px;
+  overflow: hidden;
 }
 
 .poster-img {
   width: 100%;
-  max-height: 460px;
-  border-radius: 15px;
+  height: 370px;
+  max-height: 370px;
+  border-radius: 8px;
   display: block;
   margin: 0 auto;
   background: var(--bg-card);
   cursor: pointer;
 }
-.poster-mode-tip {
-  padding: 8px 12px;
-  font-size: 12px;
-  color: var(--color-primary-dark);
-  text-align: center;
-}
-
 .poster-inner {
   background:
     radial-gradient(circle at 50% 0%, rgba(var(--color-primary-rgb), .18), transparent 36%),
     var(--bg-card);
-  border-radius: 15px;
-  padding: 20px;
+  width: 100%;
+  border-radius: 10px;
+  padding: 16px;
   text-align: center;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  min-height: 420px;
+  min-height: 352px;
   cursor: pointer;
 }
 .poster-inner:active {
@@ -517,37 +576,47 @@ const savePoster = () => {
 .qr-box { width: 84px; height: 84px; border: 1px solid rgba(var(--color-primary-rgb), .45); border-radius: 14px; display: flex; align-items: center; justify-content: center; color: var(--color-gold); background: var(--bg-card); }
 .qr-img { width: 72px; height: 72px; display: block; }
 .qr-text { font-size: 12px; color: var(--text-secondary); }
-.poster-actions { display: flex; gap: 10px; justify-content: center; }
+.poster-actions { display: grid; grid-template-columns: 1fr 1.18fr; gap: 8px; }
 .outline-btn {
+  width: 100%;
+  height: 40px;
   color: var(--text-primary);
   border-color: var(--border-color);
-  border-radius: 999px;
+  border-radius: 8px;
   font-weight: 700;
 }
-.invite-card { padding: 16px; margin-bottom: 12px; }
+.primary-btn { width: 100%; height: 40px; border-radius: 8px; font-weight: 800; }
+.invite-card { padding: 14px; margin-bottom: 10px; }
 .invite-row { display: flex; align-items: center; justify-content: space-between; }
 .invite-label { font-size: 13px; color: var(--text-secondary); }
 .invite-code { font-size: 18px; font-weight: 800; color: var(--color-gold); letter-spacing: 2px; }
 .copy-btn {
   border: 0;
-  border-radius: 999px;
+  border-radius: 7px;
   color: var(--color-on-primary);
   background: var(--color-primary);
   font-weight: 700;
 }
-.stats-card { padding: 16px; margin-bottom: 12px; }
-.card-title { font-size: 15px; font-weight: 800; margin-bottom: 12px; color: var(--text-primary); }
-.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); margin-bottom: 16px; }
-.stat-item { text-align: center; }
+.link-row { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 38px; margin-top: 12px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--bg-muted); color: var(--text-secondary); font-size: 11px; }
+.link-row span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.link-row .van-icon { color: var(--color-primary); font-size: 16px; }
+.stats-card { padding: 14px; margin-bottom: 10px; }
+.detail-link { display: flex; align-items: center; gap: 2px; border: 0; background: transparent; color: var(--color-primary-dark); font-size: 11px; }
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); margin-bottom: 14px; padding: 12px 0; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); }
+.stat-item { text-align: center; border-right: 1px solid var(--border-color); }
+.stat-item:last-child { border-right: 0; }
 .stat-val { font-size: 20px; font-weight: 800; color: var(--text-primary); }
 .stat-label { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
-.commission-stats { border-top: 1px solid var(--border-color); padding-top: 12px; }
+.commission-stats { padding-top: 0; }
+.commission-title { margin-bottom: 5px; color: var(--text-primary); font-size: 12px; font-weight: 750; }
 .cs-row { display: flex; justify-content: space-between; padding: 7px 0; font-size: 13px; color: var(--text-secondary); }
 .cs-row .price { color: var(--text-primary); font-weight: 800; }
 .cs-row.total { font-weight: 800; border-top: 1px solid var(--border-color); margin-top: 4px; padding-top: 12px; color: var(--text-primary); }
-.guide-card { padding: 16px; }
-.guide-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+.guide-card { padding: 14px; }
+.guide-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 0; border: 0; border-bottom: 1px solid var(--border-color); background: transparent; text-align: left; }
+.guide-item:last-of-type { border-bottom: 0; }
 .guide-num { width: 24px; height: 24px; border-radius: 50%; background: rgba(var(--color-primary-rgb), .14); color: var(--color-gold); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; }
-.guide-text { font-size: 13px; color: var(--text-primary); }
+.guide-text { flex: 1; font-size: 13px; color: var(--text-primary); }
+.guide-item > .van-icon { color: var(--text-placeholder); }
 .guide-empty { padding: 12px 0; font-size: 13px; color: var(--text-secondary); text-align: center; }
 </style>
