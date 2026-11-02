@@ -461,6 +461,7 @@ router.get('/orders', requireMember, (req, res, next) => {
               o.total_amount AS totalAmount, o.status, o.create_time AS createTime, o.pay_time AS payTime,
               o.ship_time AS shipTime, o.finish_time AS finishTime,
               (SELECT oi.sku_name FROM order_item oi WHERE oi.order_id = o.id LIMIT 1) AS skuName,
+               (SELECT oi.sku_id FROM order_item oi WHERE oi.order_id = o.id LIMIT 1) AS skuId,
               (SELECT SUM(oi.quantity) FROM order_item oi WHERE oi.order_id = o.id) AS quantity,
               (SELECT oi.image FROM order_item oi WHERE oi.order_id = o.id LIMIT 1) AS itemImage
        FROM "order" o WHERE o.member_id = ? ORDER BY o.id DESC`,
@@ -559,8 +560,8 @@ router.get('/cart', requireMember, (req, res, next) => {
   try {
     const list = all(
       `SELECT c.id, c.sku_id AS skuId, c.quantity, c.selected,
-              s.sku_name AS skuName, s.price, s.original_price AS originalPrice, s.image AS mainImage,
-              p.id AS spuId, p.name AS spuName
+              s.sku_name AS skuName, s.price, s.original_price AS originalPrice, s.stock, s.image AS mainImage,
+              p.id AS spuId, p.name AS spuName, p.exclude_discount AS excludeDiscount
        FROM member_cart c JOIN product_sku s ON s.id = c.sku_id JOIN product_spu p ON p.id = s.spu_id
        WHERE c.member_id = ? ORDER BY c.id DESC`,
       req.member!.mid,

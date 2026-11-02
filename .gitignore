@@ -21,3 +21,16 @@ apps/**/package-lock.json
 .env
 .env.local
 .env.android
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/build/
+**/coverage/
+**/.packages
+**/.symlinks/
+**/.gradle/
+**/local.properties
+**/Pods/
+**/DerivedData/
+**/Generated.xcconfig
+**/flutter_export_environment.sh

@@ -4,17 +4,23 @@
     <main class="gift-body">
       <section class="intro-banner">
         <span>AGENT MEMBERSHIP</span>
-        <h1>成为代理商，开启长期权益</h1>
-        <p>购买大礼包入会，获得月度领货、会员折扣、转卖变现与分享佣金资格。</p>
+        <h1>选择适合你的会员方案</h1>
+        <p>一次入会，获得长期购物权益与推广资格。</p>
+        <div class="intro-assurance">
+          <span><van-icon name="shield-o" /> 权益透明</span>
+          <span><van-icon name="passed" /> 即时生效</span>
+          <span><van-icon name="service-o" /> 专属服务</span>
+        </div>
       </section>
 
       <section class="package-card premium-card" v-for="pkg in packages" :key="pkg.id">
         <div class="package-header">
           <div>
-            <span class="package-level">{{ pkg.levelName }}</span>
+            <span class="package-level"><i></i>{{ pkg.levelName }}</span>
             <div class="package-name">{{ pkg.name }}</div>
+            <div class="package-subtitle">含实物礼包与会员专属权益</div>
           </div>
-          <div class="package-price"><span class="price-lg">{{ formatMoney(pkg.price) }}</span></div>
+          <div class="package-price"><small>入会价</small><span class="price-lg">{{ formatMoney(pkg.price) }}</span></div>
         </div>
         <div class="package-benefits" v-if="pkg.items && pkg.items.length">
           <div class="benefit-item" v-for="item in pkg.items" :key="item.id">
@@ -28,11 +34,14 @@
           <div class="right-item"><div class="right-value">{{ monthsOf(pkg) }}</div><div class="right-label">领货周期</div></div>
           <div class="right-item"><div class="right-value">{{ commissionText(pkg.level) }}</div><div class="right-label">分享佣金</div></div>
         </div>
-        <van-button block round :color="currentTheme.primary" @click="buyPackage(pkg)">立即购买入会</van-button>
+        <van-button class="join-button" block :color="currentTheme.primary" icon="gem-o" @click="buyPackage(pkg)">选择此方案</van-button>
       </section>
 
       <section class="compare-card premium-card">
-        <div class="compare-title">会员等级权益对比</div>
+        <div class="section-heading">
+          <div><span>BENEFIT MATRIX</span><h2>会员权益对比</h2></div>
+          <van-icon name="chart-trending-o" />
+        </div>
         <table class="compare-table">
           <thead>
             <tr>
@@ -202,27 +211,40 @@ onMounted(async () => {
 
 <style scoped>
 .gift-page { min-height: 100vh; padding-top: 46px; }
-.gift-body { padding: 12px 14px 24px; }
-.intro-banner { padding: 24px 18px; border-radius: 20px; color: #fff; background: linear-gradient(135deg, #171A1F, #171A1F); box-shadow: 0 18px 44px rgba(23,32,42,.16); margin-bottom: 12px; }
+.gift-body { padding: 10px 12px 24px; }
+.intro-banner { padding: 20px 18px 16px; border-radius: 16px; color: #fff; background: linear-gradient(135deg, #171A1F, #2D3540); box-shadow: 0 14px 32px rgba(23,32,42,.14); margin-bottom: 10px; }
 .intro-banner span, .package-level { color: var(--color-primary); font-size: 11px; font-weight: 800; }
-.intro-banner h1 { margin-top: 8px; font-size: 25px; line-height: 1.2; }
+.intro-banner h1 { margin-top: 7px; font-size: 23px; line-height: 1.2; }
 .intro-banner p { margin-top: 8px; color: rgba(255,255,255,.72); line-height: 1.55; }
-.package-card { padding: 16px; margin-bottom: 12px; border-width: 1px; }
+.intro-assurance { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 16px; padding-top: 13px; border-top: 1px solid rgba(255,255,255,.12); }
+.intro-assurance span { display: flex; align-items: center; gap: 4px; color: rgba(255,255,255,.78); font-size: 10px; font-weight: 600; }
+.intro-assurance .van-icon { color: var(--color-primary); font-size: 13px; }
+.package-card { padding: 15px; margin-bottom: 10px; border-width: 1px; }
 .package-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+.package-level { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border-radius: 6px; background: var(--color-primary-light); }
+.package-level i { width: 5px; height: 5px; border-radius: 50%; background: var(--color-primary); }
 .package-name { margin-top: 5px; color: var(--text-primary); font-size: 18px; font-weight: 800; }
+.package-subtitle { margin-top: 4px; color: var(--text-secondary); font-size: 11px; }
+.package-price { display: grid; justify-items: end; flex-shrink: 0; }
+.package-price small { margin-bottom: 3px; color: var(--text-placeholder); font-size: 10px; }
 .package-benefits { display: grid; gap: 8px; margin-bottom: 14px; }
 .benefit-item { display: flex; align-items: center; gap: 7px; color: var(--text-secondary); font-size: 13px; }
 .benefit-item .van-icon { color: var(--color-primary); }
-.package-rights { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; padding: 12px; background: var(--bg-muted); border-radius: 12px; }
-.right-item { text-align: center; }
+.package-rights { display: grid; grid-template-columns: repeat(4, 1fr); margin-bottom: 14px; padding: 12px 4px; background: var(--bg-muted); border-radius: 10px; }
+.right-item { text-align: center; border-right: 1px solid var(--border-color); }
+.right-item:last-child { border-right: 0; }
 .right-value { color: var(--text-primary); font-size: 14px; font-weight: 800; }
 .right-label { margin-top: 3px; color: var(--text-secondary); font-size: 11px; }
-.compare-card { padding: 16px; margin-bottom: 12px; overflow-x: auto; }
-.compare-title { color: var(--text-primary); font-size: 16px; font-weight: 800; margin-bottom: 12px; }
+.join-button { height: 42px; border-radius: 8px; font-weight: 800; }
+.compare-card { padding: 15px; margin-bottom: 10px; overflow-x: auto; }
+.section-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.section-heading span { color: var(--color-primary-dark); font-size: 9px; font-weight: 800; }
+.section-heading h2 { margin-top: 3px; color: var(--text-primary); font-size: 16px; }
+.section-heading > .van-icon { color: var(--color-primary); font-size: 22px; }
 .compare-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.compare-table th { padding: 9px 6px; background: var(--bg-muted); color: var(--text-secondary); font-weight: 800; }
+.compare-table th { padding: 10px 7px; background: var(--bg-muted); color: var(--text-secondary); font-weight: 800; white-space: nowrap; }
 .compare-table td { padding: 9px 6px; text-align: center; border-bottom: 1px solid var(--border-color); color: var(--text-secondary); }
-.compare-table td:first-child { text-align: left; color: var(--text-primary); font-weight: 800; }
+.compare-table td:first-child, .compare-table th:first-child { position: sticky; left: 0; z-index: 1; text-align: left; color: var(--text-primary); font-weight: 800; background: var(--bg-card); }
 .pay-popup { padding: 20px 16px 18px; }
 .popup-title { color: var(--text-primary); font-size: 17px; font-weight: 800; text-align: center; }
 .pay-package { margin-top: 6px; color: var(--text-secondary); font-size: 12px; text-align: center; }

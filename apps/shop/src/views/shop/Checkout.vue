@@ -6,7 +6,11 @@
       <section class="checkout-hero">
         <span>CHECKOUT</span>
         <h1>确认订单</h1>
-        <p>请核对收货地址、商品明细与支付方式。</p>
+        <div class="checkout-steps">
+          <div class="done"><i>1</i><b>购物车</b></div><em></em>
+          <div class="active"><i>2</i><b>确认订单</b></div><em></em>
+          <div><i>3</i><b>完成支付</b></div>
+        </div>
       </section>
 
       <section class="address-card premium-card" @click="showAddressList = true">
@@ -44,10 +48,10 @@
       </section>
 
       <section class="pay-card premium-card">
-        <div class="card-title">支付方式</div>
-        <van-radio-group v-model="payType" direction="horizontal">
-          <van-radio name="wechat">微信支付</van-radio>
-          <van-radio name="alipay">支付宝</van-radio>
+        <div class="card-title-row"><div class="card-title">支付方式</div><span>安全支付</span></div>
+        <van-radio-group v-model="payType" direction="horizontal" class="pay-options">
+          <van-radio name="wechat"><span class="pay-option"><van-icon name="wechat-pay" />微信支付</span></van-radio>
+          <van-radio name="alipay"><span class="pay-option"><van-icon name="alipay" />支付宝</span></van-radio>
         </van-radio-group>
       </section>
     </main>
@@ -180,17 +184,24 @@ const confirmPay = async () => {
 
 <style scoped>
 .checkout-page { min-height: 100vh; padding-top: 46px; padding-bottom: 82px; }
-.checkout-body { padding: 12px 14px 24px; }
-.checkout-hero { padding: 20px 18px; border-radius: 20px; color: #fff; background: linear-gradient(135deg, #171A1F, #171A1F); box-shadow: 0 18px 44px rgba(23,32,42,.16); margin-bottom: 12px; }
+.checkout-body { padding: 10px 12px 24px; }
+.checkout-hero { padding: 17px 16px 15px; border-radius: 16px; color: #fff; background: linear-gradient(135deg, #171A1F, #2D3540); box-shadow: 0 14px 32px rgba(23,32,42,.14); margin-bottom: 10px; }
 .checkout-hero span { color: var(--color-primary); font-size: 11px; font-weight: 800; }
-.checkout-hero h1 { margin-top: 8px; font-size: 24px; }
-.checkout-hero p { margin-top: 8px; color: rgba(255,255,255,.72); line-height: 1.55; }
-.address-card { display: flex; align-items: center; gap: 10px; padding: 16px; margin-bottom: 12px; }
+.checkout-hero h1 { margin-top: 6px; font-size: 22px; }
+.checkout-steps { display: grid; grid-template-columns: auto 1fr auto 1fr auto; align-items: center; gap: 7px; margin-top: 15px; }
+.checkout-steps div { display: flex; align-items: center; gap: 5px; color: rgba(255,255,255,.5); }
+.checkout-steps i { display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid rgba(255,255,255,.25); border-radius: 50%; font-size: 10px; font-style: normal; }
+.checkout-steps b { font-size: 10px; font-weight: 600; white-space: nowrap; }
+.checkout-steps em { height: 1px; background: rgba(255,255,255,.16); }
+.checkout-steps .done, .checkout-steps .active { color: #fff; }
+.checkout-steps .done i { border-color: var(--color-success); background: var(--color-success); }
+.checkout-steps .active i { border-color: var(--color-primary); background: var(--color-primary); }
+.address-card { display: flex; align-items: center; gap: 10px; padding: 15px; margin-bottom: 10px; }
 .address-info { flex: 1; }
 .addr-name { color: var(--text-primary); font-size: 15px; font-weight: 800; }
 .addr-detail { margin-top: 5px; color: var(--text-secondary); font-size: 13px; line-height: 1.45; }
 .address-empty { flex: 1; color: var(--text-secondary); }
-.goods-card, .discount-card, .pay-card { padding: 16px; margin-bottom: 12px; }
+.goods-card, .discount-card, .pay-card { padding: 15px; margin-bottom: 10px; }
 .card-title { color: var(--text-primary); font-size: 16px; font-weight: 800; margin-bottom: 12px; }
 .goods-item { display: flex; gap: 10px; padding: 9px 0; }
 .goods-img { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; }
@@ -203,6 +214,13 @@ const confirmPay = async () => {
 .discount-row.discount span:last-child { color: #18A66A; font-weight: 800; }
 .discount-row.payable { color: var(--text-primary); font-weight: 800; }
 .discount-row.payable span:last-child { color: var(--color-primary-dark); }
+.card-title-row { display: flex; align-items: center; justify-content: space-between; }
+.card-title-row > span { color: var(--color-success); font-size: 10px; font-weight: 700; }
+.pay-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pay-options :deep(.van-radio) { min-height: 44px; padding: 0 10px; border: 1px solid var(--border-color); border-radius: 8px; }
+.pay-options :deep(.van-radio[aria-checked="true"]) { border-color: var(--color-primary); background: var(--color-primary-light); }
+.pay-option { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
+.pay-option .van-icon { color: var(--color-primary); font-size: 19px; }
 .address-popup { padding: 16px; }
 .popup-title { font-size: 16px; font-weight: 800; margin-bottom: 12px; text-align: center; }
 .addr-list-item { padding: 12px 0; border-bottom: 1px solid var(--border-color); }

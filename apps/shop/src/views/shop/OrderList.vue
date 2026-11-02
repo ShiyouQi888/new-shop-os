@@ -10,9 +10,14 @@
     </van-tabs>
 
     <main class="order-body">
+      <section class="order-overview">
+        <div><span>订单总数</span><strong>{{ orderStore.list.length }}</strong></div>
+        <div><span>待处理</span><strong>{{ pendingCount }}</strong></div>
+        <div><span>已完成</span><strong>{{ completedCount }}</strong></div>
+      </section>
       <section class="order-item premium-card" v-for="order in filteredOrders" :key="order.id">
         <div class="order-header">
-          <span class="order-no">{{ order.orderNo }}</span>
+          <span class="order-no"><van-icon name="orders-o" /> {{ order.orderNo }}</span>
           <span class="order-status" :class="statusClass(order.status)">{{ OrderStatusLabels[order.status] }}</span>
         </div>
         <div class="order-goods" v-for="item in order.items" :key="item.id">
@@ -81,6 +86,8 @@ const filteredOrders = computed(() => {
   const target = statusMap[activeTab.value]
   return orderStore.list.filter(o => o.status === target)
 })
+const pendingCount = computed(() => orderStore.list.filter(o => [OrderStatus.PendingPayment, OrderStatus.PaidPendingShip, OrderStatus.Shipped].includes(o.status)).length)
+const completedCount = computed(() => orderStore.list.filter(o => o.status === OrderStatus.Completed).length)
 
 const statusClass = (status: OrderStatus) => {
   const map: Record<number, string> = { 0: 'st-pending', 1: 'st-paid', 2: 'st-shipped', 3: 'st-done', 4: 'st-cancel', 5: 'st-refund' }
@@ -158,11 +165,18 @@ const rebuy = (order: Order) => {
 
 <style scoped>
 .order-page { min-height: 100vh; padding-top: 46px; }
-.order-body { padding: 12px 14px 24px; }
-.order-item { padding: 14px; margin-bottom: 12px; }
+.order-body { padding: 10px 12px 24px; }
+.order-overview { display: grid; grid-template-columns: repeat(3, 1fr); padding: 13px 0; margin-bottom: 10px; border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border-color); box-shadow: 0 4px 14px rgba(17,24,39,.045); }
+.order-overview div { text-align: center; border-right: 1px solid var(--border-color); }
+.order-overview div:last-child { border-right: 0; }
+.order-overview span, .order-overview strong { display: block; }
+.order-overview span { color: var(--text-secondary); font-size: 10px; }
+.order-overview strong { margin-top: 4px; color: var(--text-primary); font-size: 17px; }
+.order-item { padding: 14px; margin-bottom: 10px; }
 .order-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
-.order-no { color: var(--text-secondary); font-size: 12px; }
-.order-status { font-size: 13px; font-weight: 800; }
+.order-no { display: flex; align-items: center; gap: 5px; color: var(--text-secondary); font-size: 11px; }
+.order-no .van-icon { color: var(--color-primary); font-size: 14px; }
+.order-status { padding: 4px 7px; border-radius: 6px; background: var(--bg-muted); font-size: 11px; font-weight: 800; }
 .st-pending { color: #F5A623; }
 .st-paid, .st-shipped { color: var(--color-primary); }
 .st-done { color: #18A66A; }
@@ -174,9 +188,10 @@ const rebuy = (order: Order) => {
 .goods-name { color: var(--text-primary); font-size: 13px; font-weight: 700; line-height: 1.4; }
 .goods-meta { margin-top: 4px; color: var(--text-secondary); font-size: 12px; }
 .goods-price { font-size: 14px; }
-.order-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-top: 10px; border-top: 1px solid var(--border-color); }
+.order-footer { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 10px; padding-top: 10px; border-top: 1px solid var(--border-color); }
 .order-total { color: var(--text-secondary); font-size: 13px; }
-.order-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.order-actions { display: flex; gap: 8px; margin-left: auto; }
+.order-actions :deep(.van-button) { min-width: 72px; border-radius: 7px; font-weight: 700; }
 .pay-popup { padding: 20px 16px 18px; }
 .popup-title { color: var(--text-primary); font-size: 17px; font-weight: 800; text-align: center; }
 .pay-order-no { margin-top: 6px; color: var(--text-secondary); font-size: 12px; text-align: center; }
