@@ -1,7 +1,7 @@
 // ===== 订单管理 /api/v1/orders =====
 import { Router } from 'express'
 import { z } from 'zod'
-import { all, get, run, paginate } from '../db/index.js'
+import { all, get, run, paginate, transaction } from '../db/index.js'
 import { ok, notFound, badRequest } from '../utils/response.js'
 import { parsePagination, int, str, now, uniqueNumbers, genNo } from '../utils/index.js'
 import { requireAuth, requirePermission } from '../middlewares/auth.js'
@@ -9,6 +9,7 @@ import { logOperation } from './log.js'
 import { rollbackOrderCommissions, scheduleOrderCommissions } from '../services/distribution.js'
 import { recordFinanceFlow } from '../services/finance.js'
 import { restoreOrderStock } from '../services/inventory.js'
+import { getPaymentMode } from '../services/payment.js'
 
 const router = Router()
 router.use(requireAuth)
@@ -20,12 +21,14 @@ const ORDER_SELECT = `
          o.receiver_name AS receiverName, o.receiver_phone AS receiverPhone, o.receiver_address AS receiverAddress,
          o.logistics_company AS logisticsCompany, o.logistics_no AS logisticsNo, o.remark,
          o.create_time AS createTime, o.pay_time AS payTime, o.ship_time AS shipTime,
-         o.finish_time AS finishTime, o.cancel_time AS cancelTime
+         o.finish_time AS finishTime, o.cancel_time AS cancelTime,
+         o.refund_reason AS refundReason, o.refund_request_time AS refundRequestTime,
+         o.refund_audit_remark AS refundAuditRemark, o.refund_audit_time AS refundAuditTime
   FROM "order" o
 `
 
 /** GET /orders?page=&pageSize=&status=&type=&keyword= */
-router.get('/', (req, res, next) => {
+router.get('/', requirePermission('order:view'), (req, res, next) => {
   try {
     const { page, pageSize } = parsePagination(req.query)
     const status = req.query.status === undefined || req.query.status === '' ? null : int(req.query.status)
@@ -51,7 +54,7 @@ router.get('/', (req, res, next) => {
 })
 
 /** GET /orders/:id 详情（含明细） */
-router.get('/:id', (req, res, next) => {
+router.get('/:id', requirePermission('order:view'), (req, res, next) => {
   try {
     const id = Number(req.params.id)
     const order = get(ORDER_SELECT + ' WHERE o.id = ?', id)
@@ -76,24 +79,25 @@ router.patch('/:id/status', requirePermission('order:ship'), (req, res, next) =>
     if (body.status === 2 && Number(order.status) !== 1) throw badRequest('仅待发货订单可发货')
     if (body.status === 2 && (!body.logisticsCompany || !body.logisticsNo)) throw badRequest('发货必须填写物流公司和物流单号')
     if (body.status === 3 && Number(order.status) !== 2) throw badRequest('仅待收货订单可完成')
-    if (body.status === 4 && ![0, 1, 2].includes(Number(order.status))) throw badRequest('当前订单状态不可取消')
-    const wasPaid = [1, 2].includes(Number(order.status))
-    const sets: string[] = ['status = ?']
-    const params: (string | number)[] = [body.status]
-    if (body.status === 2 && !order.shipTime) { sets.push('ship_time = ?'); params.push(now()) }
-    if (body.logisticsCompany) { sets.push('logistics_company = ?'); params.push(body.logisticsCompany) }
-    if (body.logisticsNo) { sets.push('logistics_no = ?'); params.push(body.logisticsNo) }
-    if (body.status === 3) { sets.push('finish_time = ?'); params.push(now()) }
-    if (body.status === 4) { sets.push('cancel_time = ?'); params.push(now()) }
-    params.push(id)
-    run(`UPDATE "order" SET ${sets.join(', ')} WHERE id = ?`, ...params)
-    if (body.status === 3) scheduleOrderCommissions(id)
-    if (body.status === 4) {
-      rollbackOrderCommissions(id, '订单取消')
-      restoreOrderStock(id)
-      // 已支付订单被直接取消（而非走退款审核）时，同样要冲正此前记过的收入，否则资金流水台账会永久多记一笔从未真正完成的收入
-      if (wasPaid) recordFinanceFlow(5, -Number(order.payAmount), String(order.orderNo), '订单取消（已支付）冲正收入')
-    }
+    if (body.status === 4 && Number(order.status) !== 0) throw badRequest('已付款订单不可直接取消，请发起退款申请')
+    transaction(() => {
+      const ts = now()
+      const sets: string[] = ['status = ?']
+      const params: (string | number)[] = [body.status]
+      if (body.status === 2 && !order.shipTime) { sets.push('ship_time = ?'); params.push(ts) }
+      if (body.logisticsCompany) { sets.push('logistics_company = ?'); params.push(body.logisticsCompany.trim()) }
+      if (body.logisticsNo) { sets.push('logistics_no = ?'); params.push(body.logisticsNo.trim()) }
+      if (body.status === 3) { sets.push('finish_time = ?'); params.push(ts) }
+      if (body.status === 4) { sets.push('cancel_time = ?'); params.push(ts) }
+      params.push(id, Number(order.status))
+      const updated = run(`UPDATE "order" SET ${sets.join(', ')} WHERE id = ? AND status = ?`, ...params)
+      if (Number(updated.changes) !== 1) throw badRequest('订单状态已变化，请刷新后重试')
+      if (body.status === 3) scheduleOrderCommissions(id)
+      if (body.status === 4) restoreOrderStock(id)
+      const action = body.status === 2 ? '发货' : body.status === 3 ? '确认完成' : '取消未支付订单'
+      logOperation(String(req.auth?.username || ''), '订单管理', action,
+        `订单 ${String(order.orderNo)}：${action}`, String(req.ip || ''))
+    })
     ok(res, null, '订单状态已更新')
   } catch (e) { next(e) }
 })
@@ -106,35 +110,53 @@ router.patch('/ship', requirePermission('order:ship'), (req, res, next) => {
       company: z.string().min(1).max(30),
       no: z.string().min(1).max(50),
     }).parse(req.body)
-    const ts = now()
-    let shipped = 0
-    for (const id of body.ids) {
-      const r = run('UPDATE "order" SET status = 2, logistics_company = ?, logistics_no = ?, ship_time = ? WHERE id = ? AND status = 1',
-        body.company, body.no, ts, id)
-      shipped += Number(r.changes)
-    }
-    logOperation(String(req.auth?.username || ''), '订单管理', '发货',
-      `批量发货 ${shipped}/${body.ids.length} 单（${body.company} ${body.no}）`, String(req.ip || ''))
+    if (body.ids.length > 100) throw badRequest('单次最多批量发货 100 笔')
+    const shipped = transaction(() => {
+      const ts = now()
+      let count = 0
+      for (const id of new Set(body.ids)) {
+        const r = run('UPDATE "order" SET status = 2, logistics_company = ?, logistics_no = ?, ship_time = ? WHERE id = ? AND status = 1',
+          body.company.trim(), body.no.trim(), ts, id)
+        count += Number(r.changes)
+      }
+      logOperation(String(req.auth?.username || ''), '订单管理', '批量发货',
+        `批量发货 ${count}/${body.ids.length} 单（${body.company} ${body.no}）`, String(req.ip || ''))
+      return count
+    })
     ok(res, null, `已发货 ${shipped}/${body.ids.length} 单`)
   } catch (e) { next(e) }
 })
 
 /** POST /orders/:id/refund-audit 退款审核（body: { pass, remark }） */
-router.post('/:id/refund-audit', requirePermission('order:ship'), (req, res, next) => {
+router.post('/:id/refund-audit', requirePermission('order:refund'), (req, res, next) => {
   try {
     const id = Number(req.params.id)
     const order = get<Record<string, unknown>>('SELECT * FROM "order" WHERE id = ?', id)
     if (!order) throw notFound('订单不存在')
-    if (Number(order.status) !== 5) throw badRequest('仅退款中的订单可审核')
+    if (Number(order.status) !== 5 || !order.payTime) throw badRequest('仅已支付且退款申请中的订单可审核')
+    if (Number(order.orderType) !== 1) throw badRequest('该订单涉及会员权益或领货额度变更，不能走普通零售整单退款流程')
     const body = z.object({ pass: z.boolean(), remark: z.string().max(200).optional() }).parse(req.body)
     if (!body.pass && !body.remark) throw badRequest('驳回时必须填写原因')
-    const nextStatus = body.pass ? 6 : (order.shipTime ? 2 : 1)
-    run('UPDATE "order" SET status = ?, cancel_time = ? WHERE id = ?', nextStatus, body.pass ? now() : null, id)
-    if (body.pass) {
-      rollbackOrderCommissions(id, '订单退款')
-      restoreOrderStock(id)
-      recordFinanceFlow(5, -Number(order.payAmount), String(order.orderNo), '订单退款支出')
+    if (body.pass && getPaymentMode() !== 'mock') {
+      throw badRequest('当前真实支付退款接口尚未接通；请完成网关退款能力后再启用线上退款审核')
     }
+    transaction(() => {
+      const ts = now()
+      const nextStatus = body.pass ? 6 : 1
+      const updated = run(
+        'UPDATE "order" SET status = ?, refund_audit_remark = ?, refund_audit_time = ? WHERE id = ? AND status = 5',
+        nextStatus, body.remark || '', ts, id,
+      )
+      if (Number(updated.changes) !== 1) throw badRequest('退款申请状态已变化，请刷新后重试')
+      if (body.pass) {
+        rollbackOrderCommissions(id, '订单退款')
+        restoreOrderStock(id)
+        recordFinanceFlow(5, -Number(order.payAmount), String(order.orderNo), '订单退款支出（模拟支付）')
+      }
+      logOperation(String(req.auth?.username || ''), '订单售后', body.pass ? '退款通过' : '退款驳回',
+        `订单 ${String(order.orderNo)}，申请原因：${String(order.refundReason || '未填写')}；审核意见：${body.remark || (body.pass ? '审核通过' : '')}`,
+        String(req.ip || ''))
+    })
     ok(res, null, body.pass ? '退款已同意' : '退款已驳回，订单已恢复')
   } catch (e) { next(e) }
 })

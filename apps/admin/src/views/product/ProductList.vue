@@ -162,7 +162,17 @@
                   <el-input-number v-model="row.price" :min="0" :precision="2" :controls="false" style="width: 100%" />
                 </template>
               </el-table-column>
-              <el-table-column label="成本/参考原价" width="138">
+              <el-table-column label="营销参考价" width="138">
+                <template #default="{ row }">
+                  <el-input-number v-model="row.marketPrice" :min="0" :precision="2" :controls="false" style="width: 100%" />
+                </template>
+              </el-table-column>
+              <el-table-column label="内部成本价" width="138">
+                <template #header>
+                  <el-tooltip content="仅后台成本核算使用；商城前台与订单金额不会读取此字段。" placement="top">
+                    <span>内部成本价 <el-icon><InfoFilled /></el-icon></span>
+                  </el-tooltip>
+                </template>
                 <template #default="{ row }">
                   <el-input-number v-model="row.costPrice" :min="0" :precision="2" :controls="false" style="width: 100%" />
                 </template>
@@ -261,7 +271,8 @@ const clearSelection = () => { selectedRows.value = [] }
 const normalizeSku = (sku: ProductSKU & { originalPrice?: number; image?: string }): EditableSku => ({
   ...sku,
   specInfo: sku.specInfo || {},
-  costPrice: Number(sku.costPrice ?? sku.originalPrice ?? sku.price ?? 0),
+  costPrice: Number(sku.costPrice ?? 0),
+  marketPrice: Number(sku.marketPrice ?? sku.originalPrice ?? 0),
   stockLocked: Number(sku.stockLocked ?? 0),
   image: sku.image || '',
 })
@@ -306,6 +317,7 @@ const addSku = () => {
     specInfo: { 规格: index === 1 ? '默认' : String(index) },
     price: 0,
     costPrice: 0,
+    marketPrice: 0,
     stock: 0,
     stockLocked: 0,
     status: ProductStatus.OnSale,

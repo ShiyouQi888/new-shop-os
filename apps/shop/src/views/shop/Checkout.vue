@@ -109,6 +109,7 @@ const cartStore = useCartStore()
 const userStore = useUserStore()
 const orderStore = useOrderStore()
 const addressStore = useAddressStore()
+const commerceConfig = ref({ defaultShippingFee: 10, freeShippingThreshold: 99 })
 const selectedAddressId = ref(addressStore.defaultAddress?.id ?? null)
 const showAddressList = ref(false)
 const showPayment = ref(false)
@@ -117,12 +118,16 @@ const pendingOrder = ref<Order | null>(null)
 const payType = ref<'wechat' | 'alipay'>('wechat')
 
 onMounted(async () => {
-  await addressStore.load()
+  await Promise.all([
+    addressStore.load(),
+    api.getCommerceConfig().then(config => { commerceConfig.value = config }).catch(() => undefined),
+  ])
   if (!selectedAddressId.value && addressStore.defaultAddress) selectedAddressId.value = addressStore.defaultAddress.id
 })
 
 const levelLabel = computed(() => MemberLevelLabels[userStore.level])
-const shippingFee = computed(() => cartStore.memberTotalPrice >= 99 ? 0 : 10)
+const shippingFee = computed(() => commerceConfig.value.freeShippingThreshold <= 0 || cartStore.memberTotalPrice >= commerceConfig.value.freeShippingThreshold
+  ? 0 : commerceConfig.value.defaultShippingFee)
 const payAmount = computed(() => cartStore.memberTotalPrice + shippingFee.value)
 const payTypeLabel = computed(() => payType.value === 'alipay' ? '支付宝' : '微信支付')
 const selectedAddress = computed(() => {

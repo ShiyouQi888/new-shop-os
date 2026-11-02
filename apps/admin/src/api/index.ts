@@ -9,7 +9,7 @@ import {
   type Member, type ProductSPU, type ProductSKU, type ProductCategory,
   type Order, type MonthlyCredit, type ResellOrder, type Commission,
   type Withdraw, type LevelBenefitConfig, type CommissionRuleConfig,
-  type SystemConfig, type SiteBranding, type CreditPoolItem, type DashboardStats, type FileAsset,
+  type SystemConfig, type SiteBranding, type CreditPoolItem, type FileAsset,
   type FileAssetQuery, type FileAssetGroup, type GiftPackage, type MemberWallet,
   type OrderType, type OrderStatus, type CreditStatus, type ResellStatus,
   type CommissionStatus, type WithdrawStatus, type MemberLevel,
@@ -73,20 +73,48 @@ export const apiAuth = {
 }
 
 // ============ 仪表盘 ============
+export interface AdminDashboardStats {
+  totalMembers: number
+  totalAgents: number
+  todayMembers: number
+  totalOrders: number
+  todayOrders: number
+  totalPaid: number
+  todayRevenue: number
+  pendingPaymentCount: number
+  pendingShipCount: number
+  pendingRefundCount: number
+  pendingWithdrawCount: number
+  pendingWithdrawAmount: number
+  pendingWorkOrderCount: number
+  totalCommission: number
+  activeResellOrders: number
+  monthlyCreditUsage: number
+  levelDist: { level: number; count: number }[]
+}
+
 export const apiDashboard = {
-  getStats: async (): Promise<DashboardStats> => {
+  getStats: async (): Promise<AdminDashboardStats> => {
     const s = await http.get<Row>('/dashboard/summary')
     return {
       totalMembers: Number(s.memberCount ?? 0),
       totalAgents: Number(s.totalAgents ?? 0),
+      todayMembers: Number(s.todayMemberCount ?? 0),
+      totalOrders: Number(s.orderCount ?? 0),
       todayOrders: Number(s.todayOrders ?? 0),
       todayRevenue: Number(s.todayOrderAmount ?? 0),
+      totalPaid: Number(s.orderAmount ?? 0),
+      pendingPaymentCount: Number(s.pendingPayment ?? 0),
+      pendingShipCount: Number(s.pendingShip ?? 0),
+      pendingRefundCount: Number(s.pendingRefund ?? 0),
+      pendingWithdrawCount: Number(s.pendingWithdraw ?? 0),
+      pendingWithdrawAmount: Number(s.pendingWithdrawAmount ?? 0),
+      pendingWorkOrderCount: Number(s.pendingWorkOrders ?? 0),
       totalCommission: Number(s.commissionTotal ?? 0),
-      pendingWithdraw: Number(s.pendingWithdraw ?? 0),
       activeResellOrders: Number(s.activeResellOrders ?? 0),
       monthlyCreditUsage: Number(s.monthlyCreditUsage ?? 0),
       levelDist: (s.levelDist as { level: number; count: number }[] | undefined) ?? [],
-    } as unknown as DashboardStats
+    }
   },
   getTrends: (days = 7) =>
     http.get<Array<{ date: string; revenue: number; orders: number }>>('/dashboard/trends', { days }),
@@ -188,11 +216,12 @@ export const apiProduct = {
     return { ...res, list: res.list.map(normalizeProduct) }
   },
   getSkus: async (spuId: number) => {
-    const skus = await http.get<Array<ProductSKU & { originalPrice?: number; image?: string; specInfo?: Record<string, string> | string }>>(`/products/${spuId}/skus`)
+    const skus = await http.get<Array<ProductSKU & { originalPrice?: number; marketPrice?: number; costPrice?: number; image?: string; specInfo?: Record<string, string> | string }>>(`/products/${spuId}/skus`)
     return skus.map(sku => ({
       ...sku,
       specInfo: typeof sku.specInfo === 'string' ? JSON.parse(sku.specInfo || '{}') : (sku.specInfo || {}),
-      costPrice: Number(sku.costPrice ?? sku.originalPrice ?? sku.price ?? 0),
+      costPrice: Number(sku.costPrice ?? 0),
+      marketPrice: Number(sku.marketPrice ?? sku.originalPrice ?? 0),
       stockLocked: Number(sku.stockLocked ?? 0),
     }))
   },
@@ -219,7 +248,8 @@ export const apiProduct = {
         skuName: sku.skuName,
         specInfo: sku.specInfo || {},
         price: sku.price,
-        originalPrice: sku.costPrice ?? sku.price,
+        marketPrice: sku.marketPrice ?? sku.originalPrice ?? 0,
+        costPrice: sku.costPrice ?? 0,
         stock: sku.stock,
         image: (sku as ProductSKU & { image?: string }).image || '',
         status: sku.status,
@@ -295,7 +325,7 @@ export const apiResell = {
   getList: (params: { page: number; pageSize: number; status?: ResellStatus | ''; keyword?: string }) =>
     http.get<{ list: ResellOrder[]; total: number }>('/resells', params as unknown as Record<string, unknown>),
   /** 待匹配的零售订单（手动匹配弹窗用） */
-  getPendingOrders: () => http.get<Row[]>('/resells/pending-orders'),
+  getPendingOrders: () => http.get<Array<{ id: number; orderNo: string; receiverName: string; payAmount: number }>>('/resells/pending-orders'),
   manualMatch: (id: number, matchOrderId: number) => http.post(`/resells/${id}/match`, { matchOrderId }),
   complete: (id: number) => http.post(`/resells/${id}/complete`),
   cancel: (id: number) => http.post(`/resells/${id}/cancel`),
@@ -475,6 +505,8 @@ export const apiFinance = {
       commissionSettledPaid: Number(o.commissionPaid ?? 0),
       withdrawPaid: Number(o.withdrawOut ?? 0),
       pendingWithdraw: Number(o.pendingWithdraw ?? 0),
+      refundPaid: Number(o.refundOut ?? 0),
+      refundPending: Number(o.refundPending ?? 0),
       resellServiceFee: Number(o.serviceFee ?? 0),
       orderCount: Number(o.orderCount ?? 0),
       memberOrderIncome: Number(o.memberOrderIncome ?? 0),
@@ -505,7 +537,7 @@ export const apiFinance = {
       riskGap: Number(o.riskGap ?? 0),
       coverageRatio: Number(o.coverageRatio ?? 0),
       riskLevel: String(o.riskLevel ?? 'low'),
-      grossProfit: Number(o.net ?? 0),
+      netCashFlowEstimate: Number(o.net ?? 0),
     }
   },
   /** 资金流水（按时间倒序） */

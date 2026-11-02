@@ -49,21 +49,22 @@ router.post('/:id/audit', requirePermission('withdraw:audit'), (req, res, next) 
     const body = z.object({ pass: z.boolean(), remark: z.string().max(200).optional() }).parse(req.body)
     if (!body.pass && !body.remark) throw badRequest('驳回时必须填写原因')
     const nextStatus = body.pass ? 1 : 3
-    // 提现单状态与钱包回退必须同生共死：任何一步失败都不能只落地一半，否则会出现"单已驳回但钱没退"的悬空状态
     transaction(() => {
-      run('UPDATE withdraw SET status = ?, audit_time = ?, audit_remark = ? WHERE id = ?', nextStatus, now(), body.remark || '', id)
+      const ts = now()
+      const changed = run('UPDATE withdraw SET status = ?, audit_time = ?, audit_remark = ? WHERE id = ? AND status = 0', nextStatus, ts, body.remark || '', id)
+      if (Number(changed.changes) !== 1) throw badRequest('提现单状态已变化，请刷新后重试')
       if (!body.pass) {
-        // 退回余额与扣减冻结必须对称：只退回真正从冻结里扣掉的部分，避免 frozen 异常偏低时凭空多退
         const wallet = get<{ frozen: number }>('SELECT frozen FROM wallet WHERE member_id = ?', Number(w.memberId))
-        const restored = Math.min(Number(w.amount), Number(wallet?.frozen ?? 0))
-        run(
-          'UPDATE wallet SET balance = balance + ?, frozen = frozen - ?, updated_at = ? WHERE member_id = ?',
-          restored, restored, now(), Number(w.memberId),
+        if (!wallet || Number(wallet.frozen) < Number(w.amount)) throw badRequest('钱包冻结金额与提现单不一致，已阻止驳回，请先核对账目')
+        const restored = run(
+          'UPDATE wallet SET balance = balance + ?, frozen = frozen - ?, updated_at = ? WHERE member_id = ? AND frozen >= ?',
+          Number(w.amount), Number(w.amount), ts, Number(w.memberId), Number(w.amount),
         )
+        if (Number(restored.changes) !== 1) throw badRequest('钱包冻结金额已变化，请刷新后重试')
       }
+      logOperation(String(req.auth?.username || ''), '提现管理', body.pass ? '审核通过' : '驳回',
+        `${body.pass ? '通过' : '驳回'}提现单 ${String(w.withdrawNo)}${body.remark ? '（' + body.remark + '）' : ''}`, String(req.ip || ''))
     })
-    logOperation(String(req.auth?.username || ''), '提现管理', body.pass ? '审核通过' : '驳回',
-      `${body.pass ? '通过' : '驳回'}提现单 ${String(w.withdrawNo)}${body.remark ? '（' + body.remark + '）' : ''}`, String(req.ip || ''))
     ok(res, null, body.pass ? '审核通过，等待打款' : '已驳回')
   } catch (e) { next(e) }
 })
@@ -78,18 +79,20 @@ router.post('/:id/pay', requirePermission('withdraw:audit'), (req, res, next) =>
     const body = z.object({ transactionNo: z.string().max(50).optional() }).parse(req.body)
     const txNo = body.transactionNo || genNo('LSH')
     transaction(() => {
-      run('UPDATE withdraw SET status = 2, pay_time = ?, transaction_no = ? WHERE id = ?', now(), txNo, id)
-      // 冻结释放同样只按实际冻结余额封顶，total_withdraw 累计口径仍按本单名义金额计
+      const ts = now()
+      const changed = run('UPDATE withdraw SET status = 2, pay_time = ?, transaction_no = ? WHERE id = ? AND status = 1', ts, txNo, id)
+      if (Number(changed.changes) !== 1) throw badRequest('提现单状态已变化，请刷新后重试')
       const wallet = get<{ frozen: number }>('SELECT frozen FROM wallet WHERE member_id = ?', Number(w.memberId))
-      const released = Math.min(Number(w.amount), Number(wallet?.frozen ?? 0))
-      run(
-        'UPDATE wallet SET frozen = frozen - ?, total_withdraw = total_withdraw + ?, updated_at = ? WHERE member_id = ?',
-        released, Number(w.amount), now(), Number(w.memberId),
+      if (!wallet || Number(wallet.frozen) < Number(w.amount)) throw badRequest('钱包冻结金额与提现单不一致，已阻止打款，请先核对账目')
+      const released = run(
+        'UPDATE wallet SET frozen = frozen - ?, total_withdraw = total_withdraw + ?, updated_at = ? WHERE member_id = ? AND frozen >= ?',
+        Number(w.amount), Number(w.amount), ts, Number(w.memberId), Number(w.amount),
       )
+      if (Number(released.changes) !== 1) throw badRequest('钱包冻结金额已变化，请刷新后重试')
       recordFinanceFlow(4, -Number(w.actualAmount), String(w.withdrawNo), `提现打款：会员 ${String(w.memberId)}`)
+      logOperation(String(req.auth?.username || ''), '提现管理', '打款',
+        `打款提现单 ${String(w.withdrawNo)}（交易号 ${txNo}）`, String(req.ip || ''))
     })
-    logOperation(String(req.auth?.username || ''), '提现管理', '打款',
-      `打款提现单 ${String(w.withdrawNo)}（交易号 ${txNo}）`, String(req.ip || ''))
     ok(res, null, '打款完成')
   } catch (e) { next(e) }
 })

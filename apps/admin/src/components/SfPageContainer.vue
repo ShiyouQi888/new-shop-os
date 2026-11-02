@@ -24,7 +24,7 @@ defineProps<{
 
 <style scoped>
 .sf-page-container {
-  padding: 20px;
+  padding: 0;
 }
 .sf-page-header {
   display: flex;

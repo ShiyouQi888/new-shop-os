@@ -51,7 +51,6 @@
               </template>
               <template v-else-if="row.status === 2">
                 <el-button link type="success" @click="completeResell(row as ResellOrder)">确认结算</el-button>
-                <el-button link type="danger" @click="cancelResell(row as ResellOrder)">取消</el-button>
               </template>
               <el-button v-else link type="primary" @click="openDetail(row as ResellOrder)">详情</el-button>
             </template>
@@ -111,8 +110,8 @@
 import { ref, reactive, onMounted } from 'vue'
 import { Search, RefreshLeft } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { apiResell, apiOrder } from '@/api'
-import { type ResellOrder, type ResellStatus, type Order, ResellStatusLabels, OrderStatus } from '@shop-os/shared'
+import { apiResell } from '@/api'
+import { type ResellOrder, type ResellStatus, ResellStatusLabels } from '@shop-os/shared'
 import SfPageContainer from '@/components/SfPageContainer.vue'
 import SfPriceTag from '@/components/SfPriceTag.vue'
 
@@ -128,7 +127,7 @@ const matchVisible = ref(false)
 const detailVisible = ref(false)
 const current = ref<ResellOrder | null>(null)
 const matchOrderId = ref<number | undefined>(undefined)
-const matchableOrders = ref<Order[]>([])
+const matchableOrders = ref<Array<{ id: number; orderNo: string; receiverName: string; payAmount: number }>>([])
 
 const resellStatusTag = (status: number) => {
   const map: Record<number, 'primary' | 'success' | 'warning' | 'danger' | 'info'> = { 0: 'warning', 1: 'primary', 2: 'warning', 3: 'success', 4: 'info', 5: 'danger' }
@@ -152,9 +151,8 @@ const resetSearch = () => { filters.status = ''; filters.keyword = ''; search() 
 const openMatch = async (row: ResellOrder) => {
   current.value = row
   matchOrderId.value = undefined
-  // 加载可匹配的零售订单（待发货）
-  const res = await apiOrder.getList({ page: 1, pageSize: 50, orderType: 1, status: OrderStatus.PaidPendingShip })
-  matchableOrders.value = res.list
+  // 仅拉取尚未匹配的待发货零售单，服务端也会执行权限与状态校验。
+  matchableOrders.value = await apiResell.getPendingOrders()
   matchVisible.value = true
 }
 

@@ -1,5 +1,5 @@
 // ===== 转卖自动匹配：商城/入会礼包订单命中转卖商品池后，自动匹配最早的一笔待匹配转卖单 =====
-import { get, all, run } from '../db/index.js'
+import { get, all, run, transaction } from '../db/index.js'
 import { now } from '../utils/index.js'
 
 const autoMatchEnabled = () =>
@@ -25,9 +25,11 @@ export function tryAutoMatchResell(orderId: number) {
   )
   if (!hit) return
 
-  const pending = get<{ id: number }>('SELECT id FROM resell_order WHERE status = 0 ORDER BY id ASC LIMIT 1')
-  if (!pending) return
-
-  run('UPDATE resell_order SET status = 2, match_order_id = ?, match_time = ?, auto_matched = 1 WHERE id = ?',
-    orderId, now(), pending.id)
+  transaction(() => {
+    if (get('SELECT id FROM resell_order WHERE match_order_id = ? AND status IN (2,3) LIMIT 1', orderId)) return
+    const pending = get<{ id: number }>('SELECT id FROM resell_order WHERE status = 0 ORDER BY id ASC LIMIT 1')
+    if (!pending) return
+    run('UPDATE resell_order SET status = 2, match_order_id = ?, match_time = ?, auto_matched = 1 WHERE id = ? AND status = 0',
+      orderId, now(), pending.id)
+  })
 }

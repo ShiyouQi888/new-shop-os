@@ -47,10 +47,16 @@
       <!-- 顶栏 -->
       <el-header class="admin-header">
         <div class="header-left">
-          <el-icon class="collapse-btn" @click="collapsed = !collapsed">
-            <Fold v-if="!collapsed" />
-            <Expand v-else />
-          </el-icon>
+          <el-button
+            class="collapse-btn"
+            text
+            circle
+            :aria-label="collapsed ? '展开侧边菜单' : '收起侧边菜单'"
+            :aria-expanded="!collapsed"
+            @click="collapsed = !collapsed"
+          >
+            <el-icon><Fold v-if="!collapsed" /><Expand v-else /></el-icon>
+          </el-button>
           <el-breadcrumb separator="/">
             <el-breadcrumb-item
               v-for="item in breadcrumbItems"
@@ -62,15 +68,15 @@
           </el-breadcrumb>
         </div>
         <div class="header-right">
-          <el-tooltip content="刷新" placement="bottom">
-            <el-icon class="header-icon" @click="refresh"><Refresh /></el-icon>
+          <el-tooltip content="刷新当前页面" placement="bottom">
+            <el-button class="header-icon" text circle aria-label="刷新当前页面" @click="refresh"><el-icon><Refresh /></el-icon></el-button>
           </el-tooltip>
-          <el-tooltip content="全屏" placement="bottom">
-            <el-icon class="header-icon" @click="toggleFullscreen"><FullScreen /></el-icon>
+          <el-tooltip content="切换全屏" placement="bottom">
+            <el-button class="header-icon" text circle aria-label="切换全屏" @click="toggleFullscreen"><el-icon><FullScreen /></el-icon></el-button>
           </el-tooltip>
           <el-dropdown trigger="click" @command="handleUserCommand">
             <div class="user-info">
-              <el-avatar :size="32" :src="user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin'" />
+              <el-avatar :size="32" :src="user?.avatar || ''"><el-icon><UserFilled /></el-icon></el-avatar>
               <span class="username">{{ user?.name || '超级管理员' }}</span>
               <el-icon class="user-caret"><ArrowDown /></el-icon>
             </div>
@@ -104,10 +110,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter, type RouteRecordRaw } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
-import { Fold, Expand, Refresh, FullScreen, ArrowDown, SwitchButton } from '@element-plus/icons-vue'
+import { Fold, Expand, Refresh, FullScreen, ArrowDown, SwitchButton, UserFilled } from '@element-plus/icons-vue'
 import { adminRoutes } from '@/router/routes'
 import { getUser, getPermissions, clearAuth } from '@/utils/auth'
 import { siteBranding, ensureSiteBranding } from '@/utils/site'
@@ -115,7 +121,8 @@ import { apiAuth } from '@/api'
 
 const route = useRoute()
 const router = useRouter()
-const collapsed = ref(false)
+const collapsed = ref(localStorage.getItem('shop_os_admin_menu_collapsed') === '1')
+watch(collapsed, value => localStorage.setItem('shop_os_admin_menu_collapsed', value ? '1' : '0'))
 ensureSiteBranding()
 const user = getUser()
 /** 权限码数组；null = 超管全部可见 */
@@ -202,11 +209,12 @@ const refresh = () => {
   router.go(0)
 }
 
-const toggleFullscreen = () => {
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen()
-  } else {
-    document.exitFullscreen()
+const toggleFullscreen = async () => {
+  try {
+    if (!document.fullscreenElement) await document.documentElement.requestFullscreen()
+    else await document.exitFullscreen()
+  } catch {
+    ElMessage.warning('浏览器未允许切换全屏，请检查当前窗口权限')
   }
 }
 </script>
@@ -307,8 +315,9 @@ const toggleFullscreen = () => {
   gap: 16px;
 }
 .collapse-btn {
-  font-size: 20px;
-  cursor: pointer;
+  width: 34px;
+  height: 34px;
+  padding: 0;
   color: #626A73;
   transition: color 0.2s;
 }
@@ -321,8 +330,9 @@ const toggleFullscreen = () => {
   gap: 20px;
 }
 .header-icon {
-  font-size: 18px;
-  cursor: pointer;
+  width: 34px;
+  height: 34px;
+  padding: 0;
   color: #626A73;
 }
 .header-icon:hover {

@@ -46,10 +46,10 @@
     <!-- 转卖规则 -->
     <div class="rules-card premium-card">
       <div class="card-title">转卖规则</div>
-      <div class="rule-item">• 服务费率 20%，从转卖款中扣除</div>
-      <div class="rule-item">• 快递费 ¥10，由卖家承担</div>
-      <div class="rule-item">• 匹配超时 30 天，系统兜底处理</div>
-      <div class="rule-item">• 未匹配前可随时取消</div>
+      <div class="rule-item">• 服务费率 {{ serviceFeeRate }}%，从转卖款中扣除</div>
+      <div class="rule-item">• 快递费 {{ formatMoney(shippingFee) }}，由卖家承担</div>
+      <div class="rule-item">• 待匹配前可取消；匹配完成后需按流程结算</div>
+      <div class="rule-item">• 结算款进入佣金钱包，可按提现规则申请提现</div>
     </div>
 
     <!-- 转卖记录 -->
@@ -90,14 +90,15 @@ const activeTab = ref(0)
 const credits = ref<Array<{ id: number; month: string; remainAmount: number; resellableAmount: number; status: number }>>([])
 const list = ref<ResellOrder[]>([])
 const submitting = ref(false)
+const serviceFeeRate = ref(20)
+const shippingFee = ref(10)
 // 消费返还所得额度不支持转卖，仅 resellableAmount（入会礼包发放部分）可转卖；固定取最近一笔可转卖额度，无需手动选择
 const usableCredits = computed(() => credits.value.filter(c => c.resellableAmount > 0 && [0, 1].includes(Number(c.status))))
 const selectedCredit = computed(() => usableCredits.value[0] || null)
 // 转卖固定为一次性转卖全部可转卖额度，商品价值直接等于可转卖额度，不允许调整
 const goodsValue = computed(() => Number(selectedCredit.value?.resellableAmount ?? 0))
-const serviceFee = computed(() => Number((goodsValue.value * 0.2).toFixed(2)))
-const shippingFee = 10
-const settleAmount = computed(() => Number(Math.max(goodsValue.value - serviceFee.value - shippingFee, 0).toFixed(2)))
+const serviceFee = computed(() => Number((goodsValue.value * serviceFeeRate.value / 100).toFixed(2)))
+const settleAmount = computed(() => Number(Math.max(goodsValue.value - serviceFee.value - shippingFee.value, 0).toFixed(2)))
 const creditLabel = computed(() => selectedCredit.value
   ? `${selectedCredit.value.month} 可转卖 ${formatMoney(selectedCredit.value.resellableAmount)}`
   : '暂无可转卖额度')
@@ -155,10 +156,13 @@ onMounted(async () => {
 
 const loadPageData = async () => {
   if (!userStore.member) return
-  const [creditRows, resellRows] = await Promise.all([
+  const [creditRows, resellRows, config] = await Promise.all([
     api.getMonthlyCredit(userStore.member.id),
     api.getResellOrders(userStore.member.id),
+    api.getResellConfig(),
   ])
+  serviceFeeRate.value = Number(config.serviceFeeRate)
+  shippingFee.value = Number(config.shippingFee)
   credits.value = creditRows.map(c => ({
     id: c.id,
     month: c.month,

@@ -84,7 +84,11 @@ export function settleOrderCommissions(orderId: number) {
   const ts = now()
   for (const row of rows) {
     transaction(() => {
-      run('UPDATE commission SET status = 1, settle_time = ?, update_time = ? WHERE id = ?', ts, ts, row.id)
+      const changed = run(
+        'UPDATE commission SET status = 1, settle_time = ?, update_time = ? WHERE id = ? AND status = 0 AND settlement_due_time <= ?',
+        ts, ts, row.id, ts,
+      )
+      if (Number(changed.changes) !== 1) return
       creditWallet(row.memberId, Number(row.amount), ts)
       recordFinanceFlow(3, -Number(row.amount), row.orderNo, `佣金结算支出：会员 ${row.memberId}`)
     })
@@ -94,8 +98,13 @@ export function settleOrderCommissions(orderId: number) {
 /** 钱包余额/累计收入统一走 money() 取整再写库，避免多笔结算/回滚长期累加产生浮点漂移（与 services/finance.ts 的口径保持一致） */
 function creditWallet(memberId: number, amount: number, ts: string) {
   const wallet = get<{ balance: number; totalIncome: number }>('SELECT balance, total_income AS totalIncome FROM wallet WHERE member_id = ?', memberId)
-  run('UPDATE wallet SET balance = ?, total_income = ?, updated_at = ? WHERE member_id = ?',
-    money(Number(wallet?.balance ?? 0) + amount), money(Number(wallet?.totalIncome ?? 0) + amount), ts, memberId)
+  if (!wallet) throw new Error(`会员 ${memberId} 钱包不存在，佣金结算已回滚`)
+  const changed = run(
+    'UPDATE wallet SET balance = ?, total_income = ?, updated_at = ? WHERE member_id = ? AND balance = ? AND total_income = ?',
+    money(Number(wallet.balance) + amount), money(Number(wallet.totalIncome) + amount), ts,
+    memberId, Number(wallet.balance), Number(wallet.totalIncome),
+  )
+  if (Number(changed.changes) !== 1) throw new Error(`会员 ${memberId} 钱包余额已变化，佣金结算已回滚`)
 }
 
 export function scheduleOrderCommissions(orderId: number) {
@@ -130,7 +139,8 @@ export function forceSettleOrderCommissions(orderId: number) {
   const ts = now()
   for (const row of rows) {
     transaction(() => {
-      run('UPDATE commission SET status = 1, settle_time = ?, update_time = ? WHERE id = ?', ts, ts, row.id)
+      const changed = run('UPDATE commission SET status = 1, settle_time = ?, update_time = ? WHERE id = ? AND status = 0', ts, ts, row.id)
+      if (Number(changed.changes) !== 1) return
       creditWallet(row.memberId, Number(row.amount), ts)
       recordFinanceFlow(3, -Number(row.amount), row.orderNo, `佣金强制结算支出：会员 ${row.memberId}`)
     })

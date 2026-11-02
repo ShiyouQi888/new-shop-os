@@ -17,7 +17,8 @@ export const PERMISSIONS: PermissionItem[] = [
   { code: 'banner:config', name: '管理首页轮播图', group: '商城管理' },
   // 订单
   { code: 'order:view', name: '查看订单', group: '订单管理' },
-  { code: 'order:ship', name: '发货/确认', group: '订单管理', desc: '单发/批量发货、退款审核' },
+  { code: 'order:ship', name: '订单履约', group: '订单管理', desc: '单发/批量发货、订单状态处理' },
+  { code: 'order:refund', name: '退款审核', group: '订单管理', desc: '审核退款申请并登记退款结果' },
   // 会员
   { code: 'member:view', name: '查看会员', group: '会员管理' },
   { code: 'member:edit', name: '管理会员', group: '会员管理', desc: '新增/冻结/额度调整' },
@@ -68,7 +69,7 @@ export const BUILTIN_ROLES: { code: string; name: string; description: string; p
     description: '负责商城、订单、会员、权益等日常运营',
     permissions: [
       'dashboard:view', 'product:view', 'product:edit', 'category:edit', 'gift:edit', 'banner:config',
-      'order:view', 'order:ship', 'member:view', 'member:edit',
+      'order:view', 'order:ship', 'order:refund', 'member:view', 'member:edit',
       'benefit:config', 'credit:view', 'credit:adjust', 'resell:view', 'resell:match',
       'relation:view', 'poster:config', 'workorder:view', 'workorder:handle', 'help:manage',
       'system:log', 'system:file',
@@ -79,7 +80,7 @@ export const BUILTIN_ROLES: { code: string; name: string; description: string; p
     name: '财务',
     description: '负责佣金、提现、财务资金',
     permissions: [
-      'dashboard:view', 'commission:view', 'withdraw:view', 'withdraw:audit',
+      'dashboard:view', 'commission:view', 'commission:config', 'withdraw:view', 'withdraw:audit',
       'relation:view', 'credit:view', 'finance:view', 'system:log',
     ],
   },
@@ -87,6 +88,6 @@ export const BUILTIN_ROLES: { code: string; name: string; description: string; p
     code: 'customer_service',
     name: '客服',
     description: '处理订单、售后与会员咨询',
-    permissions: ['dashboard:view', 'order:view', 'order:ship', 'member:view', 'credit:view', 'workorder:view', 'workorder:handle'],
+    permissions: ['dashboard:view', 'order:view', 'order:ship', 'order:refund', 'member:view', 'credit:view', 'workorder:view', 'workorder:handle'],
   },
 ]

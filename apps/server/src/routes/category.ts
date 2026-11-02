@@ -10,7 +10,7 @@ const router = Router()
 router.use(requireAuth)
 
 /** GET /categories 分类树 */
-router.get('/', (_req, res, next) => {
+router.get('/', requirePermission('category:edit'), (_req, res, next) => {
   try {
     const list = all(
       `SELECT c.id, c.name, c.parent_id AS parentId, c.icon, c.sort, c.is_gift_zone AS isGiftZone, c.status,

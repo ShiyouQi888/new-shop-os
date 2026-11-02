@@ -151,8 +151,8 @@ export async function seed() {
   let skuId = 1
   for (const [spuId, skuName, price, orig] of skuDefs) {
     run(
-      'INSERT OR IGNORE INTO product_sku (id, spu_id, sku_name, spec_info, price, original_price, stock, sales, image, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)',
-      skuId, spuId, skuName, JSON.stringify({ spec: skuName }), price, orig, 500 + spuId * 37, 12 + spuId * 7,
+      'INSERT OR IGNORE INTO product_sku (id, spu_id, sku_name, spec_info, price, market_price, cost_price, original_price, stock, sales, image, status) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 1)',
+      skuId, spuId, skuName, JSON.stringify({ spec: skuName }), price, orig, orig, 500 + spuId * 37, 12 + spuId * 7,
       `https://picsum.photos/seed/sk${skuId}/300`,
     )
     skuId++

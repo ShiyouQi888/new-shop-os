@@ -35,12 +35,26 @@
             <van-button v-if="order.status === OrderStatus.PendingPayment" size="small" :color="currentTheme.primary" round @click="openPay(order)">去支付</van-button>
             <van-button v-if="order.status === OrderStatus.Shipped" size="small" :color="currentTheme.primary" round @click="confirmReceived(order)">确认收货</van-button>
             <van-button v-if="order.status === OrderStatus.PaidPendingShip" size="small" round plain @click="remindShip(order)">催发货</van-button>
+            <van-button v-if="order.status === OrderStatus.PaidPendingShip" size="small" round plain type="danger" @click="openRefund(order)">申请退款</van-button>
             <van-button v-if="order.status === OrderStatus.Completed" size="small" round plain @click="rebuy(order)">再次购买</van-button>
           </div>
         </div>
       </section>
       <van-empty v-if="!filteredOrders.length" description="暂无订单" />
     </main>
+
+    <van-popup v-model:show="refundDialogVisible" position="center" round class="refund-popup">
+      <div class="refund-form">
+        <div class="refund-title">申请整单退款</div>
+        <p class="refund-hint">当前仅支持已付款、未发货订单。提交后由商城审核，审核完成前订单与库存保持锁定。</p>
+        <div class="refund-order">订单 {{ refundOrder?.orderNo }} · {{ formatMoney(refundOrder?.payAmount || 0) }}</div>
+        <van-field v-model="refundReason" type="textarea" rows="3" maxlength="200" show-word-limit placeholder="请填写退款原因（至少 2 个字）" />
+        <div class="refund-actions">
+          <van-button round plain @click="refundDialogVisible = false">取消</van-button>
+          <van-button round :color="currentTheme.primary" :loading="isRefunding" @click="submitRefund">提交申请</van-button>
+        </div>
+      </div>
+    </van-popup>
 
     <van-popup v-model:show="showPayment" position="bottom" round closeable>
       <div class="pay-popup">
@@ -78,6 +92,10 @@ const activeTab = ref(Number(route.query.status || 0))
 const showPayment = ref(false)
 const isPaying = ref(false)
 const selectedOrder = ref<Order | null>(null)
+const refundOrder = ref<Order | null>(null)
+const refundDialogVisible = ref(false)
+const refundReason = ref('')
+const isRefunding = ref(false)
 const payType = ref<'wechat' | 'alipay'>('wechat')
 const statusMap = [null, OrderStatus.PendingPayment, OrderStatus.PaidPendingShip, OrderStatus.Shipped, OrderStatus.Completed]
 
@@ -137,6 +155,32 @@ const confirmReceived = (order: Order) => {
   }).catch(() => {})
 }
 
+const openRefund = (order: Order) => {
+  refundOrder.value = order
+  refundReason.value = ''
+  refundDialogVisible.value = true
+}
+
+const submitRefund = async () => {
+  if (!refundOrder.value) return
+  const reason = refundReason.value.trim()
+  if (reason.length < 2) {
+    showToast('请至少填写 2 个字的退款原因')
+    return
+  }
+  isRefunding.value = true
+  try {
+    await api.requestOrderRefund(refundOrder.value.id, reason)
+    refundDialogVisible.value = false
+    showSuccessToast('退款申请已提交')
+    await orderStore.loadOrders()
+  } catch {
+    showToast('申请未提交，请刷新订单状态后重试')
+  } finally {
+    isRefunding.value = false
+  }
+}
+
 const cancelOrder = (order: Order) => {
   showConfirmDialog({
     title: '取消订单',
@@ -192,6 +236,14 @@ const rebuy = (order: Order) => {
 .order-total { color: var(--text-secondary); font-size: 13px; }
 .order-actions { display: flex; gap: 8px; margin-left: auto; }
 .order-actions :deep(.van-button) { min-width: 72px; border-radius: 7px; font-weight: 700; }
+.refund-popup { width: min(360px, calc(100vw - 40px)); overflow: hidden; }
+.refund-form { padding: 22px 20px 18px; }
+.refund-title { color: #171A1F; font-size: 18px; font-weight: 700; }
+.refund-hint { margin: 9px 0 12px; color: #7A8490; font-size: 12px; line-height: 1.65; }
+.refund-order { margin-bottom: 12px; padding: 10px 12px; border-radius: 9px; color: #606B77; background: #F6F7F9; font-size: 12px; }
+.refund-form :deep(.van-cell) { padding: 10px 12px; border: 1px solid #E6E9ED; border-radius: 10px; background: #fff; }
+.refund-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+.refund-actions .van-button { min-width: 92px; }
 .pay-popup { padding: 20px 16px 18px; }
 .popup-title { color: var(--text-primary); font-size: 17px; font-weight: 800; text-align: center; }
 .pay-order-no { margin-top: 6px; color: var(--text-secondary); font-size: 12px; text-align: center; }

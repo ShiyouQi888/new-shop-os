@@ -1,15 +1,15 @@
 // ===== 商城端公开接口 /api/v1/shop =====
 import { Router } from 'express'
 import { z } from 'zod'
-import { all, get, run } from '../db/index.js'
+import { all, get, run, transaction } from '../db/index.js'
 import { ok, notFound, badRequest, forbidden } from '../utils/response.js'
 import { int, str, now, genNo, parseJson, money } from '../utils/index.js'
 import { requireMember } from '../middlewares/auth.js'
-import { completeMockPayment, createPayment } from '../services/payment.js'
+import { activateGiftPackage, completeMockPayment, createPayment, getPaymentMode } from '../services/payment.js'
 import { createPendingCommissions, scheduleOrderCommissions, settleDueCommissions } from '../services/distribution.js'
 import { recordFinanceFlow } from '../services/finance.js'
 import { restoreOrderStock } from '../services/inventory.js'
-import { grantConsumptionCredit } from '../services/credit.js'
+import { finalizeCreditRedeem, grantConsumptionCredit } from '../services/credit.js'
 import { tryAutoMatchResell } from '../services/resellMatch.js'
 
 const router = Router()
@@ -32,14 +32,14 @@ router.get('/home', (_req, res, next) => {
       `SELECT id, name, main_image AS mainImage, description, is_gift_package AS isGiftPackage,
               is_monthly_product AS isMonthlyProduct, exclude_discount AS excludeDiscount,
               (SELECT MIN(price) FROM product_sku s WHERE s.spu_id = product_spu.id AND s.status = 1) AS minPrice,
-              (SELECT MIN(CASE WHEN original_price > price THEN original_price ELSE NULL END) FROM product_sku s WHERE s.spu_id = product_spu.id AND s.status = 1) AS minOriginalPrice
+              (SELECT MIN(CASE WHEN market_price > price THEN market_price ELSE NULL END) FROM product_sku s WHERE s.spu_id = product_spu.id AND s.status = 1) AS minOriginalPrice
        FROM product_spu WHERE status = 1 ORDER BY sort, id DESC LIMIT 6`,
     )
     const newProducts = all(
       `SELECT id, name, main_image AS mainImage, description,
               is_gift_package AS isGiftPackage, is_monthly_product AS isMonthlyProduct, exclude_discount AS excludeDiscount,
               (SELECT MIN(price) FROM product_sku s WHERE s.spu_id = product_spu.id AND s.status = 1) AS minPrice,
-              (SELECT MIN(CASE WHEN original_price > price THEN original_price ELSE NULL END) FROM product_sku s WHERE s.spu_id = product_spu.id AND s.status = 1) AS minOriginalPrice
+              (SELECT MIN(CASE WHEN market_price > price THEN market_price ELSE NULL END) FROM product_sku s WHERE s.spu_id = product_spu.id AND s.status = 1) AS minOriginalPrice
        FROM product_spu WHERE status = 1 AND is_gift_package = 0 ORDER BY id DESC LIMIT 4`,
     )
     const giftPackages = all(
@@ -95,7 +95,7 @@ router.get('/products', (req, res, next) => {
       `SELECT p.id, p.name, p.main_image AS mainImage, p.description, p.sort, p.is_gift_package AS isGiftPackage,
               p.is_monthly_product AS isMonthlyProduct, p.exclude_discount AS excludeDiscount,
               (SELECT MIN(price) FROM product_sku s WHERE s.spu_id = p.id AND s.status = 1) AS minPrice,
-              (SELECT MIN(CASE WHEN original_price > price THEN original_price ELSE NULL END) FROM product_sku s WHERE s.spu_id = p.id AND s.status = 1) AS minOriginalPrice
+              (SELECT MIN(CASE WHEN market_price > price THEN market_price ELSE NULL END) FROM product_sku s WHERE s.spu_id = p.id AND s.status = 1) AS minOriginalPrice
        FROM product_spu p ${where} ORDER BY p.sort, p.id DESC LIMIT ? OFFSET ?`,
       ...params, pageSize, (page - 1) * pageSize,
     )
@@ -109,7 +109,7 @@ router.get('/products/:id', (req, res, next) => {
     const id = Number(req.params.id)
     const spu = get('SELECT * FROM product_spu WHERE id = ? AND status = 1', id)
     if (!spu) throw notFound('商品不存在')
-    const skus = all('SELECT id, sku_name AS skuName, spec_info AS specInfo, price, original_price AS originalPrice, stock, image FROM product_sku WHERE spu_id = ? AND status = 1', id)
+    const skus = all('SELECT id, sku_name AS skuName, spec_info AS specInfo, price, market_price AS marketPrice, stock, image FROM product_sku WHERE spu_id = ? AND status = 1', id)
     ok(res, { ...spu, images: parseJson(spu.images, []), skus })
   } catch (e) { next(e) }
 })
@@ -129,7 +129,7 @@ router.get('/gift-packages', (_req, res, next) => {
 router.post('/orders', requireMember, (req, res, next) => {
   try {
     const body = z.object({
-      items: z.array(z.object({ skuId: z.number().int(), quantity: z.number().int().min(1) })).optional(),
+      items: z.array(z.object({ skuId: z.number().int(), quantity: z.number().int().min(1).max(999) })).optional(),
       giftPackageId: z.number().int().optional(),
       receiverName: z.string().min(1).max(30),
       receiverPhone: z.string().min(5).max(20),
@@ -164,6 +164,7 @@ router.post('/orders', requireMember, (req, res, next) => {
     } else {
       const level = get<{ shopDiscount: number }>('SELECT shop_discount AS shopDiscount FROM level_config WHERE level = ? AND status = 1', member.level)
       const shopDiscount = Number(level?.shopDiscount ?? 100)
+      if (!Number.isFinite(shopDiscount) || shopDiscount < 0 || shopDiscount > 100) throw badRequest('会员折扣配置异常，请联系管理员')
       for (const it of body.items || []) {
         const sku = get<Record<string, unknown>>(
           `SELECT s.*, p.exclude_discount AS excludeDiscount
@@ -186,24 +187,46 @@ router.post('/orders', requireMember, (req, res, next) => {
     if (!itemRows.length) throw badRequest('订单内容为空')
 
     total = money(total)
-    payAmount = money(payAmount || total)
-    discountAmount = money(Math.max(0, total - payAmount))
-    const r = run(
-      `INSERT INTO "order" (order_no, member_id, member_name, order_type, total_amount, discount_amount, shipping_fee, pay_amount, status,
-        receiver_name, receiver_phone, receiver_address, remark, create_time, pay_time)
-       VALUES (?, ?, ?, ?, ?, ?, 0, ?, 0, ?, ?, ?, ?, ?, NULL)`,
-      genNo('SO'), member.id, member.nickname, orderType, total, discountAmount, payAmount, body.receiverName, body.receiverPhone,
-      body.receiverAddress, body.remark || '', now(),
-    )
-    const oid = Number(r.lastInsertRowid)
-    for (const it of itemRows) {
-      run(
-        'INSERT INTO order_item (order_id, sku_id, sku_name, spec_info, image, quantity, original_price, unit_price, total_price, member_level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        oid, it.skuId, it.skuName, '{}', it.image, it.quantity, it.originalPrice, it.unitPrice, money(it.unitPrice * it.quantity), it.memberLevel ?? member.level,
+    const merchandisePayAmount = money(payAmount)
+    discountAmount = money(Math.max(0, total - merchandisePayAmount))
+    let shippingFee = 0
+    if (orderType === 1) {
+      const shippingConfig = all<{ key: string; value: string }>(
+        'SELECT config_key AS key, config_value AS value FROM system_config WHERE config_key IN (?, ?)',
+        'shipping.default_fee', 'shipping.free_threshold',
       )
-      run('UPDATE product_sku SET stock = stock - ?, sales = sales + ? WHERE id = ?', it.quantity, it.quantity, it.skuId)
+      const readShippingConfig = (key: string, fallback: number) => {
+        const value = Number(shippingConfig.find(row => row.key === key)?.value ?? fallback)
+        if (!Number.isFinite(value) || value < 0) throw badRequest('商城运费配置异常，请联系管理员')
+        return value
+      }
+      const defaultShippingFee = money(readShippingConfig('shipping.default_fee', 10))
+      const freeShippingThreshold = money(readShippingConfig('shipping.free_threshold', 99))
+      shippingFee = freeShippingThreshold <= 0 || merchandisePayAmount >= freeShippingThreshold ? 0 : defaultShippingFee
     }
-    ok(res, { orderId: oid, payAmount }, '下单成功', 201)
+    payAmount = money(merchandisePayAmount + shippingFee)
+    const orderNo = genNo('SO')
+    const oid = transaction(() => {
+      const r = run(
+        `INSERT INTO "order" (order_no, member_id, member_name, order_type, total_amount, discount_amount, shipping_fee, pay_amount, status,
+          receiver_name, receiver_phone, receiver_address, remark, create_time, pay_time)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, NULL)`,
+        orderNo, member.id, member.nickname, orderType, total, discountAmount, shippingFee, payAmount, body.receiverName, body.receiverPhone,
+        body.receiverAddress, body.remark || '', now(),
+      )
+      const orderId = Number(r.lastInsertRowid)
+      for (const it of itemRows) {
+        const stockUpdate = run('UPDATE product_sku SET stock = stock - ?, sales = sales + ? WHERE id = ? AND stock >= ?',
+          it.quantity, it.quantity, it.skuId, it.quantity)
+        if (Number(stockUpdate.changes) !== 1) throw badRequest(`${it.skuName} 库存不足，请刷新后重试`)
+        run(
+          'INSERT INTO order_item (order_id, sku_id, sku_name, spec_info, image, quantity, original_price, unit_price, total_price, member_level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          orderId, it.skuId, it.skuName, '{}', it.image, it.quantity, it.originalPrice, it.unitPrice, money(it.unitPrice * it.quantity), it.memberLevel ?? member.level,
+        )
+      }
+      return orderId
+    })
+    ok(res, { orderId: oid, orderNo, totalAmount: total, discountAmount, shippingFee, payAmount }, '下单成功', 201)
   } catch (e) { next(e) }
 })
 
@@ -243,6 +266,34 @@ router.get('/distribution-config', (_req, res, next) => {
       activeLevels: getVal('distribution.enabled') === 1
         ? [1, 2, 3].filter(l => getVal(`distribution.level_${l}`) === 1)
         : [],
+    })
+  } catch (e) { next(e) }
+})
+
+/** GET /shop/resell-config 转卖预估配置（公开；金额最终以后端创建的转卖单快照为准） */
+router.get('/resell-config', (_req, res, next) => {
+  try {
+    const read = (key: string, fallback: number) => {
+      const value = Number(get<{ v: string }>('SELECT config_value AS v FROM system_config WHERE config_key = ?', key)?.v ?? fallback)
+      return Number.isFinite(value) ? value : fallback
+    }
+    ok(res, {
+      serviceFeeRate: read('resell.service_fee_rate', 20),
+      shippingFee: read('resell.shipping_fee', 10),
+    })
+  } catch (e) { next(e) }
+})
+
+/** GET /shop/commerce-config 商城结算配置（公开；用于前台预估，订单金额仍由服务端计算） */
+router.get('/commerce-config', (_req, res, next) => {
+  try {
+    const read = (key: string, fallback: number) => {
+      const value = Number(get<{ v: string }>('SELECT config_value AS v FROM system_config WHERE config_key = ?', key)?.v ?? fallback)
+      return Number.isFinite(value) && value >= 0 ? value : fallback
+    }
+    ok(res, {
+      defaultShippingFee: read('shipping.default_fee', 10),
+      freeShippingThreshold: read('shipping.free_threshold', 99),
     })
   } catch (e) { next(e) }
 })
@@ -301,25 +352,26 @@ router.post('/payments/:paymentNo/simulate', requireMember, (req, res, next) => 
   } catch (e) { next(e) }
 })
 
-/** POST /shop/orders/:id/pay 支付订单（兼容旧流程：直接支付成功；新流程请先创建支付单再模拟回调） */
+/** POST /shop/orders/:id/pay 旧版模拟支付兼容入口；真实模式必须使用支付通道回调。 */
 router.post('/orders/:id/pay', requireMember, (req, res, next) => {
   try {
+    if (getPaymentMode() !== 'mock') throw badRequest('当前为真实支付模式，请通过支付通道完成付款')
     const id = Number(req.params.id)
     const order = get<Record<string, unknown>>('SELECT * FROM "order" WHERE id = ?', id)
     if (!order) throw notFound('订单不存在')
     if (Number(order.memberId) !== req.member!.mid) throw forbidden('无权操作他人订单')
     if (Number(order.status) !== 0) throw badRequest('仅待支付订单可支付')
-    const nextStatus = Number(order.orderType) === 2 ? 3 : 1
-    if (nextStatus === 3) {
-      run('UPDATE "order" SET status = 3, pay_time = ?, finish_time = ? WHERE id = ?', now(), now(), id)
-    } else {
-      run('UPDATE "order" SET status = 1, pay_time = ? WHERE id = ?', now(), id)
-    }
-    recordFinanceFlow(1, Number(order.payAmount), String(order.orderNo), '订单支付收入')
-    createPendingCommissions(id)
-    grantConsumptionCredit(id)
-    tryAutoMatchResell(id)
-    if (nextStatus === 3) scheduleOrderCommissions(id)
+    transaction(() => {
+      const ts = now()
+      const updated = run('UPDATE "order" SET status = 1, pay_time = ? WHERE id = ? AND status = 0', ts, id)
+      if (Number(updated.changes) !== 1) throw badRequest('订单已处理，无需重复支付')
+      recordFinanceFlow(1, Number(order.payAmount), String(order.orderNo), '模拟订单支付收入')
+      createPendingCommissions(id)
+      grantConsumptionCredit(id)
+      tryAutoMatchResell(id)
+      if (Number(order.orderType) === 2) activateGiftPackage(id, req.member!.mid)
+      if (Number(order.orderType) === 3) finalizeCreditRedeem(id)
+    })
     ok(res, null, '支付成功')
   } catch (e) { next(e) }
 })
@@ -332,8 +384,12 @@ router.post('/orders/:id/confirm', requireMember, (req, res, next) => {
     if (!order) throw notFound('订单不存在')
     if (Number(order.memberId) !== req.member!.mid) throw forbidden('无权操作他人订单')
     if (Number(order.status) !== 2) throw badRequest('仅已发货订单可确认收货')
-    run('UPDATE "order" SET status = 3, finish_time = ? WHERE id = ?', now(), id)
-    scheduleOrderCommissions(id)
+    transaction(() => {
+      const ts = now()
+      const updated = run('UPDATE "order" SET status = 3, finish_time = ? WHERE id = ? AND status = 2', ts, id)
+      if (Number(updated.changes) !== 1) throw badRequest('订单状态已变化，请刷新后重试')
+      scheduleOrderCommissions(id)
+    })
     ok(res, null, '已确认收货')
   } catch (e) { next(e) }
 })
@@ -346,10 +402,13 @@ router.post('/orders/:id/cancel', requireMember, (req, res, next) => {
     if (!order) throw notFound('订单不存在')
     if (Number(order.memberId) !== req.member!.mid) throw forbidden('无权操作他人订单')
     if (Number(order.status) !== 0) throw badRequest('仅待支付订单可取消')
-    run('UPDATE "order" SET status = 4, cancel_time = ? WHERE id = ?', now(), id)
-    restoreOrderStock(id)
-    // 领货兑换的现金差价订单：额度/佣金钱包从未扣减过（见 finalizeCreditRedeem），这里只需清掉待处理记录
-    run('DELETE FROM credit_redeem_pending WHERE order_id = ?', id)
+    transaction(() => {
+      const updated = run('UPDATE "order" SET status = 4, cancel_time = ? WHERE id = ? AND status = 0', now(), id)
+      if (Number(updated.changes) !== 1) throw badRequest('订单状态已变化，请刷新后重试')
+      restoreOrderStock(id)
+      // 领货兑换的现金差价订单：额度/佣金钱包从未扣减过（见 finalizeCreditRedeem），这里只需清掉待处理记录
+      run('DELETE FROM credit_redeem_pending WHERE order_id = ?', id)
+    })
     ok(res, null, '订单已取消')
   } catch (e) { next(e) }
 })

@@ -3,14 +3,14 @@ import { Router } from 'express'
 import { get, paginate } from '../db/index.js'
 import { ok, notFound } from '../utils/response.js'
 import { parsePagination, int, str } from '../utils/index.js'
-import { requireAuth } from '../middlewares/auth.js'
+import { requireAuth, requirePermission } from '../middlewares/auth.js'
 import { settleDueCommissions } from '../services/distribution.js'
 
 const router = Router()
 router.use(requireAuth)
 
 /** GET /commissions?page=&pageSize=&status=&keyword= */
-router.get('/', (req, res, next) => {
+router.get('/', requirePermission('commission:view'), (req, res, next) => {
   try {
     settleDueCommissions()
     const { page, pageSize } = parsePagination(req.query)
@@ -47,7 +47,7 @@ router.get('/', (req, res, next) => {
 })
 
 /** GET /commissions/:id */
-router.get('/:id', (req, res, next) => {
+router.get('/:id', requirePermission('commission:view'), (req, res, next) => {
   try {
     settleDueCommissions()
     const id = Number(req.params.id)

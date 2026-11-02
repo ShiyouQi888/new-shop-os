@@ -66,7 +66,7 @@
             <template #default="{ row }">
               <el-button link type="primary" @click="viewDetail(row as Order)">详情</el-button>
               <el-button v-if="row.status === 1" link type="success" @click="openShip(row as Order)">发货</el-button>
-              <el-button v-if="row.status === 5" link type="warning" @click="openRefund(row as Order)">退款审核</el-button>
+              <el-button v-if="row.status === 5 && canRefund" link type="warning" @click="openRefund(row as Order & { refundReason?: string })">退款审核</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -162,9 +162,10 @@
         <el-form-item label="退款金额">
           <span class="price-red">¥{{ refundForm.amount }}</span>
         </el-form-item>
-        <el-form-item label="申请原因" v-if="refundForm.reason">
+        <el-form-item label="退款原因" v-if="refundForm.reason">
           <span>{{ refundForm.reason }}</span>
         </el-form-item>
+        <el-alert type="warning" :closable="false" show-icon title="当前仅支持未发货订单整单退款。线上真实支付退款通道尚未接通，模拟支付审核会同步记账并恢复库存。" />
         <el-form-item label="审核备注">
           <el-input v-model="refundForm.remark" type="textarea" :rows="3" placeholder="填写审核备注（可选）" />
         </el-form-item>
@@ -189,6 +190,7 @@ import {
 } from '@shop-os/shared'
 import SfPageContainer from '@/components/SfPageContainer.vue'
 import SfPriceTag from '@/components/SfPriceTag.vue'
+import { getPermissions } from '@/utils/auth'
 
 const loading = ref(false)
 const shipping = ref(false)
@@ -208,6 +210,8 @@ const shipForm = reactive({ orderId: 0, orderNo: '', logisticsCompany: '', logis
 
 const refundVisible = ref(false)
 const refundForm = reactive({ orderId: 0, orderNo: '', amount: 0, reason: '', remark: '' })
+const permissions = getPermissions()
+const canRefund = permissions === null || permissions.includes('order:refund')
 
 // 多选
 const selectedRows = ref<Order[]>([])
@@ -296,11 +300,11 @@ const confirmBatchShip = async () => {
 }
 
 // ---------- 退款审核 ----------
-const openRefund = (row: Order) => {
+const openRefund = (row: Order & { refundReason?: string }) => {
   refundForm.orderId = row.id
   refundForm.orderNo = row.orderNo
   refundForm.amount = row.payAmount
-  refundForm.reason = row.remark || ''
+  refundForm.reason = row.refundReason || ''
   refundForm.remark = ''
   refundVisible.value = true
 }
@@ -308,7 +312,7 @@ const openRefund = (row: Order) => {
 const confirmRefund = async (pass: boolean) => {
   if (!pass) {
     try {
-      await ElMessageBox.confirm('驳回后订单将恢复为发货前的状态（待发货/待收货），并非取消，确认驳回？', '驳回退款', { type: 'warning' })
+      await ElMessageBox.confirm('驳回后订单将恢复为待发货状态，不会取消订单，确认驳回？', '驳回退款', { type: 'warning' })
     } catch { return }
   }
   await apiOrder.auditRefund(refundForm.orderId, pass, refundForm.remark)

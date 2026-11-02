@@ -117,7 +117,7 @@ router.post('/upgrade', requireMember, (req, res, next) => {
     const paidGift = get(
       `SELECT o.id
        FROM "order" o JOIN order_item oi ON oi.order_id = o.id
-       WHERE o.member_id = ? AND o.order_type = 2 AND o.status = 3 AND oi.member_level = ?
+       WHERE o.member_id = ? AND o.order_type = 2 AND o.status IN (1,2,3) AND o.pay_time IS NOT NULL AND oi.member_level = ?
        ORDER BY o.id DESC LIMIT 1`,
       mid, body.level,
     )
@@ -153,8 +153,8 @@ router.post('/upgrade', requireMember, (req, res, next) => {
         remain = credit
       }
       run(
-        'INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, create_time) VALUES (?, ?, ?, ?, 1, ?, ?)',
-        recordId, mid, credit, remain, '入会礼包支付后自动发放', ts,
+        'INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, order_id, create_time) VALUES (?, ?, ?, ?, 1, ?, ?, ?)',
+        recordId, mid, credit, remain, '入会礼包支付后自动发放', Number(paidGift.id), ts,
       )
     }
     ok(res, memberDetail(mid), '代理商权益已开通')
@@ -267,7 +267,12 @@ router.post('/credits/:id/redeem', requireMember, (req, res, next) => {
 
     const credit = get<Record<string, unknown>>('SELECT * FROM credit_record WHERE id = ? AND member_id = ?', creditId, mid)
     if (!credit) throw notFound('领货额度不存在')
-    if (Number(credit.remainAmount) <= 0) throw badRequest('本月额度已用完')
+    const reservedCredit = Number(get<{ v: number }>(
+      `SELECT COALESCE(SUM(p.credit_amount),0) AS v FROM credit_redeem_pending p
+       JOIN "order" o ON o.id = p.order_id WHERE p.credit_id = ? AND o.status = 0`, creditId,
+    )?.v ?? 0)
+    const availableCredit = money(Math.max(0, Number(credit.remainAmount) - reservedCredit))
+    if (availableCredit <= 0) throw badRequest('本月可用额度已用完或已被待支付订单占用')
 
     const member = get<{ level: number; nickname: string }>('SELECT level, nickname FROM member WHERE id = ?', mid)
     if (!member) throw notFound('会员不存在')
@@ -294,7 +299,7 @@ router.post('/credits/:id/redeem', requireMember, (req, res, next) => {
     }
     if (totalCost <= 0) throw badRequest('兑换金额异常')
 
-    const remainAmount = money(Number(credit.remainAmount))
+    const remainAmount = availableCredit
     const excess = money(totalCost - remainAmount)
     if (excess <= 0 && claimMode() === 'lump_sum' && totalCost !== remainAmount) {
       throw badRequest(`当前为一次性领取模式，需一次性兑换完剩余额度（¥${remainAmount.toFixed(2)}），当前合计 ¥${totalCost.toFixed(2)}`)
@@ -305,7 +310,12 @@ router.post('/credits/:id/redeem', requireMember, (req, res, next) => {
     let walletApplied = 0
     if (excess > 0 && body.useWalletAmount > 0) {
       const wallet = get<{ balance: number }>('SELECT balance FROM wallet WHERE member_id = ?', mid)
-      walletApplied = money(Math.min(body.useWalletAmount, excess, Number(wallet?.balance ?? 0)))
+      const reservedWallet = Number(get<{ v: number }>(
+        `SELECT COALESCE(SUM(p.wallet_amount),0) AS v FROM credit_redeem_pending p
+         JOIN "order" o ON o.id = p.order_id WHERE o.member_id = ? AND o.status = 0`, mid,
+      )?.v ?? 0)
+      const availableWallet = money(Math.max(0, Number(wallet?.balance ?? 0) - reservedWallet))
+      walletApplied = money(Math.min(body.useWalletAmount, excess, availableWallet))
     }
     const cashShortfall = excess > 0 ? money(excess - walletApplied) : 0
 
@@ -315,6 +325,26 @@ router.post('/credits/:id/redeem', requireMember, (req, res, next) => {
     const orderStatus = cashShortfall > 0 ? 0 : 1
 
     const orderId = transaction(() => {
+      const currentCredit = get<{ usedAmount: number; remainAmount: number; resellableAmount: number }>(
+        'SELECT used_amount AS usedAmount, remain_amount AS remainAmount, resellable_amount AS resellableAmount FROM credit_record WHERE id = ? AND member_id = ?', creditId, mid,
+      )
+      const currentReservedCredit = Number(get<{ v: number }>(
+        `SELECT COALESCE(SUM(p.credit_amount),0) AS v FROM credit_redeem_pending p
+         JOIN "order" o ON o.id = p.order_id WHERE p.credit_id = ? AND o.status = 0`, creditId,
+      )?.v ?? 0)
+      if (!currentCredit || Number(currentCredit.remainAmount) - currentReservedCredit < creditUsed) {
+        throw badRequest('领货额度已被其他订单占用，请刷新后重新选择')
+      }
+      if (walletApplied > 0) {
+        const currentWallet = get<{ balance: number }>('SELECT balance FROM wallet WHERE member_id = ?', mid)
+        const currentReservedWallet = Number(get<{ v: number }>(
+          `SELECT COALESCE(SUM(p.wallet_amount),0) AS v FROM credit_redeem_pending p
+           JOIN "order" o ON o.id = p.order_id WHERE o.member_id = ? AND o.status = 0`, mid,
+        )?.v ?? 0)
+        if (!currentWallet || Number(currentWallet.balance) - currentReservedWallet < walletApplied) {
+          throw badRequest('佣金钱包余额已被其他订单占用，请刷新后重试')
+        }
+      }
       const orderRes = run(
         `INSERT INTO "order" (order_no, member_id, member_name, order_type, total_amount, discount_amount, shipping_fee, pay_amount, status,
           receiver_name, receiver_phone, receiver_address, remark, create_time, pay_time)
@@ -329,7 +359,9 @@ router.post('/credits/:id/redeem', requireMember, (req, res, next) => {
            VALUES (?, ?, ?, '{}', ?, ?, ?, ?, ?, ?)`,
           id, Number(sku.id), String(sku.skuName), String(sku.image || ''), quantity, Number(sku.price), Number(sku.price), lineCost, member.level,
         )
-        run('UPDATE product_sku SET stock = stock - ?, sales = sales + ? WHERE id = ?', quantity, quantity, Number(sku.id))
+        const stockUpdate = run('UPDATE product_sku SET stock = stock - ?, sales = sales + ? WHERE id = ? AND stock >= ?',
+          quantity, quantity, Number(sku.id), quantity)
+        if (Number(stockUpdate.changes) !== 1) throw badRequest(`${String(sku.skuName)} 库存不足，请刷新后重试`)
       }
 
       if (cashShortfall > 0) {
@@ -337,16 +369,19 @@ router.post('/credits/:id/redeem', requireMember, (req, res, next) => {
         run('INSERT INTO credit_redeem_pending (order_id, credit_id, credit_amount, wallet_amount, create_time) VALUES (?, ?, ?, ?, ?)',
           id, creditId, creditUsed, walletApplied, ts)
       } else {
-        const remain = money(remainAmount - creditUsed)
-        const used = money(Number(credit.usedAmount) + creditUsed)
+        const remain = money(Number(currentCredit.remainAmount) - creditUsed)
+        const used = money(Number(currentCredit.usedAmount) + creditUsed)
         // 兑换不区分额度来源，消耗后可转卖部分不能超过剩余额度
-        const resellable = money(Math.min(Number(credit.resellableAmount ?? 0), remain))
-        run('UPDATE credit_record SET used_amount = ?, remain_amount = ?, resellable_amount = ?, status = ?, update_time = ? WHERE id = ?',
-          used, remain, resellable, remain <= 0 ? 2 : 1, ts, creditId)
+        const resellable = money(Math.min(Number(currentCredit.resellableAmount ?? 0), remain))
+        const creditUpdate = run('UPDATE credit_record SET used_amount = ?, remain_amount = ?, resellable_amount = ?, status = ?, update_time = ? WHERE id = ? AND remain_amount = ? AND used_amount = ?',
+          used, remain, resellable, remain <= 0 ? 2 : 1, ts, creditId, currentCredit.remainAmount, currentCredit.usedAmount)
+        if (Number(creditUpdate.changes) !== 1) throw badRequest('领货额度已变化，请刷新后重试')
         run('INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, order_id, create_time) VALUES (?, ?, ?, ?, 2, ?, ?, ?)',
           creditId, mid, -creditUsed, remain, `领取商品自用：${summary}`, id, ts)
         if (walletApplied > 0) {
-          run('UPDATE wallet SET balance = balance - ?, updated_at = ? WHERE member_id = ?', walletApplied, ts, mid)
+          const walletUpdate = run('UPDATE wallet SET balance = balance - ?, updated_at = ? WHERE member_id = ? AND balance >= ?',
+            walletApplied, ts, mid, walletApplied)
+          if (Number(walletUpdate.changes) !== 1) throw badRequest('佣金钱包余额已变化，请刷新后重试')
         }
       }
       return id
@@ -387,35 +422,45 @@ router.post('/resells', requireMember, (req, res, next) => {
     }).parse(req.body)
     const member = get<{ nickname: string }>('SELECT nickname FROM member WHERE id = ?', mid)
     if (!member) throw notFound('会员不存在')
-    const credit = body.creditId
-      ? get<Record<string, unknown>>('SELECT * FROM credit_record WHERE id = ? AND member_id = ?', body.creditId, mid)
-      : get<Record<string, unknown>>('SELECT * FROM credit_record WHERE member_id = ? AND resellable_amount > 0 AND status IN (0,1) ORDER BY month DESC, id DESC LIMIT 1', mid)
-    if (!credit) throw badRequest('可转卖月度领货额度不足')
-    // 消费返还所得额度不支持转卖，只有入会礼包发放的部分（resellable_amount）可转卖
-    const goodsValue = money(Number(credit.resellableAmount ?? 0))
-    if (goodsValue <= 0) throw badRequest('当前额度不支持转卖，仅可用于领取商品')
-    const feeRate = Number(get<{ v: string }>('SELECT config_value AS v FROM system_config WHERE config_key = ?', 'resell.service_fee_rate')?.v ?? 20)
-    const shippingFee = Number(get<{ v: string }>('SELECT config_value AS v FROM system_config WHERE config_key = ?', 'resell.shipping_fee')?.v ?? 10)
-    const serviceFee = money(goodsValue * feeRate / 100)
-    const settleAmount = money(goodsValue - serviceFee - shippingFee)
-    if (settleAmount <= 0) throw badRequest('可转卖额度过低，扣除服务费与快递费后预计到账为 0')
-    const ts = now()
-    const d = new Date()
-    const pad = (n: number) => String(n).padStart(2, '0')
-    const resellNo = `RS${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}${String(Date.now()).slice(-6)}`
-    const r = run(
-      `INSERT INTO resell_order (resell_no, member_id, member_name, credit_id, order_id, order_no, goods_value, service_fee, shipping_fee, settle_amount, status, sku_name, create_time)
-       VALUES (?, ?, ?, ?, NULL, '', ?, ?, ?, ?, 0, ?, ?)`,
-      resellNo, mid, member.nickname, Number(credit.id), goodsValue, serviceFee, shippingFee,
-      settleAmount, body.skuName || '月度领货转卖商品', ts,
-    )
-    // 一次性转卖全部可转卖额度：remain/resellable 都清零，剩余（若有）不可转卖的部分维持不变
-    const remain = money(Number(credit.remainAmount) - goodsValue)
-    run('UPDATE credit_record SET used_amount = used_amount + ?, remain_amount = ?, resellable_amount = 0, status = ?, update_time = ? WHERE id = ?',
-      goodsValue, remain, remain <= 0 ? 4 : 1, ts, Number(credit.id))
-    run('INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, create_time) VALUES (?, ?, ?, ?, 2, ?, ?)',
-      Number(credit.id), mid, -goodsValue, remain, '发起转卖扣减月度额度', ts)
-    const id = Number(r.lastInsertRowid)
+    const id = transaction(() => {
+      const credit = body.creditId
+        ? get<Record<string, unknown>>('SELECT * FROM credit_record WHERE id = ? AND member_id = ?', body.creditId, mid)
+        : get<Record<string, unknown>>('SELECT * FROM credit_record WHERE member_id = ? AND resellable_amount > 0 AND status IN (0,1) ORDER BY month DESC, id DESC LIMIT 1', mid)
+      if (!credit) throw badRequest('可转卖月度领货额度不足')
+      // 消费返还所得额度不支持转卖，且历史异常值不得超过该记录剩余额度。
+      const goodsValue = money(Math.min(Number(credit.resellableAmount ?? 0), Number(credit.remainAmount ?? 0)))
+      if (goodsValue <= 0) throw badRequest('当前额度不支持转卖，仅可用于领取商品')
+      if (get('SELECT id FROM resell_order WHERE credit_id = ? AND status IN (0,1,2) LIMIT 1', Number(credit.id))) {
+        throw badRequest('这笔领货额度已有进行中的转卖申请')
+      }
+      const feeRate = Number(get<{ v: string }>('SELECT config_value AS v FROM system_config WHERE config_key = ?', 'resell.service_fee_rate')?.v ?? 20)
+      const shippingFee = Number(get<{ v: string }>('SELECT config_value AS v FROM system_config WHERE config_key = ?', 'resell.shipping_fee')?.v ?? 10)
+      if (!Number.isFinite(feeRate) || feeRate < 0 || feeRate >= 100 || !Number.isFinite(shippingFee) || shippingFee < 0) {
+        throw badRequest('转卖费率或快递费配置异常，请联系客服处理')
+      }
+      const serviceFee = money(goodsValue * feeRate / 100)
+      const settleAmount = money(goodsValue - serviceFee - shippingFee)
+      if (settleAmount <= 0) throw badRequest('可转卖额度过低，扣除服务费与快递费后预计到账为 0')
+      const ts = now()
+      const d = new Date()
+      const pad = (n: number) => String(n).padStart(2, '0')
+      const resellNo = `RS${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}${String(Date.now()).slice(-6)}`
+      const remain = money(Number(credit.remainAmount) - goodsValue)
+      const updated = run(
+        'UPDATE credit_record SET used_amount = used_amount + ?, remain_amount = ?, resellable_amount = resellable_amount - ?, status = ?, update_time = ? WHERE id = ? AND resellable_amount >= ? AND remain_amount >= ?',
+        goodsValue, remain, goodsValue, remain <= 0 ? 4 : 1, ts, Number(credit.id), goodsValue, goodsValue,
+      )
+      if (Number(updated.changes) !== 1) throw badRequest('可转卖额度已发生变化，请刷新后重试')
+      const r = run(
+        `INSERT INTO resell_order (resell_no, member_id, member_name, credit_id, order_id, order_no, goods_value, service_fee, shipping_fee, settle_amount, status, sku_name, create_time)
+         VALUES (?, ?, ?, ?, NULL, '', ?, ?, ?, ?, 0, ?, ?)`,
+        resellNo, mid, member.nickname, Number(credit.id), goodsValue, serviceFee, shippingFee,
+        settleAmount, body.skuName || '月度领货转卖商品', ts,
+      )
+      run('INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, create_time) VALUES (?, ?, ?, ?, 2, ?, ?)',
+        Number(credit.id), mid, -goodsValue, remain, '发起转卖扣减月度额度', ts)
+      return Number(r.lastInsertRowid)
+    })
     ok(res, get(
       `SELECT id, resell_no AS resellNo, goods_value AS goodsValue, service_fee AS serviceFee,
               shipping_fee AS shippingFee, settle_amount AS settleAmount, status, credit_id AS creditId, sku_name AS skuName, create_time AS createTime
@@ -459,7 +504,9 @@ router.get('/orders', requireMember, (req, res, next) => {
     const orders = all<{ id: number; [key: string]: unknown }>(
       `SELECT o.id, o.order_no AS orderNo, o.order_type AS orderType, o.pay_amount AS payAmount,
               o.total_amount AS totalAmount, o.status, o.create_time AS createTime, o.pay_time AS payTime,
-              o.ship_time AS shipTime, o.finish_time AS finishTime
+              o.ship_time AS shipTime, o.finish_time AS finishTime,
+              o.refund_reason AS refundReason, o.refund_request_time AS refundRequestTime,
+              o.refund_audit_remark AS refundAuditRemark
        FROM "order" o WHERE o.member_id = ? ORDER BY o.id DESC`,
       id,
     )
@@ -510,6 +557,34 @@ router.get('/orders', requireMember, (req, res, next) => {
         items,
       }
     }))
+  } catch (e) { next(e) }
+})
+
+/** POST /shop/member/orders/:id/refund 申请整单退款（仅已付款、未发货订单） */
+router.post('/orders/:id/refund', requireMember, (req, res, next) => {
+  try {
+    const id = Number(req.params.id)
+    const mid = req.member!.mid
+    const body = z.object({ reason: z.string().trim().min(2).max(200) }).parse(req.body)
+    const order = get<{ orderNo: string; orderType: number; status: number; payTime: string | null }>(
+      'SELECT order_no AS orderNo, order_type AS orderType, status, pay_time AS payTime FROM "order" WHERE id = ? AND member_id = ?', id, mid,
+    )
+    if (!order) throw notFound('订单不存在')
+    if (Number(order.orderType) !== 1) throw badRequest('礼包、领货等权益订单涉及额度或会员权益回退，请联系客服办理售后')
+    if (Number(order.status) !== 1 || !order.payTime) {
+      throw badRequest('当前仅支持已付款、未发货订单申请整单退款；已发货订单请联系客服办理退货退款')
+    }
+    transaction(() => {
+      const ts = now()
+      const updated = run(
+        `UPDATE "order" SET status = 5, refund_reason = ?, refund_request_time = ?,
+                refund_audit_remark = '', refund_audit_time = NULL
+         WHERE id = ? AND member_id = ? AND status = 1 AND pay_time IS NOT NULL`,
+        body.reason, ts, id, mid,
+      )
+      if (Number(updated.changes) !== 1) throw badRequest('订单状态已变化，请刷新后重试')
+    })
+    ok(res, null, '退款申请已提交，审核通过前订单和库存将保持锁定')
   } catch (e) { next(e) }
 })
 
@@ -602,7 +677,7 @@ router.get('/cart', requireMember, (req, res, next) => {
   try {
     const list = all(
       `SELECT c.id, c.sku_id AS skuId, c.quantity, c.selected,
-              s.sku_name AS skuName, s.price, s.original_price AS originalPrice, s.stock, s.image AS mainImage,
+              s.sku_name AS skuName, s.price, s.market_price AS originalPrice, s.stock, s.image AS mainImage,
               p.id AS spuId, p.name AS spuName, p.exclude_discount AS excludeDiscount
        FROM member_cart c JOIN product_sku s ON s.id = c.sku_id JOIN product_spu p ON p.id = s.spu_id
        WHERE c.member_id = ? ORDER BY c.id DESC`,
@@ -667,7 +742,7 @@ router.get('/favorites', requireMember, (req, res, next) => {
       `SELECT f.id, f.spu_id AS spuId, f.create_time AS createTime,
               p.name, p.main_image AS mainImage, p.description,
               (SELECT MIN(price) FROM product_sku s WHERE s.spu_id = p.id AND s.status = 1) AS minPrice,
-              (SELECT MIN(CASE WHEN original_price > price THEN original_price ELSE NULL END) FROM product_sku s WHERE s.spu_id = p.id AND s.status = 1) AS minOriginalPrice
+              (SELECT MIN(CASE WHEN market_price > price THEN market_price ELSE NULL END) FROM product_sku s WHERE s.spu_id = p.id AND s.status = 1) AS minOriginalPrice
        FROM member_favorite f JOIN product_spu p ON p.id = f.spu_id
        WHERE f.member_id = ? ORDER BY f.id DESC`,
       req.member!.mid,
@@ -849,14 +924,16 @@ router.post('/withdraws', requireMember, (req, res, next) => {
   try {
     const body = z.object({ amount: z.number().min(0.01), payType: z.union([z.literal(0), z.literal(1)]).optional() }).parse(req.body)
     const mid = req.member!.mid
+    const amount = money(body.amount)
+    if (amount <= 0) throw badRequest('提现金额必须大于 0')
     const wallet = get('SELECT balance FROM wallet WHERE member_id = ?', mid)
     if (!wallet) throw notFound('钱包不存在')
-    if (Number(wallet.balance) < body.amount) throw badRequest('余额不足')
+    if (Number(wallet.balance) < amount) throw badRequest('余额不足')
     const minAmount = Number(get<{ v: string }>('SELECT config_value AS v FROM system_config WHERE config_key = ?', 'withdraw.min_amount')?.v ?? 100)
-    if (body.amount < minAmount) throw badRequest(`最低提现金额为 ¥${minAmount}`)
+    if (amount < minAmount) throw badRequest(`最低提现金额为 ¥${minAmount}`)
     const feeRate = Number(get<{ v: string }>('SELECT config_value AS v FROM system_config WHERE config_key = ?', 'withdraw.fee_rate')?.v ?? 0)
-    const fee = money(body.amount * feeRate / 100)
-    const actualAmount = money(body.amount - fee)
+    const fee = money(amount * feeRate / 100)
+    const actualAmount = money(amount - fee)
     if (actualAmount <= 0) throw badRequest('提现金额过低，扣除手续费后实际到账为 0')
     const acc = get<Record<string, unknown>>('SELECT * FROM payout_account WHERE member_id = ?', mid)
     // 选择收款方式：默认银行卡；选支付宝则用支付宝账号
@@ -869,15 +946,20 @@ router.post('/withdraws', requireMember, (req, res, next) => {
     if (payType === 0 && !bankCard) throw badRequest('请先在「提现账号」绑定银行卡')
     if (payType === 1 && !alipayAccount) throw badRequest('请先在「提现账号」绑定支付宝')
     const member = get<{ nickname: string }>('SELECT nickname FROM member WHERE id = ?', mid)
-    const r = run(
-      `INSERT INTO withdraw (withdraw_no, member_id, member_name, amount, fee, actual_amount, pay_type, bank_name, bank_card, bank_holder, alipay_name, alipay_account, status, create_time)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
-      genNo('TX'), mid, member?.nickname || '', body.amount, fee, actualAmount, payType,
-      bankName, bankCard, bankHolder, alipayName, alipayAccount, now(),
-    )
-    run('UPDATE wallet SET balance = balance - ?, frozen = frozen + ? WHERE member_id = ?',
-      body.amount, body.amount, mid)
-    ok(res, { id: Number(r.lastInsertRowid) }, '提现申请已提交，等待审核')
+    const id = transaction(() => {
+      const ts = now()
+      const debited = run('UPDATE wallet SET balance = balance - ?, frozen = frozen + ?, updated_at = ? WHERE member_id = ? AND balance >= ?',
+        amount, amount, ts, mid, amount)
+      if (Number(debited.changes) !== 1) throw badRequest('可提现余额已变化，请刷新后重试')
+      const r = run(
+        `INSERT INTO withdraw (withdraw_no, member_id, member_name, amount, fee, actual_amount, pay_type, bank_name, bank_card, bank_holder, alipay_name, alipay_account, status, create_time)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+        genNo('TX'), mid, member?.nickname || '', amount, fee, actualAmount, payType,
+        bankName, bankCard, bankHolder, alipayName, alipayAccount, ts,
+      )
+      return Number(r.lastInsertRowid)
+    })
+    ok(res, { id }, '提现申请已提交，等待审核')
   } catch (e) { next(e) }
 })
 

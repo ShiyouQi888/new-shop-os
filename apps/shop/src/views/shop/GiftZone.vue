@@ -185,13 +185,13 @@ const confirmPackagePay = async () => {
       return
     }
     await api.simulatePayment(payment.paymentNo)
-    // 支付成功后才开通对应等级权益
-    await userStore.upgradeToAgent(selectedPackage.value.level)
+    // 会员等级与首月权益由后端在支付事务中自动开通；客户端只刷新展示态，避免支付成功后前端补调失败。
+    await userStore.refreshMe()
     showPayment.value = false
-    showSuccessToast('支付成功，代理商权益已开通')
+    showSuccessToast('支付成功，代理商权益已开通，礼包进入待发货')
     setTimeout(() => router.push('/agent'), 800)
-  } catch {
-    showToast('支付失败，请稍后重试')
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : '支付失败，请稍后重试')
   } finally {
     isPaying.value = false
   }

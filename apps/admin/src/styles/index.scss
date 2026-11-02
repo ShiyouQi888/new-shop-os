@@ -35,6 +35,12 @@ html, body, #app {
   --border-color: #{$border-base};
   --bg-page: #{$bg-page};
   --bg-card: #{$bg-card};
+  --surface-muted: #F3F5F7;
+  --surface-raised: #FFFFFF;
+  --radius-control: 8px;
+  --radius-card: 12px;
+  --shadow-card: #{$shadow-sm};
+  --focus-ring: 0 0 0 3px rgba(255, 107, 53, 0.16);
   --el-color-primary: #{$color-primary};
   --el-color-primary-light-3: #{$color-primary-hover};
   --el-color-primary-light-5: #{$color-primary-border};
@@ -105,6 +111,72 @@ a {
   display: flex;
   align-items: center;
   gap: $spacing-sm;
+}
+
+// ===== 管理后台统一控件与数据密度 =====
+.el-button {
+  border-radius: 8px;
+  font-weight: 550;
+  transition: background-color .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease;
+}
+
+.el-input__wrapper,
+.el-select__wrapper,
+.el-textarea__inner {
+  border-radius: var(--radius-control);
+  box-shadow: 0 0 0 1px #E1E6EB inset;
+  transition: box-shadow .16s ease;
+}
+
+.el-input__wrapper:hover,
+.el-select__wrapper:hover,
+.el-textarea__inner:hover {
+  box-shadow: 0 0 0 1px #BAC4CE inset;
+}
+
+.el-input__wrapper.is-focus,
+.el-select__wrapper.is-focused,
+.el-textarea__inner:focus {
+  box-shadow: var(--focus-ring), 0 0 0 1px $color-primary inset !important;
+}
+
+.el-form-item__label {
+  color: #4E5966;
+  font-weight: 550;
+}
+
+.el-table {
+  --el-table-header-bg-color: #F3F5F7;
+  --el-table-row-hover-bg-color: #FFF8F4;
+  --el-table-border-color: #E8ECF0;
+  --el-table-text-color: #36414D;
+  border: 1px solid #E8ECF0;
+  border-radius: 10px;
+  overflow: hidden;
+
+  th.el-table__cell {
+    height: 46px;
+    color: #596572;
+    font-size: 12px;
+    font-weight: 650;
+  }
+
+  td.el-table__cell {
+    height: 50px;
+    font-size: 13px;
+  }
+
+  .el-table__empty-block { min-height: 132px; }
+}
+
+.sf-table-toolbar {
+  min-height: 36px;
+  gap: 12px;
+}
+
+:focus-visible {
+  outline: 2px solid $color-primary;
+  outline-offset: 2px;
 }
 
 .sf-flex {

@@ -10,7 +10,7 @@ const router = Router()
 router.use(requireAuth)
 
 /** GET /products?page=&pageSize=&keyword=&categoryId=&status= */
-router.get('/', (req, res, next) => {
+router.get('/', requirePermission('product:view'), (req, res, next) => {
   try {
     const { page, pageSize } = parsePagination(req.query)
     const keyword = str(req.query.keyword)
@@ -43,14 +43,14 @@ router.get('/', (req, res, next) => {
 })
 
 /** GET /products/:id 详情（含 SKU） */
-router.get('/:id', (req, res, next) => {
+router.get('/:id', requirePermission('product:view'), (req, res, next) => {
   try {
     const id = Number(req.params.id)
     const spu = get('SELECT * FROM product_spu WHERE id = ?', id)
     if (!spu) throw notFound('商品不存在')
     spu.images = parseJson(spu.images, [])
     const skus = all(
-      'SELECT id, spu_id AS spuId, sku_name AS skuName, spec_info AS specInfo, price, original_price AS originalPrice, stock, sales, image, status FROM product_sku WHERE spu_id = ? ORDER BY id',
+      'SELECT id, spu_id AS spuId, sku_name AS skuName, spec_info AS specInfo, price, market_price AS marketPrice, cost_price AS costPrice, stock, sales, image, status FROM product_sku WHERE spu_id = ? ORDER BY id',
       id,
     ).map((s) => ({ ...s, specInfo: parseJson(s.specInfo, {}) }))
     ok(res, { ...spu, skus })
@@ -173,10 +173,10 @@ router.delete('/', requirePermission('product:edit'), (req, res, next) => {
 })
 
 /** GET /products/:id/skus 商品 SKU 列表 */
-router.get('/:id/skus', (req, res, next) => {
+router.get('/:id/skus', requirePermission('product:view'), (req, res, next) => {
   try {
     const id = Number(req.params.id)
-    const skus = all('SELECT id, spu_id AS spuId, sku_name AS skuName, spec_info AS specInfo, price, original_price AS originalPrice, stock, sales, image, status FROM product_sku WHERE spu_id = ?', id)
+    const skus = all('SELECT id, spu_id AS spuId, sku_name AS skuName, spec_info AS specInfo, price, market_price AS marketPrice, cost_price AS costPrice, stock, sales, image, status FROM product_sku WHERE spu_id = ?', id)
       .map((s) => ({ ...s, specInfo: parseJson(s.specInfo, {}) }))
     ok(res, skus)
   } catch (e) { next(e) }
@@ -191,14 +191,19 @@ router.post('/:id/skus', requirePermission('product:edit'), (req, res, next) => 
       skuName: z.string().min(1).max(40),
       specInfo: z.record(z.string()).optional(),
       price: z.number().min(0),
+      marketPrice: z.number().min(0).optional(),
+      costPrice: z.number().min(0).optional(),
+      /** 老客户端兼容字段，后续移除；绝不用于订单结算。 */
       originalPrice: z.number().min(0).optional(),
       stock: z.number().int().min(0).optional(),
       image: z.string().optional(),
       status: z.number().min(0).max(1).optional(),
     }).parse(req.body)
+    const marketPrice = money(body.marketPrice ?? body.originalPrice ?? body.price)
+    if (marketPrice > 0 && marketPrice < body.price) throw badRequest('营销参考价不能低于销售价')
     const r = run(
-      'INSERT INTO product_sku (spu_id, sku_name, spec_info, price, original_price, stock, sales, image, status) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)',
-      id, body.skuName, JSON.stringify(body.specInfo || {}), money(body.price), money(body.originalPrice ?? body.price),
+      'INSERT INTO product_sku (spu_id, sku_name, spec_info, price, market_price, cost_price, original_price, stock, sales, image, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)',
+      id, body.skuName, JSON.stringify(body.specInfo || {}), money(body.price), marketPrice, money(body.costPrice ?? 0), marketPrice,
       body.stock ?? 0, body.image || '', body.status ?? 1,
     )
     run('UPDATE product_spu SET update_time = ? WHERE id = ?', now(), id)
@@ -211,21 +216,32 @@ router.put('/:id/skus/:skuId', requirePermission('product:edit'), (req, res, nex
   try {
     const id = Number(req.params.id)
     const skuId = Number(req.params.skuId)
-    const sku = get('SELECT * FROM product_sku WHERE id = ? AND spu_id = ?', skuId, id)
+    const sku = get<{
+      skuName: string; specInfo: string; price: number; marketPrice: number; originalPrice: number;
+      costPrice: number; stock: number; image: string; status: number
+    }>(
+      'SELECT sku_name AS skuName, spec_info AS specInfo, price, market_price AS marketPrice, original_price AS originalPrice, cost_price AS costPrice, stock, image, status FROM product_sku WHERE id = ? AND spu_id = ?',
+      skuId, id,
+    )
     if (!sku) throw notFound('SKU 不存在')
     const body = z.object({
       skuName: z.string().min(1).max(40).optional(),
       specInfo: z.record(z.string()).optional(),
       price: z.number().min(0).optional(),
+      marketPrice: z.number().min(0).optional(),
+      costPrice: z.number().min(0).optional(),
       originalPrice: z.number().min(0).optional(),
       stock: z.number().int().min(0).optional(),
       image: z.string().optional(),
       status: z.number().min(0).max(1).optional(),
     }).parse(req.body)
+    const price = body.price !== undefined ? money(body.price) : Number(sku.price)
+    const marketPrice = money(body.marketPrice ?? body.originalPrice ?? sku.marketPrice ?? sku.originalPrice ?? 0)
+    if (marketPrice > 0 && marketPrice < price) throw badRequest('营销参考价不能低于销售价')
     run(
-      'UPDATE product_sku SET sku_name = ?, spec_info = ?, price = ?, original_price = ?, stock = ?, image = ?, status = ? WHERE id = ?',
+      'UPDATE product_sku SET sku_name = ?, spec_info = ?, price = ?, market_price = ?, cost_price = ?, original_price = ?, stock = ?, image = ?, status = ? WHERE id = ?',
       body.skuName ?? sku.skuName, body.specInfo ? JSON.stringify(body.specInfo) : sku.specInfo,
-      body.price !== undefined ? money(body.price) : sku.price, body.originalPrice !== undefined ? money(body.originalPrice) : sku.originalPrice,
+      price, marketPrice, body.costPrice !== undefined ? money(body.costPrice) : Number(sku.costPrice ?? 0), marketPrice,
       body.stock ?? sku.stock, body.image ?? sku.image, body.status ?? sku.status, skuId,
     )
     ok(res, null, '已更新')

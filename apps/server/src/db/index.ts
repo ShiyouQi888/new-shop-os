@@ -36,8 +36,18 @@ ensureColumn('withdraw', 'pay_type', 'pay_type INTEGER NOT NULL DEFAULT 0')
 ensureColumn('withdraw', 'alipay_name', "alipay_name TEXT NOT NULL DEFAULT ''")
 ensureColumn('withdraw', 'alipay_account', "alipay_account TEXT NOT NULL DEFAULT ''")
 ensureColumn('withdraw', 'bank_holder', "bank_holder TEXT NOT NULL DEFAULT ''")
+const addedSkuMarketPrice = ensureColumn('product_sku', 'market_price', 'market_price REAL NOT NULL DEFAULT 0')
+ensureColumn('product_sku', 'cost_price', 'cost_price REAL NOT NULL DEFAULT 0')
+if (addedSkuMarketPrice) {
+  // 旧版 original_price 保留为营销参考价；成本字段留空待后台核实，避免把旧值误认作真实成本。
+  db.exec('UPDATE product_sku SET market_price = original_price')
+}
 ensureColumn('commission', 'settlement_due_time', 'settlement_due_time TEXT DEFAULT NULL')
 ensureColumn('commission', 'settle_time', 'settle_time TEXT DEFAULT NULL')
+ensureColumn('"order"', 'refund_reason', "refund_reason TEXT NOT NULL DEFAULT ''")
+ensureColumn('"order"', 'refund_request_time', 'refund_request_time TEXT DEFAULT NULL')
+ensureColumn('"order"', 'refund_audit_remark', "refund_audit_remark TEXT NOT NULL DEFAULT ''")
+ensureColumn('"order"', 'refund_audit_time', 'refund_audit_time TEXT DEFAULT NULL')
 ensureColumn('resell_order', 'settle_time', 'settle_time TEXT DEFAULT NULL')
 ensureColumn('resell_order', 'credit_id', 'credit_id INTEGER REFERENCES credit_record(id)')
 ensureColumn('work_order', 'images', "images TEXT NOT NULL DEFAULT '[]'")
@@ -118,6 +128,8 @@ function ensureSysConfig() {
     ['resell.service_fee_rate', '20', 'resell', '转卖服务费率(%)'],
     ['resell.shipping_type', 'fixed', 'resell', '快递费规则：fixed 固定 / buyer 买家承担'],
     ['resell.shipping_fee', '10', 'resell', '转卖固定快递费(元)'],
+    ['shipping.default_fee', '10', 'shipping', '普通商品默认运费(元)'],
+    ['shipping.free_threshold', '99', 'shipping', '普通商品满额包邮门槛(元)'],
     ['resell.timeout_days', '30', 'resell', '转卖匹配超时天数'],
     ['resell.timeout_policy', 'auto_refund', 'resell', '超时策略：auto_refund 自动退款 / auto_settle 兜底结算'],
     ['distribution.enabled', '1', 'distribution', '分销总开关：1 开启 0 关闭'],
@@ -273,14 +285,25 @@ export function run(sql: string, ...params: unknown[]) {
  * 用于"先删子表再删主表"这类会撞外键约束、且第一条语句本身没有约束保护的多步写操作，
  * 避免约束失败时前面已提交的语句造成无法回滚的数据损坏。
  */
+let transactionDepth = 0
+
 export function transaction<T>(fn: () => T): T {
-  db.exec('BEGIN')
+  const depth = transactionDepth
+  const savepoint = `shop_os_tx_${depth}`
+  db.exec(depth === 0 ? 'BEGIN IMMEDIATE' : `SAVEPOINT ${savepoint}`)
+  transactionDepth += 1
   try {
     const result = fn()
-    db.exec('COMMIT')
+    transactionDepth = depth
+    db.exec(depth === 0 ? 'COMMIT' : `RELEASE SAVEPOINT ${savepoint}`)
     return result
   } catch (e) {
-    db.exec('ROLLBACK')
+    transactionDepth = depth
+    if (depth === 0) db.exec('ROLLBACK')
+    else {
+      db.exec(`ROLLBACK TO SAVEPOINT ${savepoint}`)
+      db.exec(`RELEASE SAVEPOINT ${savepoint}`)
+    }
     throw e
   }
 }

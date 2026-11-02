@@ -1,17 +1,39 @@
 // ===== 配置模块 /api/v1/config =====
-import { Router } from 'express'
+import { Router, type Request } from 'express'
 import { z } from 'zod'
 import { all, get, run } from '../db/index.js'
-import { ok, notFound, conflict, badRequest } from '../utils/response.js'
+import { ok, notFound, conflict, badRequest, forbidden } from '../utils/response.js'
 import { now } from '../utils/index.js'
 import { requireAnyPermission, requireAuth, requirePermission } from '../middlewares/auth.js'
 
 const router = Router()
 router.use(requireAuth)
 
+function assertConfigAccess(req: Request, group: string, write = false) {
+  if (req.auth?.role === 'super_admin') return
+  const permissions = get<{ permissions: string }>(
+    'SELECT permissions FROM admin_role WHERE code = ? AND status = 1', req.auth?.role,
+  )?.permissions
+  let granted: string[] = []
+  try { granted = JSON.parse(permissions || '[]') as string[] } catch { granted = [] }
+  const rules: Record<string, string[]> = {
+    payment: ['system:admin'],
+    basic: ['system:admin'],
+    distribution: write ? ['benefit:config', 'commission:config'] : ['benefit:config', 'commission:config', 'relation:view'],
+    credit: ['benefit:config'],
+    resell: ['benefit:config'],
+    consumption_credit: ['benefit:config'],
+    shipping: ['system:admin'],
+    commission: ['commission:config', 'system:admin'],
+    '': ['system:admin'],
+  }
+  const required = rules[group] ?? ['system:admin']
+  if (!required.some(code => granted.includes(code))) throw forbidden(`无权限${write ? '修改' : '查看'}「${group || '系统'}」配置`)
+}
+
 // ===== 等级权益配置 =====
 /** GET /config/levels */
-router.get('/levels', (_req, res, next) => {
+router.get('/levels', requireAnyPermission('benefit:config', 'member:view', 'gift:edit'), (_req, res, next) => {
   try {
     const list = all(`
       SELECT id, level, level_name AS levelName, level_sort AS levelSort, entry_amount AS entryAmount,
@@ -102,7 +124,7 @@ router.delete('/levels/:id', requirePermission('benefit:config'), (req, res, nex
 
 // ===== 分销佣金规则 =====
 /** GET /config/commission-rules */
-router.get('/commission-rules', (_req, res, next) => {
+router.get('/commission-rules', requireAnyPermission('commission:config', 'commission:view'), (_req, res, next) => {
   try {
     const list = all(`
       SELECT id, package_level AS packageLevel, distribution_level AS distributionLevel, rate, status, update_time AS updateTime
@@ -113,7 +135,7 @@ router.get('/commission-rules', (_req, res, next) => {
 })
 
 /** PUT /config/commission-rules/:id 编辑佣金规则 */
-router.put('/commission-rules/:id', requirePermission('benefit:config'), (req, res, next) => {
+router.put('/commission-rules/:id', requirePermission('commission:config'), (req, res, next) => {
   try {
     const id = Number(req.params.id)
     if (!get('SELECT id FROM commission_rule WHERE id = ?', id)) throw notFound('规则不存在')
@@ -129,6 +151,7 @@ router.put('/commission-rules/:id', requirePermission('benefit:config'), (req, r
 router.get('/system', (req, res, next) => {
   try {
     const group = typeof req.query.group === 'string' ? req.query.group : ''
+    assertConfigAccess(req, group)
     const list = group
       ? all('SELECT id, config_key AS configKey, config_value AS configValue, config_group AS configGroup, description, update_operator AS updateOperator, update_time AS updateTime FROM system_config WHERE config_group = ? ORDER BY id', group)
       : all('SELECT id, config_key AS configKey, config_value AS configValue, config_group AS configGroup, description, update_operator AS updateOperator, update_time AS updateTime FROM system_config ORDER BY config_group, id')
@@ -137,29 +160,35 @@ router.get('/system', (req, res, next) => {
 })
 
 /** PUT /config/system/:id */
-router.put('/system/:id', requireAnyPermission('benefit:config', 'system:admin'), (req, res, next) => {
+router.put('/system/:id', (req, res, next) => {
   try {
     const id = Number(req.params.id)
-    const existing = get<{ configKey: string }>('SELECT config_key AS configKey FROM system_config WHERE id = ?', id)
+    const existing = get<{ configKey: string; configGroup: string; configValue: string; description: string }>(
+      'SELECT config_key AS configKey, config_group AS configGroup, config_value AS configValue, description FROM system_config WHERE id = ?', id,
+    )
     if (!existing) throw notFound('配置项不存在')
+    assertConfigAccess(req, existing.configGroup, true)
     const body = z.object({
       configValue: z.string(),
       configGroup: z.string().optional(),
       description: z.string().optional(),
     }).parse(req.body)
+    if (body.configGroup !== undefined && body.configGroup !== existing.configGroup) {
+      throw badRequest('配置分组不可在此接口修改')
+    }
     // 真实支付网关尚未接入回调/notify 实现，切换到 real 会导致所有订单永远无法完成支付，禁止直接开启
     if (existing.configKey === 'payment.mode' && body.configValue === 'real') {
       throw badRequest('真实支付网关尚未开发完成（缺少回调通知接口），暂不支持切换，请保持模拟支付模式')
     }
     run('UPDATE system_config SET config_value = ?, config_group = ?, description = ?, update_operator = ?, update_time = ? WHERE id = ?',
-      body.configValue, body.configGroup ?? '', body.description ?? '', req.auth!.username, now(), id)
+      body.configValue, existing.configGroup, body.description ?? existing.description, req.auth!.username, now(), id)
     ok(res, null, '已更新')
   } catch (e) { next(e) }
 })
 
 // ===== 月度领货商品池（按等级配置） =====
 /** GET /config/credit-pool 全部等级的商品池（含商品名称/图片，供后台按等级分组展示） */
-router.get('/credit-pool', (_req, res, next) => {
+router.get('/credit-pool', requirePermission('benefit:config'), (_req, res, next) => {
   try {
     const list = all(
       `SELECT c.level, c.spu_id AS spuId, p.name, p.main_image AS mainImage
@@ -185,7 +214,7 @@ router.put('/credit-pool/:level', requirePermission('benefit:config'), (req, res
 
 // ===== 转卖自动匹配商品池（按等级配置） =====
 /** GET /config/resell-pool 全部等级的转卖商品池（含商品名称/图片，供后台按等级分组展示） */
-router.get('/resell-pool', (_req, res, next) => {
+router.get('/resell-pool', requirePermission('benefit:config'), (_req, res, next) => {
   try {
     const list = all(
       `SELECT r.level, r.spu_id AS spuId, p.name, p.main_image AS mainImage

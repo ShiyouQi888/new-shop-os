@@ -4,11 +4,12 @@
 
     <main class="detail-body">
       <section class="gallery-section">
-        <van-swipe class="detail-swipe" :indicator-color="currentTheme.primary">
-          <van-swipe-item v-for="(img, idx) in data.spu.images" :key="idx">
+        <van-swipe v-if="galleryImages.length" class="detail-swipe" :indicator-color="currentTheme.primary">
+          <van-swipe-item v-for="(img, idx) in galleryImages" :key="`${img}-${idx}`">
             <img :src="img" class="detail-img" :alt="`${data.spu.name} 图片 ${idx + 1}`" />
           </van-swipe-item>
         </van-swipe>
+        <div v-else class="detail-image-fallback">暂无商品图片</div>
         <div class="gallery-badge">
           <van-icon :name="data.spu.isGiftPackage ? 'gem-o' : 'shop-o'" />
           <span>{{ data.spu.isGiftPackage ? '入会权益礼包' : data.spu.isMonthlyProduct ? '月度领货商品' : '精选商品' }}</span>
@@ -88,7 +89,16 @@
           <span class="section-kicker">DETAILS</span>
           <h2>商品详情</h2>
         </div>
-        <p>{{ data.spu.description }}</p>
+        <p>{{ data.spu.description || '品质精选，详情请以商品实物为准。' }}</p>
+        <div v-if="data.spu.images.length" class="product-detail-images">
+          <img
+            v-for="(img, idx) in data.spu.images"
+            :key="`${img}-${idx}`"
+            :src="img"
+            :alt="`${data.spu.name} 详情图 ${idx + 1}`"
+            loading="lazy"
+          />
+        </div>
         <div class="service-grid">
           <span><van-icon name="certificate" /> 正品保障</span>
           <span><van-icon name="logistics" /> 快速履约</span>
@@ -133,6 +143,11 @@ const selectedSkuId = ref(0)
 const quantity = ref(1)
 
 const currentSku = computed(() => data.value?.skus.find(s => s.id === selectedSkuId.value) || data.value?.skus[0])
+// 后台 images 字段是商品详情图，主图区只轮播商品主图与当前 SKU 图。
+const galleryImages = computed(() => [...new Set([
+  data.value?.spu.mainImage,
+  currentSku.value?.image,
+].filter((image): image is string => Boolean(image)))])
 
 const skuPrice = computed(() => currentSku.value?.price || 0)
 const referenceOriginalPrice = computed(() => Number(currentSku.value?.originalPrice ?? currentSku.value?.costPrice ?? 0))
@@ -250,6 +265,13 @@ watch(selectedSkuId, () => { quantity.value = 1 })
   width: 100%;
   height: 344px;
   object-fit: cover;
+}
+.detail-image-fallback {
+  display: grid;
+  height: 344px;
+  place-items: center;
+  color: var(--text-placeholder);
+  background: var(--bg-muted);
 }
 .gallery-badge {
   position: absolute;
@@ -382,6 +404,19 @@ h2 {
   color: var(--text-secondary);
   font-size: 14px;
   line-height: 1.7;
+}
+.product-detail-images {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  overflow: hidden;
+  border-radius: 12px;
+}
+.product-detail-images img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
 }
 .service-grid {
   display: grid;

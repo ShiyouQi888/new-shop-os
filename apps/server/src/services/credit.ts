@@ -1,6 +1,7 @@
 // ===== 消费返还额度：购物消费按身份比例累加当月领货额度（是否支持转卖按身份配置） =====
 import { get, run, transaction } from '../db/index.js'
 import { money, now, monthOf } from '../utils/index.js'
+import { badRequest } from '../utils/response.js'
 
 const cfg = (key: string, fallback = '0') =>
   get<{ v: string }>('SELECT config_value AS v FROM system_config WHERE config_key = ?', key)?.v ?? fallback
@@ -83,33 +84,37 @@ export function grantConsumptionCredit(orderId: number) {
  * 幂等：找不到待处理记录时说明不是混合支付订单或已处理过，直接返回。
  */
 export function finalizeCreditRedeem(orderId: number) {
-  const pending = get<{ id: number; creditId: number; creditAmount: number; walletAmount: number }>(
-    'SELECT id, credit_id AS creditId, credit_amount AS creditAmount, wallet_amount AS walletAmount FROM credit_redeem_pending WHERE order_id = ?',
-    orderId,
-  )
-  if (!pending) return
-
   const order = get<{ memberId: number; orderNo: string }>('SELECT member_id AS memberId, order_no AS orderNo FROM "order" WHERE id = ?', orderId)
   if (!order) return
 
   transaction(() => {
+    const pending = get<{ id: number; creditId: number; creditAmount: number; walletAmount: number }>(
+      'SELECT id, credit_id AS creditId, credit_amount AS creditAmount, wallet_amount AS walletAmount FROM credit_redeem_pending WHERE order_id = ?',
+      orderId,
+    )
+    if (!pending) return
     const credit = get<{ usedAmount: number; remainAmount: number; resellableAmount: number }>(
       'SELECT used_amount AS usedAmount, remain_amount AS remainAmount, resellable_amount AS resellableAmount FROM credit_record WHERE id = ?',
       pending.creditId,
     )
-    if (credit) {
-      const ts = now()
-      const used = money(Number(credit.usedAmount) + Number(pending.creditAmount))
-      const remain = money(Number(credit.remainAmount) - Number(pending.creditAmount))
-      const resellable = money(Math.min(Number(credit.resellableAmount ?? 0), Math.max(0, remain)))
-      run('UPDATE credit_record SET used_amount = ?, remain_amount = ?, resellable_amount = ?, status = ?, update_time = ? WHERE id = ?',
-        used, remain, resellable, remain <= 0 ? 2 : 1, ts, pending.creditId)
-      run('INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, order_id, create_time) VALUES (?, ?, ?, ?, 2, ?, ?, ?)',
-        pending.creditId, order.memberId, -pending.creditAmount, remain, `领取商品自用：订单 ${order.orderNo}`, orderId, ts)
-    }
+    if (!credit || Number(credit.remainAmount) < Number(pending.creditAmount)) throw badRequest('领货额度已变化，无法完成该订单扣减')
+    const ts = now()
+    const used = money(Number(credit.usedAmount) + Number(pending.creditAmount))
+    const remain = money(Number(credit.remainAmount) - Number(pending.creditAmount))
+    // 与免现金差额的即时兑换保持一致：先消耗非转卖额度，仅当余额不足时才减少可转卖部分。
+    const resellable = money(Math.min(Number(credit.resellableAmount ?? 0), Math.max(0, remain)))
+    const creditUpdate = run(
+      'UPDATE credit_record SET used_amount = ?, remain_amount = ?, resellable_amount = ?, status = ?, update_time = ? WHERE id = ? AND remain_amount >= ?',
+      used, remain, resellable, remain <= 0 ? 2 : 1, ts, pending.creditId, Number(pending.creditAmount),
+    )
+    if (Number(creditUpdate.changes) !== 1) throw badRequest('领货额度已变化，无法完成该订单扣减')
+    run('INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, order_id, create_time) VALUES (?, ?, ?, ?, 2, ?, ?, ?)',
+      pending.creditId, order.memberId, -pending.creditAmount, remain, `领取商品自用：订单 ${order.orderNo}`, orderId, ts)
     if (Number(pending.walletAmount) > 0) {
-      run('UPDATE wallet SET balance = balance - ?, updated_at = ? WHERE member_id = ?', pending.walletAmount, now(), order.memberId)
+      const walletUpdate = run('UPDATE wallet SET balance = balance - ?, updated_at = ? WHERE member_id = ? AND balance >= ?',
+        pending.walletAmount, ts, order.memberId, pending.walletAmount)
+      if (Number(walletUpdate.changes) !== 1) throw badRequest('佣金钱包余额已变化，无法完成该订单扣减')
     }
-    run('DELETE FROM credit_redeem_pending WHERE id = ?', pending.id)
+    run('DELETE FROM credit_redeem_pending WHERE id = ? AND order_id = ?', pending.id, orderId)
   })
 }

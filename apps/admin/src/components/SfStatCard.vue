@@ -1,6 +1,6 @@
 <template>
   <div class="sf-stat-card" :style="{ background: gradient }">
-    <div class="sf-stat-icon">
+    <div class="sf-stat-icon" :style="iconStyle">
       <el-icon :size="28">
         <component :is="icon" />
       </el-icon>
@@ -30,6 +30,7 @@ const props = withDefaults(defineProps<{
 })
 
 const gradient = computed(() => `linear-gradient(135deg, ${props.color}12 0%, #FFFFFF 100%)`)
+const iconStyle = computed(() => ({ color: props.color, background: `${props.color}12` }))
 
 const displayValue = computed(() => {
   const v = typeof props.value === 'number' ? props.value.toLocaleString('zh-CN') : props.value
@@ -39,6 +40,7 @@ const displayValue = computed(() => {
 
 <style scoped>
 .sf-stat-card {
+  min-height: 96px;
   border-radius: 12px;
   padding: 20px;
   display: flex;
@@ -60,7 +62,7 @@ const displayValue = computed(() => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: var(--color-primary);
+  color: var(--stat-color, var(--color-primary));
   background: #FFF1EB;
 }
 .sf-stat-info {

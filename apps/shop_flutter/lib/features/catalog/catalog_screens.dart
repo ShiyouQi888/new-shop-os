@@ -521,8 +521,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ? (sku?.price ?? product.price)
                 : ((sku.price * memberDiscount / 100 + 1e-10) * 100).round() /
                     100;
+            // product.images 是后台维护的详情图，只在下方详情区展示。
             final gallery = <String>{
-              ...product.images,
+              product.image,
               if (sku?.image.isNotEmpty == true) sku!.image,
             }.where((image) => image.isNotEmpty).toList();
             return Column(children: [
@@ -642,12 +643,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               Text(product.name,
                                   style:
                                       Theme.of(context).textTheme.titleLarge),
-                              if (product.description.isNotEmpty) ...[
-                                const SizedBox(height: 8),
-                                Text(product.description,
-                                    style:
-                                        Theme.of(context).textTheme.bodyMedium),
-                              ],
                               const SizedBox(height: 22),
                               if (product.isGiftPackage) ...[
                                 Container(
@@ -733,6 +728,20 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                       : product.description,
                                   style:
                                       Theme.of(context).textTheme.bodyMedium),
+                              for (final image in product.images)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 10),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.network(
+                                      imageUrl(image),
+                                      width: double.infinity,
+                                      fit: BoxFit.fitWidth,
+                                      errorBuilder: (_, __, ___) =>
+                                          const SizedBox.shrink(),
+                                    ),
+                                  ),
+                                ),
                               const SizedBox(height: 14),
                               const Wrap(spacing: 16, runSpacing: 8, children: [
                                 _ServiceBadge(

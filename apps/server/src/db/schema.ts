@@ -87,6 +87,8 @@ CREATE TABLE IF NOT EXISTS product_sku (
   sku_name       TEXT    NOT NULL,
   spec_info      TEXT    NOT NULL DEFAULT '{}',
   price          REAL    NOT NULL DEFAULT 0,
+  market_price   REAL    NOT NULL DEFAULT 0,       -- 营销参考价，仅前台展示，不参与任何资金计算
+  cost_price     REAL    NOT NULL DEFAULT 0,       -- 内部采购/成本价，仅后台财务/商品管理使用
   original_price REAL    NOT NULL DEFAULT 0,
   stock          INTEGER NOT NULL DEFAULT 0,
   sales          INTEGER NOT NULL DEFAULT 0,
@@ -129,7 +131,7 @@ CREATE TABLE IF NOT EXISTS "order" (
   discount_amount  REAL    NOT NULL DEFAULT 0,
   shipping_fee     REAL    NOT NULL DEFAULT 0,
   pay_amount       REAL    NOT NULL DEFAULT 0,
-  status           INTEGER NOT NULL DEFAULT 0,   -- 0 待支付 1 待发货 2 待收货 3 已完成 4 已取消
+  status           INTEGER NOT NULL DEFAULT 0,   -- 0待支付 1待发货 2待收货 3已完成 4已取消 5退款中 6已退款
   receiver_name    TEXT    NOT NULL DEFAULT '',
   receiver_phone   TEXT    NOT NULL DEFAULT '',
   receiver_address TEXT    NOT NULL DEFAULT '',
@@ -140,7 +142,11 @@ CREATE TABLE IF NOT EXISTS "order" (
   pay_time         TEXT    DEFAULT NULL,
   ship_time        TEXT    DEFAULT NULL,
   finish_time      TEXT    DEFAULT NULL,
-  cancel_time      TEXT    DEFAULT NULL
+  cancel_time      TEXT    DEFAULT NULL,
+  refund_reason    TEXT    NOT NULL DEFAULT '',
+  refund_request_time TEXT  DEFAULT NULL,
+  refund_audit_remark TEXT  NOT NULL DEFAULT '',
+  refund_audit_time TEXT    DEFAULT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_order_member ON "order"(member_id);
 CREATE INDEX IF NOT EXISTS idx_order_status ON "order"(status);
@@ -215,6 +221,7 @@ CREATE TABLE IF NOT EXISTS credit_flow (
   type          INTEGER NOT NULL DEFAULT 1,     -- 1 发放 2 使用 3 调整 4 回补
   reason        TEXT    NOT NULL DEFAULT '',
   operator_id   INTEGER DEFAULT NULL,
+  order_id      INTEGER DEFAULT NULL,
   create_time   TEXT    NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 

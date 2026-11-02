@@ -1,17 +1,25 @@
 <template>
   <div class="sf-page">
-    <SfPageContainer title="财务管理大盘" description="订单实收、佣金结算、转卖打款、待发货履约与资金池风险分析" v-loading="loading">
+    <SfPageContainer title="财务管理大盘" description="订单收款、退款、钱包负债、提现和履约风险分析" v-loading="loading">
       <section class="finance-hero">
         <div>
           <div class="hero-kicker">CAPITAL POOL</div>
-          <h2>资金池余额 ¥{{ money(overview.fundPoolBalance) }}</h2>
-          <p>实收 ¥{{ money(overview.cashIn) }}，已分出/打款 ¥{{ money(overview.cashOut) }}，资金风险敞口 ¥{{ money(overview.cashRiskExposure) }}。</p>
+          <h2>收支净额估算 ¥{{ money(overview.fundPoolBalance) }}</h2>
+          <p>累计收款 ¥{{ money(overview.cashIn) }}，已退款及提现 ¥{{ money(overview.cashOut) }}，待覆盖风险敞口 ¥{{ money(overview.cashRiskExposure) }}。</p>
         </div>
         <div class="risk-badge" :class="`risk-${overview.riskLevel}`">
           <span>{{ riskText }}</span>
           <strong>缺口 ¥{{ money(overview.riskGap) }}</strong>
         </div>
       </section>
+
+      <el-alert
+        class="finance-disclaimer"
+        type="warning"
+        :closable="false"
+        show-icon
+        title="此页按业务数据估算资金风险，尚未接入银行余额对账、真实支付回调和完整采购/物流/税费成本；收支净额不等于银行余额或会计利润。"
+      />
 
       <div class="finance-grid">
         <article class="metric-card primary">
@@ -30,9 +38,9 @@
           <small>{{ overview.pendingShipCount }} 笔待发货，{{ overview.inTransitCount }} 笔运输中</small>
         </article>
         <article class="metric-card">
-          <span>平台净留存</span>
-          <strong>¥{{ money(overview.grossProfit) }}</strong>
-          <small>扣除佣金、提现、转卖结算后的估算</small>
+          <span>收支净额估算</span>
+          <strong>¥{{ money(overview.netCashFlowEstimate) }}</strong>
+          <small>累计收款 − 已退款 − 已提现；站内转卖结算不重复计现金支出</small>
         </article>
       </div>
 
@@ -80,7 +88,7 @@
                   <div class="meter-fill" :class="`risk-${overview.riskLevel}`" :style="{ width: meterWidth + '%' }"></div>
                   <div class="meter-threshold"></div>
                 </div>
-                <p>覆盖率 = 资金池余额 ÷ 资金风险敞口；100% 为收支打平线，低于 100% 说明资金池已不足以覆盖近期可能兑现的负债，存在资金缺口；建议维持在 150% 以上。</p>
+                <p>覆盖率 = 收支净额估算 ÷ 已识别的资金风险敞口。100% 以下表示当前模型未覆盖已识别的近期资金义务；该比例未包含银行期初资金及未建模的经营成本。</p>
               </div>
 
               <div class="risk-items">
@@ -110,7 +118,7 @@
 
         <el-col :xs="24" :lg="10">
           <div class="sf-card">
-            <div class="sf-card-title"><el-icon><TrendCharts /></el-icon> 收支构成</div>
+            <div class="sf-card-title"><el-icon><TrendCharts /></el-icon> 业务资金项目（含站内结算）</div>
             <div class="flow-chart">
               <div class="flow-bar" v-for="item in flowBars" :key="item.label">
                 <div class="flow-label">{{ item.label }}</div>
@@ -169,7 +177,8 @@ const loading = ref(false)
 const flowsLoading = ref(false)
 const overview = ref({
   totalRevenue: 0, commissionPaid: 0, commissionPending: 0, commissionAvailable: 0, commissionSettledPaid: 0,
-  withdrawPaid: 0, pendingWithdraw: 0, resellServiceFee: 0, grossProfit: 0,
+  withdrawPaid: 0, pendingWithdraw: 0, resellServiceFee: 0, netCashFlowEstimate: 0,
+  refundPaid: 0, refundPending: 0,
   orderCount: 0, memberOrderIncome: 0, memberOrderCount: 0, giftOrderIncome: 0, giftOrderCount: 0,
   pendingShipAmount: 0, pendingShipCount: 0, inTransitAmount: 0, inTransitCount: 0,
   pendingServiceFee: 0, resellPayout: 0, resellPendingPayout: 0, resellActiveCount: 0, resellCompletedCount: 0,
@@ -186,10 +195,10 @@ const pageSize = 10
 const flowTotal = computed(() => allFlows.value.length)
 
 const money = (value: number) => Number(value || 0).toFixed(2)
-/** 资金覆盖率：资金池余额 / 资金风险敞口，越高越安全（100% 为打平线） */
+/** 资金覆盖率估算：收支净额 / 当前已建模的现金风险敞口 */
 const coveragePercent = computed(() => Math.round(Math.min(overview.value.coverageRatio * 100, 999)))
 /** 仪表条按 0-150% 映射满格，超过部分视觉上封顶，避免极端值把条形图撑爆 */
-const meterWidth = computed(() => Math.min(coveragePercent.value / 150 * 100, 100))
+const meterWidth = computed(() => Math.max(0, Math.min(coveragePercent.value / 150 * 100, 100)))
 const riskText = computed(() => {
   if (overview.value.riskLevel === 'high') return '资金缺口，需立即关注'
   if (overview.value.riskLevel === 'medium') return '覆盖偏紧，需关注'
@@ -201,6 +210,7 @@ const cashRiskItems = computed(() => [
   { label: '会员冻结中余额', value: overview.value.walletFrozen },
   { label: '待结算佣金', value: overview.value.commissionPending },
   { label: '转卖中待结算', value: overview.value.resellPendingPayout },
+  { label: '退款审核中', value: overview.value.refundPending },
   { label: `可转卖额度预计兑付（费率${overview.value.resellFeeRate}%）`, value: overview.value.creditResellableEstimated },
 ])
 
@@ -216,7 +226,7 @@ const flowBars = computed(() => {
     { label: '转卖服务费', amount: o.resellServiceFee, color: '#18A66A' },
     { label: '佣金应付', amount: -o.commissionPaid, color: '#E85222' },
     { label: '提现打款', amount: -o.withdrawPaid, color: '#626A73' },
-    { label: '转卖打款', amount: -o.resellPayout, color: '#F5A623' },
+    { label: '转卖结算入钱包', amount: -o.resellPayout, color: '#F5A623' },
   ]
   const max = Math.max(...items.map(i => Math.abs(i.amount)), 1)
   return items.map(i => ({ ...i, percent: Math.max(Math.round(Math.abs(i.amount) / max * 100), 2) }))

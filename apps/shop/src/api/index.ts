@@ -29,6 +29,9 @@ const toSPU = (r: Row): ProductSPU => ({
   minPrice: r.minPrice !== null && r.minPrice !== undefined ? Number(r.minPrice) : undefined,
   price: Number(r.price ?? r.minPrice ?? 0),
   minOriginalPrice: r.minOriginalPrice !== null && r.minOriginalPrice !== undefined ? Number(r.minOriginalPrice) : undefined,
+  marketPrice: r.marketPrice !== null && r.marketPrice !== undefined ? Number(r.marketPrice) : (
+    r.minOriginalPrice !== null && r.minOriginalPrice !== undefined ? Number(r.minOriginalPrice) : undefined
+  ),
   originalPrice: r.originalPrice !== null && r.originalPrice !== undefined ? Number(r.originalPrice) : (
     r.minOriginalPrice !== null && r.minOriginalPrice !== undefined ? Number(r.minOriginalPrice) : undefined
   ),
@@ -78,9 +81,10 @@ export const api = {
     const skus = (d.skus || []).map(s => ({
       id: Number(s.id), spuId: id, skuName: String(s.skuName || ''),
       specInfo: typeof s.specInfo === 'object' ? (s.specInfo as Record<string, string>) : {},
-      price: Number(s.price ?? 0), costPrice: Number(s.originalPrice ?? s.price ?? 0),
+       price: Number(s.price ?? 0), costPrice: 0,
+       marketPrice: Number(s.marketPrice ?? 0),
       stock: Number(s.stock ?? 0), stockLocked: 0, status: Number(s.status ?? 1),
-      image: String(s.image || ''), originalPrice: Number(s.originalPrice ?? s.price ?? 0),
+       image: String(s.image || ''), originalPrice: Number(s.marketPrice ?? 0),
     }) as ProductSKU)
     return { spu, skus }
   },
@@ -109,6 +113,10 @@ export const api = {
   getDistributionConfig: () => http.get<{
     enabled: boolean; level1: boolean; level2: boolean; level3: boolean; activeLevels: number[]
   }>('/shop/distribution-config'),
+  /** 转卖预估配置；提交成功后的金额以服务端持久化订单为准。 */
+  getResellConfig: () => http.get<{ serviceFeeRate: number; shippingFee: number }>('/shop/resell-config'),
+  /** 运费预估配置；订单运费和最终应付金额由服务端计算。 */
+  getCommerceConfig: () => http.get<{ defaultShippingFee: number; freeShippingThreshold: number }>('/shop/commerce-config'),
   /** 推广配置（公开：站点域名，用于生成推广链接） */
   getPromoteConfig: () => http.get<{ domain: string; registerPath: string }>('/shop/promote-config'),
   /** 站点品牌配置（公开：Logo、图标、站点名） */
@@ -190,7 +198,9 @@ export const api = {
     http.post<Row>('/shop/member/upgrade', { level }),
 
   // ===== 订单 =====
-  createOrder: (payload: Row) => http.post<{ orderId: number; payAmount: number }>('/shop/orders', payload),
+  createOrder: (payload: Row) => http.post<{
+    orderId: number; orderNo: string; totalAmount: number; discountAmount: number; shippingFee: number; payAmount: number
+  }>('/shop/orders', payload),
   getOrders: (memberId: number) => http.get<Order[]>('/shop/member/orders', { memberId }),
   /** 创建支付单（微信/支付宝） */
   createPayment: (payload: { orderId: number; payType: 'wechat' | 'alipay' }) =>
@@ -209,6 +219,8 @@ export const api = {
   payOrder: (orderId: number) => http.post(`/shop/orders/${orderId}/pay`),
   confirmOrder: (orderId: number) => http.post(`/shop/orders/${orderId}/confirm`),
   cancelOrder: (orderId: number) => http.post(`/shop/orders/${orderId}/cancel`),
+  requestOrderRefund: (orderId: number, reason: string) =>
+    http.post(`/shop/member/orders/${orderId}/refund`, { reason }),
 
   // ===== 收货地址 =====
   getAddresses: () => http.get<Array<{

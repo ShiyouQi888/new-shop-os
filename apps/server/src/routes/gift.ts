@@ -26,7 +26,7 @@ function assertGiftReferencesValid(spuId: number, items: GiftItemInput[]) {
 }
 
 /** GET /gift-packages */
-router.get('/', (_req, res, next) => {
+router.get('/', requirePermission('gift:edit'), (_req, res, next) => {
   try {
     const pkgs = all<{ id: number; name: string; spuId: number; price: number; level: number; status: number; createTime: string; levelName: string | null }>(`
       SELECT g.id, g.name, g.spu_id AS spuId, g.price, g.level, g.status, g.create_time AS createTime,

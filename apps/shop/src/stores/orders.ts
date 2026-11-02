@@ -117,10 +117,10 @@ export const useOrderStore = defineStore('orders', () => {
       remark: payload.payType === 'alipay' ? '支付宝支付' : '微信支付',
     })
     const order = toOrder({
-      id: res.orderId, orderNo: `SO${Date.now()}`, memberId: userStore.member.id,
-      orderType: OrderType.Retail, totalAmount: payload.totalAmount,
-      discountAmount: payload.discountAmount, shippingFee: payload.shippingFee,
-      payAmount: payload.payAmount, status: OrderStatus.PendingPayment,
+      id: res.orderId, orderNo: res.orderNo, memberId: userStore.member.id,
+      orderType: OrderType.Retail, totalAmount: res.totalAmount,
+      discountAmount: res.discountAmount, shippingFee: res.shippingFee,
+      payAmount: res.payAmount, status: OrderStatus.PendingPayment,
       skuName: payload.items[0]?.skuName || '', quantity: payload.items.reduce((s, i) => s + i.quantity, 0),
       receiverName: payload.address.name, receiverPhone: payload.address.phone,
       receiverAddress: `${payload.address.province}${payload.address.city}${payload.address.district}${payload.address.detail}`,
@@ -133,19 +133,22 @@ export const useOrderStore = defineStore('orders', () => {
   /** 创建礼包订单（后端落库 + 开通代理商权益） */
   const createGiftPackageOrder = async (pkg: GiftPackage, payType: PayType): Promise<Order> => {
     if (!userStore.member) throw new Error('请先登录后再开通代理商权益')
+    const addresses = await api.getAddresses()
+    const address = addresses.find(item => Number(item.isDefault) === 1) || addresses[0]
+    if (!address) throw new Error('请先添加收货地址，再购买入会礼包')
     const res = await api.createOrder({
       memberId: userStore.member.id,
       giftPackageId: pkg.id,
-      receiverName: userStore.member.nickname,
-      receiverPhone: userStore.member.phone,
-      receiverAddress: '权益订单无需物流配送',
+      receiverName: address.name,
+      receiverPhone: address.phone,
+      receiverAddress: `${address.province}${address.city}${address.district}${address.detail}`,
     })
     const order = toOrder({
       id: res.orderId, orderNo: `GP${Date.now()}`, memberId: userStore.member.id,
       orderType: OrderType.GiftPackage, totalAmount: pkg.price, discountAmount: 0,
       shippingFee: 0, payAmount: pkg.price, status: OrderStatus.PendingPayment,
-      skuName: pkg.name, quantity: 1, receiverName: userStore.member.nickname,
-      receiverPhone: userStore.member.phone, receiverAddress: '权益订单无需物流配送',
+      skuName: pkg.name, quantity: 1, receiverName: address.name,
+      receiverPhone: address.phone, receiverAddress: `${address.province}${address.city}${address.district}${address.detail}`,
       createTime: nowText(),
     })
     orders.value.unshift(order)

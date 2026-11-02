@@ -80,6 +80,7 @@ export interface ProductSPU {
   description: string
   price?: number
   minPrice?: number
+  marketPrice?: number
   originalPrice?: number
   minOriginalPrice?: number
   isGiftPackage: boolean
@@ -97,8 +98,11 @@ export interface ProductSKU {
   specInfo: Record<string, string>
   price: number
   costPrice: number
+  marketPrice?: number
+  /** @deprecated 兼容旧商城客户端；语义统一为 marketPrice */
   originalPrice?: number
   stock: number
+  image?: string
   stockLocked: number
   status: ProductStatus
 }
