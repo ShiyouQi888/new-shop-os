@@ -29,14 +29,32 @@ class ShopOsApp extends StatelessWidget {
         supportedLocales: const [Locale('zh', 'CN')],
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
         onGenerateRoute: _generateShopRoute,
+        onUnknownRoute: (settings) => MaterialPageRoute<void>(
+          settings: settings,
+          builder: (_) => _RouteNotFoundScreen(path: settings.name ?? '/'),
+        ),
         onGenerateInitialRoutes: (name) {
-          if (name == '/') return [MaterialPageRoute<void>(builder: (_) => const StorefrontShell())];
+          if (name == '/')
+            return [
+              MaterialPageRoute<void>(builder: (_) => const StorefrontShell())
+            ];
           final route = _generateShopRoute(RouteSettings(name: name));
           final path = Uri.tryParse(name)?.path;
-          if (route != null && const {'/home', '/category', '/cart', '/mine'}.contains(path)) return [route];
-          return route == null
-              ? [MaterialPageRoute<void>(builder: (_) => const StorefrontShell())]
-              : [MaterialPageRoute<void>(builder: (_) => const StorefrontShell()), route];
+          if (route != null &&
+              const {'/home', '/category', '/cart', '/mine'}.contains(path))
+            return [route];
+          if (route == null) {
+            return [
+              MaterialPageRoute<void>(
+                settings: RouteSettings(name: name),
+                builder: (_) => _RouteNotFoundScreen(path: path ?? name),
+              ),
+            ];
+          }
+          return [
+            MaterialPageRoute<void>(builder: (_) => const StorefrontShell()),
+            route,
+          ];
         },
       );
 }
@@ -50,34 +68,116 @@ Route<dynamic>? _generateShopRoute(RouteSettings settings) {
   var requiresMember = false;
   var requiresAgent = false;
   switch (path) {
-    case '/home': page = const StorefrontShell(initialIndex: 0); break;
-    case '/category': page = StorefrontShell(initialIndex: 1, initialCategoryId: int.tryParse(uri.queryParameters['id'] ?? '')); break;
-    case '/cart': page = const StorefrontShell(initialIndex: 2); break;
-    case '/mine': page = const StorefrontShell(initialIndex: 3); break;
-    case '/login': page = const AuthScreen(); break;
-    case '/register': page = AuthScreen(initialRegister: true, inviteCode: uri.queryParameters['invite'] ?? ''); break;
-    case '/orders': page = OrdersScreen(initialStatusTab: (int.tryParse(uri.queryParameters['status'] ?? '0') ?? 0).clamp(0, 4).toInt()); requiresMember = true; break;
-    case '/mine/address': page = const AddressListScreen(); requiresMember = true; break;
-    case '/mine/favorites': page = const FavoritesScreen(); requiresMember = true; break;
-    case '/mine/history': page = const BrowsingHistoryScreen(); requiresMember = true; break;
-    case '/mine/notifications': page = const NotificationsScreen(); requiresMember = true; break;
-    case '/mine/help': page = const HelpScreen(); requiresMember = true; break;
-    case '/mine/work-orders': page = const WorkOrderScreen(); requiresMember = true; break;
-    case '/mine/rules': page = const RulesScreen(); requiresMember = true; break;
-    case '/gift-zone': page = const GiftZoneScreen(); requiresMember = true; break;
-    case '/agent': page = const AgentDashboardScreen(); requiresMember = true; requiresAgent = true; break;
-    case '/agent/credit': page = const MonthlyCreditScreen(); requiresMember = true; break;
-    case '/agent/credit-pool': page = const CreditRedeemScreen(); requiresMember = true; break;
-    case '/agent/resell': page = const ResellCenterScreen(); requiresMember = true; break;
-    case '/agent/commission': page = const CommissionScreen(); requiresMember = true; requiresAgent = true; break;
-    case '/agent/withdraw-account': page = const PayoutAccountScreen(); requiresMember = true; requiresAgent = true; break;
-    case '/agent/team': page = const TeamScreen(); requiresMember = true; requiresAgent = true; break;
-    case '/agent/promote': page = const PromotionScreen(); requiresMember = true; requiresAgent = true; break;
+    case '/home':
+      page = const StorefrontShell(initialIndex: 0);
+      break;
+    case '/category':
+      page = StorefrontShell(
+          initialIndex: 1,
+          initialCategoryId: int.tryParse(uri.queryParameters['id'] ?? ''));
+      break;
+    case '/cart':
+      page = const StorefrontShell(initialIndex: 2);
+      break;
+    case '/mine':
+      page = const StorefrontShell(initialIndex: 3);
+      break;
+    case '/login':
+      page = const AuthScreen();
+      break;
+    case '/register':
+      page = AuthScreen(
+          initialRegister: true,
+          inviteCode: uri.queryParameters['invite'] ?? '');
+      break;
+    case '/orders':
+      page = OrdersScreen(
+          initialStatusTab:
+              (int.tryParse(uri.queryParameters['status'] ?? '0') ?? 0)
+                  .clamp(0, 4)
+                  .toInt());
+      requiresMember = true;
+      break;
+    case '/mine/address':
+      page = const AddressListScreen();
+      requiresMember = true;
+      break;
+    case '/mine/favorites':
+      page = const FavoritesScreen();
+      requiresMember = true;
+      break;
+    case '/mine/history':
+      page = const BrowsingHistoryScreen();
+      requiresMember = true;
+      break;
+    case '/mine/notifications':
+      page = const NotificationsScreen();
+      requiresMember = true;
+      break;
+    case '/mine/help':
+      page = const HelpScreen();
+      requiresMember = true;
+      break;
+    case '/mine/work-orders':
+      page = const WorkOrderScreen();
+      requiresMember = true;
+      break;
+    case '/mine/rules':
+      page = const RulesScreen();
+      requiresMember = true;
+      break;
+    case '/gift-zone':
+      page = const GiftZoneScreen();
+      requiresMember = true;
+      break;
+    case '/agent':
+      page = const AgentDashboardScreen();
+      requiresMember = true;
+      requiresAgent = true;
+      break;
+    case '/agent/credit':
+      page = const MonthlyCreditScreen();
+      requiresMember = true;
+      break;
+    case '/agent/credit-pool':
+      page = const CreditRedeemScreen();
+      requiresMember = true;
+      break;
+    case '/agent/resell':
+      page = const ResellCenterScreen();
+      requiresMember = true;
+      break;
+    case '/agent/commission':
+      page = const CommissionScreen();
+      requiresMember = true;
+      requiresAgent = true;
+      break;
+    case '/agent/withdraw-account':
+      page = const PayoutAccountScreen();
+      requiresMember = true;
+      requiresAgent = true;
+      break;
+    case '/agent/team':
+      page = const TeamScreen();
+      requiresMember = true;
+      requiresAgent = true;
+      break;
+    case '/agent/promote':
+      page = const PromotionScreen();
+      requiresMember = true;
+      requiresAgent = true;
+      break;
     case '/checkout':
       requiresMember = true;
       page = Builder(builder: (context) {
-        final items = context.read<AppController>().cart.where((item) => item.selected).toList();
-        return items.isEmpty ? const StorefrontShell(initialIndex: 2) : CheckoutScreen(items: items);
+        final items = context
+            .read<AppController>()
+            .cart
+            .where((item) => item.selected)
+            .toList();
+        return items.isEmpty
+            ? const StorefrontShell(initialIndex: 2)
+            : CheckoutScreen(items: items);
       });
       break;
     default:
@@ -107,21 +207,139 @@ class _MemberRoute extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = context.watch<AppController>();
     if (!controller.isSignedIn) {
-      return Scaffold(appBar: AppBar(), body: Center(child: FilledButton(onPressed: () => Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) => const AuthScreen())), child: const Text('登录后继续'))));
+      return Scaffold(
+        backgroundColor: ShopTheme.canvas,
+        appBar: AppBar(title: const Text('需要登录')),
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: Padding(
+              padding: const EdgeInsets.all(22),
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: ShopTheme.border),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        color: ShopTheme.primarySoft,
+                        borderRadius: BorderRadius.circular(19),
+                      ),
+                      child: const Icon(
+                        Icons.lock_person_outlined,
+                        color: ShopTheme.primaryDark,
+                        size: 29,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text('登录后继续',
+                        style: Theme.of(context).textTheme.titleLarge),
+                    const SizedBox(height: 7),
+                    Text(
+                      '登录或使用邀请码注册，即可查看订单、会员权益和账户信息。',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: () => Navigator.of(context).push<void>(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const AuthScreen(),
+                          ),
+                        ),
+                        child: const Text('登录账号'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(context).push<void>(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                const AuthScreen(initialRegister: true),
+                          ),
+                        ),
+                        child: const Text('使用邀请码注册'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
     }
     if (requiresAgent && (controller.member?.level ?? 0) <= 0) {
-      return Scaffold(appBar: AppBar(title: const Text('会员权益')), body: Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Text('开通会员方案后可使用该功能', textAlign: TextAlign.center),
-        const SizedBox(height: 14),
-        FilledButton(onPressed: () => Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) => const GiftZoneScreen())), child: const Text('查看入会方案')),
-      ]))));
+      return Scaffold(
+          appBar: AppBar(title: const Text('会员权益')),
+          body: Center(
+              child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    const Text('开通会员方案后可使用该功能', textAlign: TextAlign.center),
+                    const SizedBox(height: 14),
+                    FilledButton(
+                        onPressed: () => Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                                builder: (_) => const GiftZoneScreen())),
+                        child: const Text('查看入会方案')),
+                  ]))));
     }
     return page;
   }
 }
 
+class _RouteNotFoundScreen extends StatelessWidget {
+  const _RouteNotFoundScreen({required this.path});
+
+  final String path;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        backgroundColor: ShopTheme.canvas,
+        appBar: AppBar(title: const Text('页面暂不可用')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.search_off_rounded,
+                    size: 52, color: ShopTheme.mutedInk),
+                const SizedBox(height: 14),
+                Text('找不到这个页面', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 6),
+                Text(path,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall),
+                const SizedBox(height: 18),
+                FilledButton.icon(
+                  onPressed: () =>
+                      Navigator.of(context).popUntil((route) => route.isFirst),
+                  icon: const Icon(Icons.storefront_outlined),
+                  label: const Text('返回商城'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+}
+
 class StorefrontShell extends StatefulWidget {
-  const StorefrontShell({super.key, this.initialIndex = 0, this.initialCategoryId});
+  const StorefrontShell(
+      {super.key, this.initialIndex = 0, this.initialCategoryId});
   final int initialIndex;
   final int? initialCategoryId;
 
@@ -155,7 +373,8 @@ class _StorefrontShellState extends State<StorefrontShell> {
     final controller = context.watch<AppController>();
     final pages = <Widget>[
       const HomeScreen(),
-      CategoryScreen(key: _categoryKey, initialCategoryId: widget.initialCategoryId),
+      CategoryScreen(
+          key: _categoryKey, initialCategoryId: widget.initialCategoryId),
       CartScreen(onLogin: _openAuth),
       ProfileScreen(onLogin: _openAuth),
     ];
@@ -181,7 +400,8 @@ class _StorefrontShellState extends State<StorefrontShell> {
               constraints: const BoxConstraints(maxWidth: 760),
               child: NavigationBar(
                 selectedIndex: _selectedIndex,
-                onDestinationSelected: (index) => setState(() => _selectedIndex = index),
+                onDestinationSelected: (index) =>
+                    setState(() => _selectedIndex = index),
                 destinations: [
                   const NavigationDestination(
                     icon: Icon(Icons.storefront_outlined),
@@ -195,7 +415,8 @@ class _StorefrontShellState extends State<StorefrontShell> {
                   ),
                   NavigationDestination(
                     icon: _CartNavIcon(count: controller.cartCount),
-                    selectedIcon: _CartNavIcon(count: controller.cartCount, selected: true),
+                    selectedIcon: _CartNavIcon(
+                        count: controller.cartCount, selected: true),
                     label: '购物车',
                   ),
                   const NavigationDestination(
@@ -222,7 +443,9 @@ class _CartNavIcon extends StatelessWidget {
   Widget build(BuildContext context) => Badge(
         isLabelVisible: count > 0,
         label: Text(count > 99 ? '99+' : '$count'),
-        child: Icon(selected ? Icons.shopping_bag_rounded : Icons.shopping_bag_outlined),
+        child: Icon(selected
+            ? Icons.shopping_bag_rounded
+            : Icons.shopping_bag_outlined),
       );
 }
 
@@ -262,14 +485,23 @@ class _HomeScreenState extends State<HomeScreen> {
             pinned: true,
             titleSpacing: 20,
             title: Row(children: [
-              Image.asset('assets/branding/logo-dark.png', height: 35, fit: BoxFit.contain),
+              Image.asset('assets/branding/logo-dark.png',
+                  height: 35, fit: BoxFit.contain),
             ]),
             actions: [
-              IconButton(tooltip: '消息通知', onPressed: () => Navigator.of(context).pushNamed('/mine/notifications'), icon: const Icon(Icons.notifications_none_rounded)),
-              IconButton(tooltip: '个人中心', onPressed: () {
-                final shell = context.findAncestorStateOfType<_StorefrontShellState>();
-                shell?.setState(() => shell._selectedIndex = 3);
-              }, icon: const Icon(Icons.person_outline_rounded)),
+              IconButton(
+                  tooltip: '消息通知',
+                  onPressed: () =>
+                      Navigator.of(context).pushNamed('/mine/notifications'),
+                  icon: const Icon(Icons.notifications_none_rounded)),
+              IconButton(
+                  tooltip: '个人中心',
+                  onPressed: () {
+                    final shell = context
+                        .findAncestorStateOfType<_StorefrontShellState>();
+                    shell?.setState(() => shell._selectedIndex = 3);
+                  },
+                  icon: const Icon(Icons.person_outline_rounded)),
               const SizedBox(width: 6),
             ],
           ),
@@ -291,13 +523,17 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 18),
               if (controller.banners.isNotEmpty)
-                _HomeBannerCarousel(banners: controller.banners, onTap: (link) {
-                  final shell = context.findAncestorStateOfType<_StorefrontShellState>();
-                  shell?._openBanner(link);
-                })
+                _HomeBannerCarousel(
+                    banners: controller.banners,
+                    onTap: (link) {
+                      final shell = context
+                          .findAncestorStateOfType<_StorefrontShellState>();
+                      shell?._openBanner(link);
+                    })
               else
                 _WelcomePanel(onExplore: () {
-                  final shell = context.findAncestorStateOfType<_StorefrontShellState>();
+                  final shell =
+                      context.findAncestorStateOfType<_StorefrontShellState>();
                   shell?._openCategory(null);
                 }),
               const SizedBox(height: 24),
@@ -305,7 +541,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 title: '精选分类',
                 actionLabel: '全部分类',
                 onAction: () {
-                  final shell = context.findAncestorStateOfType<_StorefrontShellState>();
+                  final shell =
+                      context.findAncestorStateOfType<_StorefrontShellState>();
                   shell?._openCategory(null);
                 },
               ),
@@ -313,16 +550,19 @@ class _HomeScreenState extends State<HomeScreen> {
               if (controller.categories.isEmpty)
                 controller.loading
                     ? const _CategoryPlaceholders()
-                    : Text('更多分类即将上架', style: Theme.of(context).textTheme.bodyMedium)
+                    : Text('更多分类即将上架',
+                        style: Theme.of(context).textTheme.bodyMedium)
               else
                 SizedBox(
                   height: 94,
                   child: LayoutBuilder(builder: (context, constraints) {
-                    final itemCount = controller.categories.length.clamp(0, 8).toInt();
+                    final itemCount =
+                        controller.categories.length.clamp(0, 8).toInt();
                     final fitsInRow = itemCount <= 5;
                     final gap = fitsInRow ? 6.0 : 12.0;
                     final tileWidth = fitsInRow
-                        ? (constraints.maxWidth - (itemCount - 1) * gap) / itemCount
+                        ? (constraints.maxWidth - (itemCount - 1) * gap) /
+                            itemCount
                         : 74.0;
                     return ListView.separated(
                       scrollDirection: Axis.horizontal,
@@ -334,7 +574,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           category: category,
                           width: tileWidth,
                           onTap: () {
-                            final shell = context.findAncestorStateOfType<_StorefrontShellState>();
+                            final shell = context.findAncestorStateOfType<
+                                _StorefrontShellState>();
                             shell?._openCategory(category.id);
                           },
                         );
@@ -349,20 +590,36 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Container(
                   padding: const EdgeInsets.fromLTRB(17, 15, 15, 15),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [Color(0xFFFFF7F0), Color(0xFFFFE9DA)]),
+                    gradient: const LinearGradient(
+                        colors: [Color(0xFFFFF7F0), Color(0xFFFFE9DA)]),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: const Color(0xFFFFD5C5)),
                   ),
                   child: Row(children: [
-                    Container(width: 42, height: 42, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
-                      child: const Icon(Icons.diamond_outlined, color: ShopTheme.primaryDark)),
+                    Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14)),
+                        child: const Icon(Icons.diamond_outlined,
+                            color: ShopTheme.primaryDark)),
                     const SizedBox(width: 12),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      const Text('会员专属权益', style: TextStyle(color: ShopTheme.primaryDark, fontSize: 11, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 3),
-                      Text('入会礼包 · 月度领货 · 会员折扣', style: Theme.of(context).textTheme.titleSmall),
-                    ])),
-                    const Icon(Icons.chevron_right_rounded, color: ShopTheme.primaryDark),
+                    Expanded(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                          const Text('会员专属权益',
+                              style: TextStyle(
+                                  color: ShopTheme.primaryDark,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 3),
+                          Text('入会礼包 · 月度领货 · 会员折扣',
+                              style: Theme.of(context).textTheme.titleSmall),
+                        ])),
+                    const Icon(Icons.chevron_right_rounded,
+                        color: ShopTheme.primaryDark),
                   ]),
                 ),
               ),
@@ -370,12 +627,15 @@ class _HomeScreenState extends State<HomeScreen> {
               SectionHeading(title: '人气好物'),
               const SizedBox(height: 12),
               if (controller.loading && controller.hotProducts.isEmpty)
-                const Center(child: Padding(
+                const Center(
+                    child: Padding(
                   padding: EdgeInsets.all(32),
                   child: CircularProgressIndicator(),
                 ))
-              else if (controller.error != null && controller.hotProducts.isEmpty)
-                ErrorPanel(message: controller.error!, onRetry: controller.loadHome)
+              else if (controller.error != null &&
+                  controller.hotProducts.isEmpty)
+                ErrorPanel(
+                    message: controller.error!, onRetry: controller.loadHome)
               else if (controller.hotProducts.isEmpty)
                 const EmptyPanel(title: '暂时没有商品', subtitle: '上新后会第一时间展示在这里')
               else
@@ -410,11 +670,14 @@ class _WelcomePanel extends StatelessWidget {
           ),
         ),
         child: Stack(children: [
-          Positioned(right: -8, top: -15, child: Icon(
-            Icons.shopping_bag_outlined,
-            size: 110,
-            color: Colors.white.withOpacity(.06),
-          )),
+          Positioned(
+              right: -8,
+              top: -15,
+              child: Icon(
+                Icons.shopping_bag_outlined,
+                size: 110,
+                color: Colors.white.withOpacity(.06),
+              )),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -422,22 +685,25 @@ class _WelcomePanel extends StatelessWidget {
                 color: const Color(0xFFFFF0E9),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Text('ORANGE SELECT · 精选商城', style: TextStyle(
-                color: ShopTheme.primaryDark,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                letterSpacing: .4,
-              )),
+              child: const Text('ORANGE SELECT · 精选商城',
+                  style: TextStyle(
+                    color: ShopTheme.primaryDark,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: .4,
+                  )),
             ),
             const SizedBox(height: 18),
-            Text('好物精选，\n认真生活', style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: Colors.white,
-              height: 1.2,
-            )),
+            Text('好物精选，\n认真生活',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: Colors.white,
+                      height: 1.2,
+                    )),
             const SizedBox(height: 8),
-            Text('发现日常值得拥有的品质好物', style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.white.withOpacity(.76),
-            )),
+            Text('发现日常值得拥有的品质好物',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.white.withOpacity(.76),
+                    )),
             const SizedBox(height: 20),
             FilledButton.tonalIcon(
               onPressed: onExplore,
@@ -480,18 +746,37 @@ class _HomeBannerCarouselState extends State<_HomeBannerCarousel> {
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: banner.link.trim().isEmpty ? null : () => widget.onTap(banner.link),
+                    onTap: banner.link.trim().isEmpty
+                        ? null
+                        : () => widget.onTap(banner.link),
                     child: Stack(fit: StackFit.expand, children: [
                       ShopImage(url: banner.image, radius: 0),
-                      const DecoratedBox(decoration: BoxDecoration(
-                        gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter,
-                          colors: [Color(0x990D1117), Color(0x000D1117)], stops: [0, .72]),
+                      const DecoratedBox(
+                          decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [Color(0x990D1117), Color(0x000D1117)],
+                            stops: [0, .72]),
                       )),
-                      Positioned(left: 18, bottom: 18, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        const Text('ORANGE SELECT', style: TextStyle(color: Colors.white70, fontSize: 10, letterSpacing: 1.3)),
-                        const SizedBox(height: 5),
-                        Text('精选好物 · 品质生活', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white)),
-                      ])),
+                      Positioned(
+                          left: 18,
+                          bottom: 18,
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('ORANGE SELECT',
+                                    style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 10,
+                                        letterSpacing: 1.3)),
+                                const SizedBox(height: 5),
+                                Text('精选好物 · 品质生活',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge
+                                        ?.copyWith(color: Colors.white)),
+                              ])),
                     ]),
                   ),
                 ),
@@ -509,7 +794,9 @@ class _HomeBannerCarouselState extends State<_HomeBannerCarousel> {
                 height: 6,
                 margin: const EdgeInsets.symmetric(horizontal: 3),
                 decoration: BoxDecoration(
-                  color: index == _index ? ShopTheme.primary : const Color(0xFFD6D9DE),
+                  color: index == _index
+                      ? ShopTheme.primary
+                      : const Color(0xFFD6D9DE),
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
@@ -528,7 +815,8 @@ class _CategoryPlaceholders extends StatelessWidget {
 }
 
 class _CategoryTile extends StatelessWidget {
-  const _CategoryTile({required this.category, required this.width, required this.onTap});
+  const _CategoryTile(
+      {required this.category, required this.width, required this.onTap});
   final ShopCategory category;
   final double width;
   final VoidCallback onTap;
@@ -558,10 +846,13 @@ class _CategoryTile extends StatelessWidget {
                 ),
               ],
             ),
-            child: Icon(style.icon, color: style.foreground, size: width < 64 ? 24 : 27),
+            child: Icon(style.icon,
+                color: style.foreground, size: width < 64 ? 24 : 27),
           ),
           const SizedBox(height: 7),
-          Text(category.name, maxLines: 1, overflow: TextOverflow.ellipsis,
+          Text(category.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.labelSmall),
         ]),
       ),
@@ -570,7 +861,8 @@ class _CategoryTile extends StatelessWidget {
 }
 
 class _CategoryIconStyle {
-  const _CategoryIconStyle({required this.icon, required this.foreground, required this.background});
+  const _CategoryIconStyle(
+      {required this.icon, required this.foreground, required this.background});
 
   final IconData icon;
   final Color foreground;
@@ -579,35 +871,49 @@ class _CategoryIconStyle {
 
 _CategoryIconStyle _categoryIconStyle(ShopCategory category) {
   final value = '${category.icon} ${category.name}'.toLowerCase();
-  if (value.contains('lipstick') || value.contains('beauty') || value.contains('skin') || value.contains('美妆')) {
+  if (value.contains('lipstick') ||
+      value.contains('beauty') ||
+      value.contains('skin') ||
+      value.contains('美妆')) {
     return const _CategoryIconStyle(
       icon: Icons.spa_rounded,
       foreground: Color(0xFFB84D68),
       background: Color(0xFFFFF0F3),
     );
   }
-  if (value.contains('nutrition') || value.contains('health') || value.contains('food') || value.contains('健康')) {
+  if (value.contains('nutrition') ||
+      value.contains('health') ||
+      value.contains('food') ||
+      value.contains('健康')) {
     return const _CategoryIconStyle(
       icon: Icons.eco_rounded,
       foreground: Color(0xFF47835F),
       background: Color(0xFFEEF7F0),
     );
   }
-  if (value.contains('home') || value.contains('living') || value.contains('家居')) {
+  if (value.contains('home') ||
+      value.contains('living') ||
+      value.contains('家居')) {
     return const _CategoryIconStyle(
       icon: Icons.weekend_rounded,
       foreground: Color(0xFF9A7040),
       background: Color(0xFFF8F1E5),
     );
   }
-  if (value.contains('device') || value.contains('digital') || value.contains('phone') || value.contains('数码')) {
+  if (value.contains('device') ||
+      value.contains('digital') ||
+      value.contains('phone') ||
+      value.contains('数码')) {
     return const _CategoryIconStyle(
       icon: Icons.devices_other_rounded,
       foreground: Color(0xFF4A779E),
       background: Color(0xFFEEF4FA),
     );
   }
-  if (value.contains('gift') || value.contains('member') || value.contains('vip') || value.contains('入会')) {
+  if (value.contains('gift') ||
+      value.contains('member') ||
+      value.contains('vip') ||
+      value.contains('入会')) {
     return const _CategoryIconStyle(
       icon: Icons.workspace_premium_rounded,
       foreground: Color(0xFFB87930),

@@ -21,16 +21,23 @@ class CategoryScreen extends StatefulWidget {
 
 class CategoryScreenState extends State<CategoryScreen> {
   final _searchController = TextEditingController();
+  final _productScrollController = ScrollController();
   int? _selectedCategory;
   int _sortIndex = 0;
+  int _page = 1;
+  int _totalProducts = 0;
+  int _requestVersion = 0;
   List<Product> _products = [];
   bool _loading = true;
+  bool _loadingMore = false;
   String? _error;
+  String? _loadMoreError;
 
   @override
   void initState() {
     super.initState();
     _selectedCategory = widget.initialCategoryId;
+    _productScrollController.addListener(_onProductScroll);
     WidgetsBinding.instance
         .addPostFrameCallback((_) => _load(categoryId: _selectedCategory));
   }
@@ -40,25 +47,89 @@ class CategoryScreenState extends State<CategoryScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _productScrollController
+      ..removeListener(_onProductScroll)
+      ..dispose();
     super.dispose();
   }
 
+  void _onProductScroll() {
+    if (_productScrollController.hasClients &&
+        _productScrollController.position.extentAfter < 360) {
+      _loadMore();
+    }
+  }
+
   Future<void> _load({int? categoryId}) async {
+    final version = ++_requestVersion;
+    if (_productScrollController.hasClients &&
+        _productScrollController.position.pixels > 0) {
+      _productScrollController.jumpTo(0);
+    }
     setState(() {
       _loading = true;
+      _loadingMore = false;
       _error = null;
+      _loadMoreError = null;
+      _page = 1;
+      _totalProducts = 0;
+      _products = [];
       _selectedCategory = categoryId;
     });
     try {
       final controller = context.read<AppController>();
       await controller.loadCategories();
-      final products = await controller.loadProducts(
-          categoryId: categoryId, keyword: _searchController.text);
-      if (mounted) setState(() => _products = products);
+      final result = await controller.loadProductPage(
+        categoryId: categoryId,
+        keyword: _searchController.text,
+      );
+      if (mounted && version == _requestVersion) {
+        setState(() {
+          _products = result.items;
+          _totalProducts = result.total;
+          _page = result.page;
+        });
+      }
     } on Exception catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+      if (mounted && version == _requestVersion) {
+        setState(() => _error = error.toString());
+      }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && version == _requestVersion) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_loading || _loadingMore || _products.length >= _totalProducts) return;
+    final version = _requestVersion;
+    final nextPage = _page + 1;
+    setState(() {
+      _loadingMore = true;
+      _loadMoreError = null;
+    });
+    try {
+      final result = await context.read<AppController>().loadProductPage(
+            categoryId: _selectedCategory,
+            keyword: _searchController.text,
+            page: nextPage,
+          );
+      if (mounted && version == _requestVersion) {
+        setState(() {
+          _products = [..._products, ...result.items];
+          _page = result.page;
+          _totalProducts = result.total;
+        });
+      }
+    } on Exception catch (error) {
+      if (mounted && version == _requestVersion) {
+        setState(() => _loadMoreError = error.toString());
+      }
+    } finally {
+      if (mounted && version == _requestVersion) {
+        setState(() => _loadingMore = false);
+      }
     }
   }
 
@@ -153,7 +224,7 @@ class CategoryScreenState extends State<CategoryScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 7, 14, 8),
               child: Row(children: [
-                Text('${_sortedProducts.length} 件精选商品',
+                Text('$_totalProducts 件精选商品',
                     style: Theme.of(context).textTheme.bodySmall),
                 const Spacer(),
                 if (_searchController.text.trim().isNotEmpty)
@@ -172,6 +243,7 @@ class CategoryScreenState extends State<CategoryScreen> {
                           ? const EmptyPanel(
                               title: '暂无商品', subtitle: '换个分类或关键词试试')
                           : GridView.builder(
+                              controller: _productScrollController,
                               padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
                               gridDelegate:
                                   const SliverGridDelegateWithFixedCrossAxisCount(
@@ -180,9 +252,32 @@ class CategoryScreenState extends State<CategoryScreen> {
                                 mainAxisSpacing: 12,
                                 childAspectRatio: .62,
                               ),
-                              itemCount: _sortedProducts.length,
-                              itemBuilder: (context, index) =>
-                                  ProductCard(product: _sortedProducts[index]),
+                              itemCount: _sortedProducts.length +
+                                  (_sortedProducts.length < _totalProducts
+                                      ? 1
+                                      : 0),
+                              itemBuilder: (context, index) {
+                                if (index < _sortedProducts.length) {
+                                  return ProductCard(
+                                      product: _sortedProducts[index]);
+                                }
+                                if (_loadMoreError != null) {
+                                  return Center(
+                                    child: TextButton.icon(
+                                      onPressed: _loadMore,
+                                      icon: const Icon(Icons.refresh_rounded),
+                                      label: const Text('加载失败，点击重试'),
+                                    ),
+                                  );
+                                }
+                                return const Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.all(20),
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  ),
+                                );
+                              },
                             ),
             ),
           ]),
@@ -299,38 +394,151 @@ class ProductSearchScreen extends StatefulWidget {
 }
 
 class _ProductSearchScreenState extends State<ProductSearchScreen> {
-  late Future<List<Product>> _products;
+  final _scrollController = ScrollController();
+  List<Product> _products = [];
+  int _page = 1;
+  int _total = 0;
+  int _requestVersion = 0;
+  bool _loading = true;
+  bool _loadingMore = false;
+  String? _error;
+  String? _loadMoreError;
 
   @override
   void initState() {
     super.initState();
-    _products =
-        context.read<AppController>().loadProducts(keyword: widget.keyword);
+    _scrollController.addListener(_onScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_onScroll)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.hasClients &&
+        _scrollController.position.extentAfter < 360) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _load() async {
+    final version = ++_requestVersion;
+    setState(() {
+      _loading = true;
+      _loadingMore = false;
+      _error = null;
+      _loadMoreError = null;
+      _products = [];
+      _page = 1;
+      _total = 0;
+    });
+    try {
+      final result = await context
+          .read<AppController>()
+          .loadProductPage(keyword: widget.keyword);
+      if (mounted && version == _requestVersion) {
+        setState(() {
+          _products = result.items;
+          _page = result.page;
+          _total = result.total;
+        });
+      }
+    } on Exception catch (error) {
+      if (mounted && version == _requestVersion) {
+        setState(() => _error = error.toString());
+      }
+    } finally {
+      if (mounted && version == _requestVersion) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_loading || _loadingMore || _products.length >= _total) return;
+    final version = _requestVersion;
+    setState(() {
+      _loadingMore = true;
+      _loadMoreError = null;
+    });
+    try {
+      final result = await context.read<AppController>().loadProductPage(
+            keyword: widget.keyword,
+            page: _page + 1,
+          );
+      if (mounted && version == _requestVersion) {
+        setState(() {
+          _products = [..._products, ...result.items];
+          _page = result.page;
+          _total = result.total;
+        });
+      }
+    } on Exception catch (error) {
+      if (mounted && version == _requestVersion) {
+        setState(() => _loadMoreError = error.toString());
+      }
+    } finally {
+      if (mounted && version == _requestVersion) {
+        setState(() => _loadingMore = false);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: Text('搜索「${widget.keyword}」')),
-        body: FutureBuilder<List<Product>>(
-          future: _products,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError)
-              return ErrorPanel(
-                message: '${snapshot.error}',
-                onRetry: () async => setState(() => _products = context
-                    .read<AppController>()
-                    .loadProducts(keyword: widget.keyword)),
-              );
-            final products = snapshot.data ?? [];
-            if (products.isEmpty)
-              return const EmptyPanel(title: '没有找到相关商品', subtitle: '试试其他关键词');
-            return ProductGrid(
-                products: products, padding: const EdgeInsets.all(16));
-          },
-        ),
+        body: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? ErrorPanel(message: _error!, onRetry: _load)
+                : _products.isEmpty
+                    ? const EmptyPanel(title: '没有找到相关商品', subtitle: '试试其他关键词')
+                    : LayoutBuilder(builder: (context, constraints) {
+                        final columns = constraints.maxWidth > 680
+                            ? 4
+                            : constraints.maxWidth > 480
+                                ? 3
+                                : 2;
+                        return GridView.builder(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.all(16),
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: columns,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 14,
+                            childAspectRatio: columns == 2 ? .62 : .72,
+                          ),
+                          itemCount: _products.length +
+                              (_products.length < _total ? 1 : 0),
+                          itemBuilder: (context, index) {
+                            if (index < _products.length) {
+                              return ProductCard(product: _products[index]);
+                            }
+                            if (_loadMoreError != null) {
+                              return Center(
+                                child: TextButton.icon(
+                                  onPressed: _loadMore,
+                                  icon: const Icon(Icons.refresh_rounded),
+                                  label: const Text('加载失败，点击重试'),
+                                ),
+                              );
+                            }
+                            return const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(20),
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            );
+                          },
+                        );
+                      }),
       );
 }
 
@@ -592,7 +800,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                 const Icon(Icons.inventory_2_outlined,
                                     size: 16, color: ShopTheme.mutedInk),
                                 const SizedBox(width: 5),
-                                Text(inStock ? '库存 ${sku!.stock} 件' : '暂时缺货',
+                                Text(inStock ? '库存 ${sku.stock} 件' : '暂时缺货',
                                     style:
                                         Theme.of(context).textTheme.bodySmall),
                               ]),

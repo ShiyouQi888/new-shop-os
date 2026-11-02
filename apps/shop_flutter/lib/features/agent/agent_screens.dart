@@ -1835,7 +1835,7 @@ class _PromotionScreenState extends State<PromotionScreen> {
                   configuredUri.host == '0.0.0.0');
           final domain = configuredDomain.isNotEmpty
               ? (!kIsWeb && configuredIsLocal && apiUri != null
-                  ? configuredUri!.replace(host: apiUri.host).toString()
+                  ? configuredUri.replace(host: apiUri.host).toString()
                   : configuredDomain)
               : browserOrigin.isNotEmpty
                   ? browserOrigin

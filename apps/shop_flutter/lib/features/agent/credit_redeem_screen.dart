@@ -191,7 +191,7 @@ class _CreditRedeemScreenState extends State<CreditRedeemScreen> {
         chunk *= 2;
       }
       dp = List<int>.from(history.last);
-      for (final (quantity, price) in itemChunks) {
+      for (final (_, price) in itemChunks) {
         for (var amount = capacity; amount >= price; amount--) {
           final candidate = dp[amount - price] + price;
           if (candidate > dp[amount]) dp[amount] = candidate;

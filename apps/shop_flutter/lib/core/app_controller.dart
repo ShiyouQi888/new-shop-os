@@ -27,18 +27,23 @@ class AppController extends ChangeNotifier {
   double get selectedListTotal => cart
       .where((item) => item.selected)
       .fold<double>(0, (total, item) => total + item.price * item.quantity);
-  double get selectedTotal => cart
-      .where((item) => item.selected)
-      .fold<double>(0, (total, item) => total + item.memberPrice(shopDiscount) * item.quantity);
+  double get selectedTotal => cart.where((item) => item.selected).fold<double>(
+      0,
+      (total, item) => total + item.memberPrice(shopDiscount) * item.quantity);
   double get selectedDiscount => selectedListTotal - selectedTotal;
-  bool get allCartSelected => cart.isNotEmpty && cart.every((item) => item.selected);
+  bool get allCartSelected =>
+      cart.isNotEmpty && cart.every((item) => item.selected);
 
   Future<void> initialize() async {
     member = await _session.readMember();
     notifyListeners();
     await loadHome();
     if (member != null) {
-      try { await refreshMember(); } on Exception { /* Retain saved membership pricing while the API is unavailable. */ }
+      try {
+        await refreshMember();
+      } on Exception {
+        /* Retain saved membership pricing while the API is unavailable. */
+      }
       await loadCart();
     }
   }
@@ -71,13 +76,29 @@ class AppController extends ChangeNotifier {
   }
 
   Future<List<Product>> loadProducts({int? categoryId, String? keyword}) async {
+    final page = await loadProductPage(
+      categoryId: categoryId,
+      keyword: keyword,
+      page: 1,
+      pageSize: 100,
+    );
+    return page.items;
+  }
+
+  Future<ProductPage> loadProductPage({
+    int? categoryId,
+    String? keyword,
+    int page = 1,
+    int pageSize = 24,
+  }) async {
     final query = <String, Object?>{'page': 1, 'pageSize': 100};
+    query['page'] = page;
+    query['pageSize'] = pageSize.clamp(1, 100);
     if (categoryId != null) query['categoryId'] = categoryId;
-    if (keyword != null && keyword.trim().isNotEmpty) query['keyword'] = keyword.trim();
-    final result = asJsonMap(await api.get('/shop/products', query));
-    return asList(result['list'])
-        .map((item) => Product.fromJson(asJsonMap(item)))
-        .toList();
+    if (keyword != null && keyword.trim().isNotEmpty)
+      query['keyword'] = keyword.trim();
+    return ProductPage.fromJson(
+        asJsonMap(await api.get('/shop/products', query)));
   }
 
   Future<({Product product, List<ProductSku> skus})> loadProduct(int id) async {
@@ -164,7 +185,8 @@ class AppController extends ChangeNotifier {
 
   Future<void> _saveMember(JsonMap result) async {
     final token = result['token'];
-    if (token is! String || token.isEmpty) throw const ApiException('登录信息不完整，请重试');
+    if (token is! String || token.isEmpty)
+      throw const ApiException('登录信息不完整，请重试');
     const secureStorage = FlutterSecureStorage();
     await secureStorage.write(key: ApiClient.tokenKey, value: token);
     member = MemberProfile.fromJson(result);
@@ -186,11 +208,13 @@ class AppController extends ChangeNotifier {
 
   Future<void> addToCart(ProductSku sku, {int quantity = 1}) async {
     if (!isSignedIn) throw const ApiException('请先登录后再加入购物车');
-    await api.post('/shop/member/cart', {'skuId': sku.id, 'quantity': quantity});
+    await api
+        .post('/shop/member/cart', {'skuId': sku.id, 'quantity': quantity});
     await loadCart();
   }
 
-  Future<void> setCartItem(CartItem item, {int? quantity, bool? selected}) async {
+  Future<void> setCartItem(CartItem item,
+      {int? quantity, bool? selected}) async {
     if (quantity != null && quantity > item.stock) {
       throw ApiException('当前库存仅剩 ${item.stock} 件');
     }

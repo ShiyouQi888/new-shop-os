@@ -3,7 +3,8 @@ typedef JsonMap = Map<String, dynamic>;
 String _string(dynamic value) => value == null ? '' : '$value';
 double _number(dynamic value) => double.tryParse('$value') ?? 0;
 int _integer(dynamic value) => int.tryParse('$value') ?? 0;
-bool _flag(dynamic value) => value == true || value == 1 || value == '1' || value == 'true';
+bool _flag(dynamic value) =>
+    value == true || value == 1 || value == '1' || value == 'true';
 
 class ShopBanner {
   const ShopBanner({required this.image, required this.link});
@@ -52,12 +53,18 @@ class Product {
         image: _string(json['mainImage'] ?? json['main_image']),
         description: _string(json['description']),
         price: _number(json['minPrice'] ?? json['price']),
-        originalPrice: _number(json['minOriginalPrice'] ?? json['originalPrice']),
+        originalPrice:
+            _number(json['minOriginalPrice'] ?? json['originalPrice']),
         categoryId: _integer(json['categoryId'] ?? json['category_id']),
         isGiftPackage: _flag(json['isGiftPackage'] ?? json['is_gift_package']),
-        isMonthlyProduct: _flag(json['isMonthlyProduct'] ?? json['is_monthly_product']),
-        excludeDiscount: _flag(json['excludeDiscount'] ?? json['exclude_discount']),
-        images: asList(json['images']).map((image) => '$image').where((image) => image.isNotEmpty).toList(),
+        isMonthlyProduct:
+            _flag(json['isMonthlyProduct'] ?? json['is_monthly_product']),
+        excludeDiscount:
+            _flag(json['excludeDiscount'] ?? json['exclude_discount']),
+        images: asList(json['images'])
+            .map((image) => '$image')
+            .where((image) => image.isNotEmpty)
+            .toList(),
         sort: _integer(json['sort']),
       );
 }
@@ -85,14 +92,47 @@ class ProductSku {
             ? '默认规格'
             : _string(json['skuName'] ?? json['sku_name']),
         price: _number(json['price']),
-        originalPrice: _number(json['originalPrice'] ?? json['original_price']),
+        // Public product detail uses `marketPrice`; cart and older API shapes
+        // use `originalPrice`. Both represent the non-transactional reference price.
+        originalPrice: _number(
+          json['marketPrice'] ??
+              json['market_price'] ??
+              json['originalPrice'] ??
+              json['original_price'],
+        ),
         stock: _integer(json['stock']),
         image: _string(json['image']),
       );
 }
 
+class ProductPage {
+  const ProductPage({
+    required this.items,
+    required this.total,
+    required this.page,
+    required this.pageSize,
+  });
+
+  final List<Product> items;
+  final int total;
+  final int page;
+  final int pageSize;
+
+  bool get hasMore => items.length < total && page * pageSize < total;
+
+  factory ProductPage.fromJson(JsonMap json) => ProductPage(
+        items: asList(json['list'])
+            .map((item) => Product.fromJson(asJsonMap(item)))
+            .toList(),
+        total: _integer(json['total']),
+        page: _integer(json['page']),
+        pageSize: _integer(json['pageSize']),
+      );
+}
+
 class ShopCategory {
-  const ShopCategory({required this.id, required this.name, required this.icon});
+  const ShopCategory(
+      {required this.id, required this.name, required this.icon});
 
   final int id;
   final String name;
@@ -147,7 +187,8 @@ class CartItem {
         quantity: _integer(json['quantity']),
         selected: json['selected'] == true || json['selected'] == 1,
         stock: _integer(json['stock']),
-        excludeDiscount: _flag(json['excludeDiscount'] ?? json['exclude_discount']),
+        excludeDiscount:
+            _flag(json['excludeDiscount'] ?? json['exclude_discount']),
       );
 }
 
@@ -177,14 +218,19 @@ class MemberProfile {
   factory MemberProfile.fromJson(JsonMap json) => MemberProfile(
         id: _integer(json['id']),
         phone: _string(json['phone']),
-        nickname: _string(json['nickname']).isEmpty ? '商城会员' : _string(json['nickname']),
+        nickname: _string(json['nickname']).isEmpty
+            ? '商城会员'
+            : _string(json['nickname']),
         avatar: _string(json['avatar']),
         levelName: _string(json['levelName']),
         level: _integer(json['level']),
         inviteCode: _string(json['inviteCode'] ?? json['invite_code']),
-        shopDiscount: json['shopDiscount'] == null && json['shop_discount'] == null
-            ? 100
-            : _number(json['shopDiscount'] ?? json['shop_discount']).clamp(0, 100).toDouble(),
+        shopDiscount:
+            json['shopDiscount'] == null && json['shop_discount'] == null
+                ? 100
+                : _number(json['shopDiscount'] ?? json['shop_discount'])
+                    .clamp(0, 100)
+                    .toDouble(),
         monthlyCredit: _number(json['monthlyCredit'] ?? json['monthly_credit']),
       );
 }
