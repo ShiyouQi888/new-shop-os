@@ -28,7 +28,6 @@ class ShopOsApp extends StatelessWidget {
         locale: const Locale('zh', 'CN'),
         supportedLocales: const [Locale('zh', 'CN')],
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
-        home: const StorefrontShell(),
         onGenerateRoute: _generateShopRoute,
         onGenerateInitialRoutes: (name) {
           if (name == '/') return [MaterialPageRoute<void>(builder: (_) => const StorefrontShell())];

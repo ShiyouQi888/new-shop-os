@@ -226,6 +226,34 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                   int.tryParse('${order['status']}') ?? -1;
                               final orderType =
                                   int.tryParse('${order['orderType']}') ?? 1;
+                              final apiItems = asList(order['items'])
+                                  .map(asJsonMap)
+                                  .toList();
+                              final orderItems = apiItems.isNotEmpty
+                                  ? apiItems
+                                  : <JsonMap>[
+                                      {
+                                        'productName': order['productName'] ??
+                                            (orderType == 2 ? '入会礼包' : '商城商品'),
+                                        'skuName': order['skuName'] ?? '',
+                                        'skuId': order['skuId'],
+                                        'image': order['itemImage'] ?? '',
+                                        'quantity': order['quantity'] ?? 1,
+                                        'totalPrice': order['payAmount'] ?? 0,
+                                      },
+                                    ];
+                              final paidAmount =
+                                  double.tryParse('${order['payAmount']}') ?? 0;
+                              final totalQuantity =
+                                  int.tryParse('${order['quantity']}') ??
+                                      orderItems.fold<int>(
+                                        0,
+                                        (sum, item) =>
+                                            sum +
+                                            (int.tryParse(
+                                                    '${item['quantity']}') ??
+                                                0),
+                                      );
                               return Container(
                                 padding: const EdgeInsets.all(15),
                                 decoration: BoxDecoration(
@@ -248,41 +276,35 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                                 fontWeight: FontWeight.w700)),
                                       ]),
                                       const Divider(height: 22),
-                                      Row(children: [
-                                        SizedBox(
-                                            width: 62,
-                                            height: 62,
-                                            child: ShopImage(
-                                                url:
-                                                    '${order['itemImage'] ?? ''}',
-                                                radius: 13)),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                            child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                              Text(
-                                                  '${order['skuName'] ?? (orderType == 2 ? '入会礼包' : '商城商品')}',
-                                                  maxLines: 2,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .titleSmall),
-                                              const SizedBox(height: 5),
-                                              Text(
-                                                  '共 ${order['quantity'] ?? 1} 件',
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .bodySmall),
-                                            ])),
-                                        Text(
-                                            '¥${(double.tryParse('${order['payAmount']}') ?? 0).toStringAsFixed(2)}',
+                                      for (var itemIndex = 0;
+                                          itemIndex < orderItems.length;
+                                          itemIndex++) ...[
+                                        if (itemIndex > 0)
+                                          const SizedBox(height: 12),
+                                        _OrderProductLine(
+                                          item: orderItems[itemIndex],
+                                          fallbackName: orderType == 2
+                                              ? '入会礼包'
+                                              : '商城商品',
+                                          amount: orderItems.length == 1
+                                              ? paidAmount
+                                              : (double.tryParse(
+                                                          '${orderItems[itemIndex]['totalPrice']}') ??
+                                                      0),
+                                        ),
+                                      ],
+                                      if (orderItems.length > 1) ...[
+                                        const SizedBox(height: 14),
+                                        Align(
+                                          alignment: Alignment.centerRight,
+                                          child: Text(
+                                            '共 $totalQuantity 件  ·  实付款 ¥${paidAmount.toStringAsFixed(2)}',
                                             style: Theme.of(context)
                                                 .textTheme
-                                                .titleMedium),
-                                      ]),
+                                                .bodySmall,
+                                          ),
+                                        ),
+                                      ],
                                       if (status == 0 ||
                                           status == 1 ||
                                           status == 2 ||
@@ -337,6 +359,66 @@ class _OrdersScreenState extends State<OrdersScreen> {
           },
         ),
       );
+}
+
+class _OrderProductLine extends StatelessWidget {
+  const _OrderProductLine({
+    required this.item,
+    required this.fallbackName,
+    required this.amount,
+  });
+
+  final JsonMap item;
+  final String fallbackName;
+  final double amount;
+
+  @override
+  Widget build(BuildContext context) {
+    final skuName = '${item['skuName'] ?? ''}'.trim();
+    final rawProductName = '${item['productName'] ?? ''}'.trim();
+    final productName = rawProductName.isEmpty || rawProductName == '商城商品'
+        ? (skuName.isNotEmpty ? skuName : fallbackName)
+        : rawProductName;
+    final quantity = int.tryParse('${item['quantity']}') ?? 1;
+    final detail = [
+      if (skuName.isNotEmpty && skuName != productName) '规格：$skuName',
+      '× $quantity',
+    ].join('  ·  ');
+
+    return Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+      SizedBox(
+        width: 58,
+        height: 58,
+        child: ShopImage(url: '${item['image'] ?? ''}', radius: 12),
+      ),
+      const SizedBox(width: 11),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              productName,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: 5),
+            Text(
+              detail,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(width: 8),
+      Text(
+        '¥${amount.toStringAsFixed(2)}',
+        style: Theme.of(context).textTheme.titleSmall,
+      ),
+    ]);
+  }
 }
 
 class _OrderMetric extends StatelessWidget {

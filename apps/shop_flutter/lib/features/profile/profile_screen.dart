@@ -20,8 +20,9 @@ class ProfileScreen extends StatelessWidget {
     Future<void> openMemberPage(Widget page) async {
       if (!controller.isSignedIn) {
         await onLogin();
-        if (!context.mounted || !context.read<AppController>().isSignedIn)
+        if (!context.mounted || !context.read<AppController>().isSignedIn) {
           return;
+        }
       }
       await Navigator.of(context)
           .push<void>(MaterialPageRoute(builder: (_) => page));
@@ -201,21 +202,11 @@ class ProfileScreen extends StatelessWidget {
               onPressed: () async {
                 final shouldLogout = await showDialog<bool>(
                   context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('退出当前账号？'),
-                    content: const Text('你可以随时重新登录。'),
-                    actions: [
-                      TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('取消')),
-                      FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('退出登录')),
-                    ],
-                  ),
+                  builder: (_) => const _LogoutConfirmationDialog(),
                 );
-                if (shouldLogout == true)
+                if (shouldLogout == true && context.mounted) {
                   await context.read<AppController>().logout();
+                }
               },
               icon: const Icon(Icons.logout_rounded),
               label: const Text('退出登录'),
@@ -531,5 +522,111 @@ class _ProfileActionText extends StatelessWidget {
             ),
           ],
         ],
+      );
+}
+
+class _LogoutConfirmationDialog extends StatelessWidget {
+  const _LogoutConfirmationDialog();
+
+  @override
+  Widget build(BuildContext context) => Dialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: const BorderSide(color: ShopTheme.border),
+        ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 380),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: ShopTheme.primarySoft,
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: const Icon(
+                        Icons.logout_rounded,
+                        color: ShopTheme.primaryDark,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 13),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 1),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '确认退出登录？',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(fontSize: 19),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'ACCOUNT SESSION',
+                              style: TextStyle(
+                                color: ShopTheme.mutedInk,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: .8,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 17),
+                Text(
+                  '退出后将返回未登录状态，重新登录即可继续使用会员服务。',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 22),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          foregroundColor: ShopTheme.secondaryInk,
+                          side: const BorderSide(color: ShopTheme.border),
+                          backgroundColor: const Color(0xFFF8F9FB),
+                        ),
+                        child: const Text('取消'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                        ),
+                        icon: const Icon(Icons.logout_rounded, size: 17),
+                        label: const Text('退出登录'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       );
 }

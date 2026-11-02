@@ -456,18 +456,60 @@ router.get('/team', requireMember, (req, res, next) => {
 router.get('/orders', requireMember, (req, res, next) => {
   try {
     const id = req.member!.mid
-    const list = all(
+    const orders = all<{ id: number; [key: string]: unknown }>(
       `SELECT o.id, o.order_no AS orderNo, o.order_type AS orderType, o.pay_amount AS payAmount,
               o.total_amount AS totalAmount, o.status, o.create_time AS createTime, o.pay_time AS payTime,
-              o.ship_time AS shipTime, o.finish_time AS finishTime,
-              (SELECT oi.sku_name FROM order_item oi WHERE oi.order_id = o.id LIMIT 1) AS skuName,
-               (SELECT oi.sku_id FROM order_item oi WHERE oi.order_id = o.id LIMIT 1) AS skuId,
-              (SELECT SUM(oi.quantity) FROM order_item oi WHERE oi.order_id = o.id) AS quantity,
-              (SELECT oi.image FROM order_item oi WHERE oi.order_id = o.id LIMIT 1) AS itemImage
+              o.ship_time AS shipTime, o.finish_time AS finishTime
        FROM "order" o WHERE o.member_id = ? ORDER BY o.id DESC`,
       id,
     )
-    ok(res, list)
+    if (orders.length === 0) return ok(res, [])
+
+    const orderItems = all<{
+      orderId: number
+      skuId: number
+      productName: string
+      skuName: string
+      specInfo: string
+      image: string
+      quantity: number
+      unitPrice: number
+      totalPrice: number
+    }>(
+      `SELECT oi.order_id AS orderId, oi.sku_id AS skuId,
+              COALESCE(NULLIF(p.name, ''), NULLIF(oi.sku_name, ''), '商城商品') AS productName,
+              oi.sku_name AS skuName, oi.spec_info AS specInfo, oi.image,
+              oi.quantity, oi.unit_price AS unitPrice, oi.total_price AS totalPrice
+       FROM order_item oi
+       JOIN "order" o ON o.id = oi.order_id
+       LEFT JOIN product_sku s ON s.id = oi.sku_id
+       LEFT JOIN product_spu p ON p.id = s.spu_id
+       WHERE o.member_id = ?
+       ORDER BY oi.id`,
+      id,
+    )
+    const itemsByOrder = new Map<number, typeof orderItems>()
+    for (const item of orderItems) {
+      const items = itemsByOrder.get(item.orderId) ?? []
+      items.push(item)
+      itemsByOrder.set(item.orderId, items)
+    }
+
+    ok(res, orders.map(order => {
+      const items = itemsByOrder.get(order.id) ?? []
+      const firstItem = items[0]
+      return {
+        ...order,
+        // Keep the legacy summary fields for existing H5 clients.
+        productName: firstItem?.productName ?? (Number(order.orderType) === 2 ? '入会礼包' : '商城商品'),
+        skuName: firstItem?.skuName ?? '',
+        skuId: firstItem?.skuId ?? null,
+        specInfo: firstItem?.specInfo ?? '{}',
+        quantity: items.reduce((sum, item) => sum + Number(item.quantity || 0), 0),
+        itemImage: firstItem?.image ?? '',
+        items,
+      }
+    }))
   } catch (e) { next(e) }
 })
 
