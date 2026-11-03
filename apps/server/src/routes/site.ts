@@ -11,13 +11,17 @@ const DEFAULT_SHOP_THEME = 'orange'
 router.get('/config', async (_req, res, next) => {
   try {
     const rows = (await all<{ key: string; value: string }>(
-      "SELECT config_key AS key, config_value AS value FROM system_config WHERE config_key IN ('site.name', 'site.logo', 'site.icon', 'site.theme')",
+      "SELECT config_key AS key, config_value AS value FROM system_config WHERE config_key IN ('site.name', 'site.logo', 'site.icon', 'site.app_icon', 'site.theme')",
     ))
     const map = Object.fromEntries(rows.map(r => [r.key, r.value]))
+    const appIcon = ['orange', 'cream', 'night'].includes(map['site.app_icon'])
+      ? map['site.app_icon']
+      : 'orange'
     ok(res, {
       name: map['site.name'] || '',
       logo: map['site.logo'] || '',
       icon: map['site.icon'] || '',
+      appIcon,
       theme: map['site.theme'] || DEFAULT_SHOP_THEME,
     })
   } catch (e) { next(e) }

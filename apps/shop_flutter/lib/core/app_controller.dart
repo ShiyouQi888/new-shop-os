@@ -1,11 +1,16 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'api_client.dart';
 import 'models.dart';
 import 'session_store.dart';
+
+const _launcherIconChannel = MethodChannel('com.chengxuan.shop/launcher_icon');
+const _launcherIconVariants = {'orange', 'cream', 'night'};
 
 class AppController extends ChangeNotifier with WidgetsBindingObserver {
   AppController(this.api, this._session) {
@@ -27,6 +32,7 @@ class AppController extends ChangeNotifier with WidgetsBindingObserver {
   int cartCount = 0;
   String brandLogoUrl = '';
   int brandLogoRevision = 0;
+  String appIcon = 'orange';
   bool _refreshingBranding = false;
   bool _disposed = false;
 
@@ -80,11 +86,30 @@ class AppController extends ChangeNotifier with WidgetsBindingObserver {
       final config = asJsonMap(await api.get('/site/config'));
       brandLogoUrl = '${config['logo'] ?? ''}'.trim();
       brandLogoRevision++;
+      final requestedIcon = '${config['appIcon'] ?? 'orange'}'.trim();
+      appIcon = _launcherIconVariants.contains(requestedIcon)
+          ? requestedIcon
+          : 'orange';
       if (!_disposed) notifyListeners();
+      await _syncLauncherIcon(appIcon);
     } on Exception {
       // Keep the last known logo; the bundled asset remains the first-load fallback.
     } finally {
       _refreshingBranding = false;
+    }
+  }
+
+  Future<void> _syncLauncherIcon(String variant) async {
+    if (kIsWeb) return;
+    try {
+      await _launcherIconChannel.invokeMethod<void>(
+        'setLauncherIcon',
+        {'variant': variant},
+      );
+    } on MissingPluginException {
+      // Native targets that do not implement launcher icon switching keep their bundled default.
+    } on PlatformException {
+      // Icon changes are best effort; storefront startup must remain available.
     }
   }
 

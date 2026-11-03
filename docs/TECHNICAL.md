@@ -281,7 +281,7 @@ packages/shared —— 设计令牌 / TS 类型 / 工具函数，被 admin 与 s
 
 ### 3.8 系统配置与内容
 
-**`system_config`** 通用键值配置表（`config_key` 唯一），后台"全局参数"页面即此表的可视化编辑器。当前分组（`config_group`）：`basic`（站点名称/客服电话/域名/Logo/图标）、`order`、`withdraw`、`credit`、`resell`、`distribution`、`payment`（微信/支付宝网关参数）。
+**`system_config`** 通用键值配置表（`config_key` 唯一），后台"全局参数"页面即此表的可视化编辑器。当前分组（`config_group`）：`basic`（站点名称/客服电话/域名/Logo/Favicon/桌面图标预设）、`order`、`withdraw`、`credit`、`resell`、`distribution`、`payment`（微信/支付宝网关参数）。`site.app_icon` 只允许 `orange`、`cream`、`night` 三个随 APP 打包的图标方案。
 
 **`help_article`** 帮助与规则文档：`scope`（help 帮助文档 / rules 规则条款），前台 `/mine/help`、`/mine/rules` 读取
 
@@ -441,9 +441,9 @@ packages/shared —— 设计令牌 / TS 类型 / 工具函数，被 admin 与 s
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | /site/config | 公开接口，返回 `{ name, logo, icon }`（读取 `system_config` 的 `site.name`/`site.logo`/`site.icon`），供登录页/未登录场景展示站点品牌，值为空时前端回退到内置默认资源 |
+| GET | /site/config | 公开接口，返回 `{ name, logo, icon, appIcon, theme }`（读取 `system_config` 的站点配置键）；登录页和商城读取 `logo`，Flutter 启动/恢复前台时读取 `appIcon` 并切换到内置桌面图标方案 |
 
-站点 Logo/图标本身通过后台"全局参数"页面的文件上传控件写入 `system_config`（复用 `POST /files/upload` 通用上传接口，见 4.16），不需要单独的写接口。
+站点 Logo/Favicon 通过后台"全局参数"页面的文件上传控件写入 `system_config`（复用 `POST /files/upload` 通用上传接口，见 4.16）。桌面图标通过同页选择 `site.app_icon` 预设；新增图案需要随 APP 发布，后台切换现有预设无需重新发布。iOS 在系统允许更换时会弹出系统确认提示。
 
 ### 4.15 数据看板 `/dashboard`（`routes/dashboard.ts`，`requireAuth`）
 

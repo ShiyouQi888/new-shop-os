@@ -434,6 +434,8 @@ export interface SiteBranding {
   name: string
   logo: string
   icon: string
+  /** Native launcher icon preset bundled in the mobile app: orange, cream, or night. */
+  appIcon: string
   /** 商城前台主题 ID，对应 SHOP_THEMES（packages/shared/tokens） */
   theme: string
 }

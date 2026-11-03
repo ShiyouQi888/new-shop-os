@@ -12,6 +12,7 @@ Flutter client for the Shop OS customer storefront. It provides one responsive U
 - Product detail supports both add-to-cart and direct checkout; direct purchases do not alter an existing cart line
 - Flutter Web uses path URLs so shared `/r/:inviteCode` links open the invite registration screen
 - The in-app brand logo loads from the admin-managed public site configuration at startup and when the app returns to the foreground; the bundled logo is used when the API or image is unavailable. The installed launcher icon remains part of the app package.
+- The home screen icon supports three bundled presets (`orange`, `cream`, `night`), selected from admin global settings and synchronized at startup/resume. Adding a new icon design requires an app release; iOS displays the system confirmation prompt when the icon changes.
 
 ## Requirements and setup
 

@@ -24,6 +24,7 @@ async function patchConfigDefaults() {
   const patches: [string, string, string, string][] = [
     ['site.logo', '', 'basic', '站点Logo（登录页/侧边栏展示，留空使用默认）'],
     ['site.icon', '', 'basic', '站点图标/Favicon（留空使用默认）'],
+    ['site.app_icon', 'orange', 'basic', '手机桌面图标预设：orange 橙选 / cream 暖白 / night 深色（切换已预置图标，无需重新发布）'],
     ['site.theme', 'orange', 'basic', '商城前台主题：orange 橘意暖阳 / blue 海洋蓝 / green 森林绿 / purple 至尊紫'],
     ['credit.claim_mode', 'lump_sum', 'credit', '领货/转卖模式：lump_sum 一次性用完剩余额度 / flexible 自由任意额度'],
     ['consumption_credit.enabled', '0', 'consumption_credit', '消费返还额度总开关：1 开启 0 关闭（购物消费按比例累加当月领货额度）'],
