@@ -61,6 +61,62 @@ class ShopImage extends StatelessWidget {
       );
 }
 
+/// Displays the logo managed from the admin site settings, with a bundled
+/// fallback for offline startup and failed image requests.
+class BrandLogo extends StatelessWidget {
+  const BrandLogo({
+    super.key,
+    required this.assetPath,
+    this.width,
+    this.height,
+    this.fit = BoxFit.contain,
+    this.alignment = Alignment.center,
+  });
+
+  final String assetPath;
+  final double? width;
+  final double? height;
+  final BoxFit fit;
+  final AlignmentGeometry alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    final branding = context.select<AppController, (String, int)>(
+      (controller) => (controller.brandLogoUrl, controller.brandLogoRevision),
+    );
+    final logoUrl = branding.$1;
+    if (logoUrl.isEmpty) {
+      return Image.asset(
+        assetPath,
+        width: width,
+        height: height,
+        fit: fit,
+        alignment: alignment,
+      );
+    }
+
+    final resolved = Uri.parse(imageUrl(logoUrl));
+    final cacheBustedUrl = resolved.replace(queryParameters: {
+      ...resolved.queryParameters,
+      '_brand_revision': '${branding.$2}',
+    }).toString();
+    return Image.network(
+      cacheBustedUrl,
+      width: width,
+      height: height,
+      fit: fit,
+      alignment: alignment,
+      errorBuilder: (_, __, ___) => Image.asset(
+        assetPath,
+        width: width,
+        height: height,
+        fit: fit,
+        alignment: alignment,
+      ),
+    );
+  }
+}
+
 class _ImageFallback extends StatelessWidget {
   const _ImageFallback();
   @override

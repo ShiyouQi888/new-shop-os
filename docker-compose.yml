@@ -1,20 +1,48 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: shop-os-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${PGDATABASE:-shop_os}
+      POSTGRES_USER: ${PGUSER:-shop_os}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请先在 .env 中设置 POSTGRES_PASSWORD}
+    volumes:
+      - shop_os_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_BIND_ADDRESS:-127.0.0.1}:${POSTGRES_HOST_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
   server:
     build:
       context: .
       dockerfile: apps/server/Dockerfile
     container_name: shop-os-server
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
       NODE_ENV: production
       PORT: 3000
-      DB_FILE: /data/shop-os.db
+      DATABASE_URL: ${DATABASE_URL:-}
+      PGHOST: ${COMPOSE_PGHOST:-postgres}
+      PGPORT: ${COMPOSE_PGPORT:-5432}
+      PGDATABASE: ${PGDATABASE:-shop_os}
+      PGUSER: ${PGUSER:-shop_os}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?请先在 .env 中设置 POSTGRES_PASSWORD}
+      PGPOOL_MAX: ${PGPOOL_MAX:-10}
+      PGSSLMODE: ${PGSSLMODE:-disable}
       UPLOAD_DIR: /uploads
       BASE_URL: ${SERVER_BASE_URL:-http://localhost:3000}
       JWT_SECRET: ${JWT_SECRET:?请先在 .env 中设置 JWT_SECRET（生成示例：openssl rand -hex 32），不要使用示例默认值}
       AUTO_SEED: ${AUTO_SEED:-1}
     volumes:
-      - shop_os_data:/data
       - shop_os_uploads:/uploads
     ports:
       - "${SERVER_PORT:-3000}:3000"
@@ -54,5 +82,5 @@ services:
       - "${SHOP_PORT:-5176}:80"
 
 volumes:
-  shop_os_data:
+  shop_os_postgres_data:
   shop_os_uploads:

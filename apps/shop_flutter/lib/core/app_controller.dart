@@ -1,12 +1,16 @@
-import 'package:flutter/foundation.dart';
+import 'dart:async';
+
+import 'package:flutter/widgets.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'api_client.dart';
 import 'models.dart';
 import 'session_store.dart';
 
-class AppController extends ChangeNotifier {
-  AppController(this.api, this._session);
+class AppController extends ChangeNotifier with WidgetsBindingObserver {
+  AppController(this.api, this._session) {
+    WidgetsBinding.instance.addObserver(this);
+  }
 
   final ApiClient api;
   final SessionStore _session;
@@ -21,6 +25,10 @@ class AppController extends ChangeNotifier {
   List<CartItem> cart = [];
   MemberProfile? member;
   int cartCount = 0;
+  String brandLogoUrl = '';
+  int brandLogoRevision = 0;
+  bool _refreshingBranding = false;
+  bool _disposed = false;
 
   bool get isSignedIn => member != null;
   double get shopDiscount => member?.shopDiscount ?? 100;
@@ -34,10 +42,24 @@ class AppController extends ChangeNotifier {
   bool get allCartSelected =>
       cart.isNotEmpty && cart.every((item) => item.selected);
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(refreshBranding());
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
   Future<void> initialize() async {
     member = await _session.readMember();
     notifyListeners();
-    await loadHome();
+    await Future.wait([refreshBranding(), loadHome()]);
     if (member != null) {
       try {
         await refreshMember();
@@ -45,6 +67,24 @@ class AppController extends ChangeNotifier {
         /* Retain saved membership pricing while the API is unavailable. */
       }
       await loadCart();
+    }
+  }
+
+  /// Reads public brand settings at startup and whenever the app resumes.
+  /// A revision is included in the image URL so replacing a logo at the same
+  /// storage path won't leave Flutter's image cache showing the old file.
+  Future<void> refreshBranding() async {
+    if (_refreshingBranding || _disposed) return;
+    _refreshingBranding = true;
+    try {
+      final config = asJsonMap(await api.get('/site/config'));
+      brandLogoUrl = '${config['logo'] ?? ''}'.trim();
+      brandLogoRevision++;
+      if (!_disposed) notifyListeners();
+    } on Exception {
+      // Keep the last known logo; the bundled asset remains the first-load fallback.
+    } finally {
+      _refreshingBranding = false;
     }
   }
 

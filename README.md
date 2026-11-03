@@ -2,7 +2,7 @@
 
 > 零售商城 + 大礼包入会 + 月度领货权益 + 站内转卖 + 三级分销佣金 —— 一套完整可部署的电商代理商业务系统
 
-包含运营管理后台（PC）、会员商城（H5 / 可打包 Android App）、Express + SQLite 后端服务，三端共用同一套类型定义与设计规范，开箱即可通过 Docker 部署。
+包含运营管理后台（PC）、会员商城（H5 / 可打包 Android App）、Express + PostgreSQL 后端服务，三端共用同一套类型定义与设计规范，可通过 Docker Compose 部署。
 
 ---
 
@@ -45,7 +45,7 @@
 |------|------|
 | 管理后台前端 | Vue 3 + Element Plus + Vite + TypeScript |
 | 商城前端 | Vue 3 + Vant 4 + Vite + TypeScript（Capacitor 打包 Android） |
-| 后端服务 | Express 4 + TypeScript + Node 内置 `node:sqlite` |
+| 后端服务 | Express 4 + TypeScript + PostgreSQL（`pg` 连接池） |
 | 鉴权 | JWT（管理员 / 会员两套独立 Token 体系） |
 | 状态管理 | Pinia |
 | 图表 | ECharts |
@@ -61,12 +61,12 @@ shop-OS/
 │   └── shared/                # 共享包：设计令牌、TS 类型、工具函数、Composables
 │
 ├── apps/
-│   ├── server/                 # 后端服务（Express + TypeScript + SQLite）
+│   ├── server/                 # 后端服务（Express + TypeScript + PostgreSQL）
 │   │   └── src/
 │   │       ├── routes/          # REST 接口（24 个路由模块，见技术文档）
 │   │       ├── services/        # 业务服务：分销佣金引擎、支付、财务流水、库存回补
 │   │       ├── middlewares/     # 鉴权与错误处理中间件
-│   │       ├── db/               # SQLite Schema、连接与幂等迁移、种子数据
+│   │       ├── db/               # PostgreSQL Schema、异步连接池、迁移与种子数据
 │   │       ├── utils/            # 通用工具（分页、金额、单号生成、响应封装）
 │   │       └── permissions.ts    # 权限点清单与内置角色
 │   │
@@ -95,7 +95,7 @@ shop-OS/
 
 ## 快速开始
 
-需要 Node.js ≥ 18、pnpm ≥ 8。
+需要 Node.js ≥ 22、pnpm ≥ 8（SQLite 旧库导入工具使用 `node:sqlite`）。
 
 ```bash
 # 安装依赖
@@ -114,20 +114,21 @@ pnpm dev:shop
 pnpm build:all
 ```
 
-后端首次启动会自动创建 SQLite 数据库文件并幂等写入种子数据（管理员账号、演示会员、商品、等级配置等），可重复启动不会重复插入。
+后端启动时会连接 PostgreSQL、创建表和索引，并按 `AUTO_SEED` 写入幂等基础配置。生产环境请在部署前设置数据库连接环境变量与随机密码。
 
 ## Docker 部署
 
-项目已内置 Docker Compose 部署，包含三个服务：
+项目已内置 Docker Compose 部署，包含 PostgreSQL、后端、管理后台与商城四个服务：
 
 | 服务 | 说明 | 默认端口 |
 |------|------|---------|
-| `server` | Express + SQLite 后端，数据持久化到 `shop_os_data` volume，上传文件持久化到 `shop_os_uploads` volume | 3000 |
+| `postgres` | PostgreSQL 16，数据持久化到 `shop_os_postgres_data` volume，不向公网映射端口 | 内部 5432 |
+| `server` | Express + PostgreSQL 后端，上传文件持久化到 `shop_os_uploads` volume | 3000 |
 | `admin` | 管理后台，Nginx 静态站点 + 反向代理 `/api` `/uploads` 到 `server` | 5173 |
 | `shop` | 会员商城，Nginx 静态站点 + 反向代理 `/api` `/uploads` 到 `server` | 5176 |
 
 ```bash
-# 可选：复制环境变量模板后按需修改端口、域名、JWT_SECRET
+# 复制环境变量模板后设置数据库密码、JWT_SECRET、域名与端口
 cp .env.docker.example .env
 
 # 构建并启动
@@ -159,8 +160,17 @@ docker compose down
 | `SERVER_PORT` / `ADMIN_PORT` / `SHOP_PORT` | 宿主机映射端口 | 3000 / 5173 / 5176 |
 | `SERVER_BASE_URL` | 后端对外基础地址，用于拼接上传文件 URL | `http://localhost:3000` |
 | `VITE_API_BASE_URL` | 前端构建期写入的 API 前缀，使用内置 Nginx 反代时保持 `/api/v1` | `/api/v1` |
-| `JWT_SECRET` | JWT 签名密钥，**生产环境必须替换** | 示例值 |
-| `AUTO_SEED` | 容器启动时是否执行幂等种子初始化 | `1` |
+| `DATABASE_URL` | PostgreSQL 连接串；设置后优先于 `PG*` 连接参数 | 空（使用 `PG*`） |
+| `PGHOST` / `PGPORT` | 数据库主机与端口；Compose 默认主机为 `postgres` | `postgres` / `5432` |
+| `PGDATABASE` / `PGUSER` / `PGPASSWORD` | 数据库名、用户、密码；Compose 用 `POSTGRES_PASSWORD` 初始化容器并传给后端 | `shop_os` / `shop_os` / 必填 |
+| `PGPOOL_MAX` | 后端连接池最大连接数 | `10` |
+| `PGSSLMODE` | TLS：本地/Docker 内网用 `disable`，托管数据库按要求设置 `require` 或 `verify-full` | `disable` |
+| `POSTGRES_BIND_ADDRESS` / `POSTGRES_HOST_PORT` | Compose 数据库宿主机绑定地址与端口；默认仅绑定 `127.0.0.1` | `127.0.0.1:5432` |
+| `COMPOSE_PGPORT` | Compose 网络中后端连接 PostgreSQL 的容器端口 | `5432` |
+| `JWT_SECRET` | JWT 签名密钥，**生产环境必须替换** | 必填 |
+| `AUTO_SEED` | 服务启动时是否执行幂等种子初始化 | `1` |
+
+本机开发时在仓库根目录填写 `.env.example` 中的 PostgreSQL 变量；需先启动本机 PostgreSQL。原 SQLite 文件可通过 `pnpm --filter @shop-os/server migrate:sqlite` 导入空 PostgreSQL 数据库，详见 [`apps/server/README.md`](apps/server/README.md)。
 
 ## 默认账号
 
@@ -170,9 +180,7 @@ docker compose down
 
 | 角色 | 账号 | 密码 |
 |------|------|------|
-| 超级管理员 | admin | 123456 |
-| 运营 | ops | 123456 |
-| 财务 | finance | 123456 |
+| 管理员 | 首次启动日志显示的账号 | 首次创建时生成随机密码 |
 
 **会员商城**（[localhost:5176](http://localhost:5176)）
 

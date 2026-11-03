@@ -30,11 +30,11 @@ const upload = multer({
 })
 
 /** 按分组规则自动归组 */
-function matchGroup(fileName: string, mime: string): number | null {
+async function matchGroup(fileName: string, mime: string): Promise<number | null> {
   const ext = path.extname(fileName).slice(1).toLowerCase()
   const lower = fileName.toLowerCase()
   const isVideo = mime.startsWith('video/')
-  const groups = all<{ id: number; matchRules: string }>('SELECT id, match_rules AS matchRules FROM file_group')
+  const groups = (await all<{ id: number; matchRules: string }>('SELECT id, match_rules AS matchRules FROM file_group'))
   for (const g of groups) {
     if (!g.matchRules) continue
     const rules = g.matchRules.split(',').map((r) => r.trim()).filter(Boolean)
@@ -51,27 +51,27 @@ export const fileRouter = Router()
 fileRouter.use(requireAuth)
 
 /** POST /files/upload 上传（multipart field: file；可选 groupId） */
-fileRouter.post('/upload', requirePermission('system:file'), upload.single('file'), (req, res, next) => {
+fileRouter.post('/upload', requirePermission('system:file'), upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) throw badRequest('未收到文件')
     const f = req.file
     const originalName = fixFileName(f.originalname)
-    const groupId = req.body.groupId ? int(req.body.groupId) : matchGroup(originalName, f.mimetype)
+    const groupId = req.body.groupId ? int(req.body.groupId) : (await matchGroup(originalName, f.mimetype))
     const isVideo = f.mimetype.startsWith('video/')
-    const r = run(
+    const r = (await run(
       `INSERT INTO file_asset (name, url, thumb_url, size, mime_type, ext, type, width, height, duration, group_id, uploader_id, create_time)
        VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, ?, ?, ?)`,
       originalName, `${config.baseUrl}/uploads/${f.filename}`, isVideo ? '' : `${config.baseUrl}/uploads/${f.filename}`,
       f.size, f.mimetype, path.extname(originalName).slice(1).toLowerCase(), isVideo ? 2 : 1, groupId, req.auth!.uid, now(),
-    )
+    ))
     const id = Number(r.lastInsertRowid)
-    const row = get('SELECT * FROM file_asset WHERE id = ?', id)
+    const row = (await get('SELECT * FROM file_asset WHERE id = ?', id))
     ok(res, row, '上传成功', 201)
   } catch (e) { next(e) }
 })
 
 /** GET /files?page=&pageSize=&keyword=&type=&groupId= */
-fileRouter.get('/', requirePermission('system:file'), (req, res, next) => {
+fileRouter.get('/', requirePermission('system:file'), async (req, res, next) => {
   try {
     const { page, pageSize } = parsePagination(req.query)
     const keyword = str(req.query.keyword)
@@ -87,55 +87,55 @@ fileRouter.get('/', requirePermission('system:file'), (req, res, next) => {
     else if (groupId !== null) { conds.push('group_id = ?'); params.push(groupId) }
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : ''
 
-    const data = paginate(
+    const data = (await paginate(
       `SELECT id, name, url, thumb_url AS thumbUrl, size, mime_type AS mimeType, ext, type,
               width, height, duration, group_id AS groupId, uploader_id AS uploaderId, create_time AS createTime
        FROM file_asset ${where} ORDER BY id DESC`,
       `SELECT COUNT(*) AS c FROM file_asset ${where}`,
       params, page, pageSize,
-    )
+    ))
     ok(res, data)
   } catch (e) { next(e) }
 })
 
 /** PATCH /files/group 批量移动（body: { ids, groupId }）—— 需在 /:id 之前注册 */
-fileRouter.patch('/group', requirePermission('system:file'), (req, res, next) => {
+fileRouter.patch('/group', requirePermission('system:file'), async (req, res, next) => {
   try {
     const body = z.object({ ids: z.array(z.number().int()).min(1), groupId: z.number().nullable() }).parse(req.body)
-    run(`UPDATE file_asset SET group_id = ? WHERE id IN (${body.ids.map(() => '?').join(',')})`, body.groupId, ...body.ids)
+    await run(`UPDATE file_asset SET group_id = ? WHERE id IN (${body.ids.map(() => '?').join(',')})`, body.groupId, ...body.ids)
     ok(res, null, `已移动 ${body.ids.length} 个文件`)
   } catch (e) { next(e) }
 })
 
 /** PATCH /files/:id/group 移动分组（body: { groupId }，null 为未分组） */
-fileRouter.patch('/:id/group', requirePermission('system:file'), (req, res, next) => {
+fileRouter.patch('/:id/group', requirePermission('system:file'), async (req, res, next) => {
   try {
     const id = Number(req.params.id)
-    if (!get('SELECT id FROM file_asset WHERE id = ?', id)) throw notFound('文件不存在')
+    if (!(await get('SELECT id FROM file_asset WHERE id = ?', id))) throw notFound('文件不存在')
     const body = z.object({ groupId: z.number().nullable() }).parse(req.body)
-    run('UPDATE file_asset SET group_id = ? WHERE id = ?', body.groupId, id)
+    await run('UPDATE file_asset SET group_id = ? WHERE id = ?', body.groupId, id)
     ok(res, null, '已移动')
   } catch (e) { next(e) }
 })
 
 /** PATCH /files/:id/name 重命名 */
-fileRouter.patch('/:id/name', requirePermission('system:file'), (req, res, next) => {
+fileRouter.patch('/:id/name', requirePermission('system:file'), async (req, res, next) => {
   try {
     const id = Number(req.params.id)
-    if (!get('SELECT id FROM file_asset WHERE id = ?', id)) throw notFound('文件不存在')
+    if (!(await get('SELECT id FROM file_asset WHERE id = ?', id))) throw notFound('文件不存在')
     const name = z.object({ name: z.string().min(1).max(100) }).parse(req.body).name
-    run('UPDATE file_asset SET name = ? WHERE id = ?', name, id)
+    await run('UPDATE file_asset SET name = ? WHERE id = ?', name, id)
     ok(res, null, '已重命名')
   } catch (e) { next(e) }
 })
 
 /** DELETE /files/:id */
-fileRouter.delete('/:id', requirePermission('system:file'), (req, res, next) => {
+fileRouter.delete('/:id', requirePermission('system:file'), async (req, res, next) => {
   try {
     const id = Number(req.params.id)
-    const f = get<Record<string, unknown>>('SELECT * FROM file_asset WHERE id = ?', id)
+    const f = (await get<Record<string, unknown>>('SELECT * FROM file_asset WHERE id = ?', id))
     if (!f) throw notFound('文件不存在')
-    run('DELETE FROM file_asset WHERE id = ?', id)
+    await run('DELETE FROM file_asset WHERE id = ?', id)
     // 物理文件一并删除，避免"已删除"的资源仍可通过原始 URL 公开访问
     const fileName = String(f.url || '').split('/').pop()
     if (fileName) {
@@ -150,47 +150,47 @@ export const fileGroupRouter = Router()
 fileGroupRouter.use(requireAuth)
 
 /** GET /file-groups */
-fileGroupRouter.get('/', requirePermission('system:file'), (_req, res, next) => {
+fileGroupRouter.get('/', requirePermission('system:file'), async (_req, res, next) => {
   try {
-    const list = all(
+    const list = (await all(
       `SELECT g.id, g.name, g.icon, g.match_rules AS matchRules, g.create_time AS createTime,
               (SELECT COUNT(*) FROM file_asset f WHERE f.group_id = g.id) AS assetCount
        FROM file_group g ORDER BY g.id`,
-    )
+    ))
     ok(res, list)
   } catch (e) { next(e) }
 })
 
 /** POST /file-groups */
-fileGroupRouter.post('/', requirePermission('system:file'), (req, res, next) => {
+fileGroupRouter.post('/', requirePermission('system:file'), async (req, res, next) => {
   try {
     const body = z.object({ name: z.string().min(1).max(20), icon: z.string().max(30).optional(), matchRules: z.string().max(100).optional() }).parse(req.body)
-    const r = run('INSERT INTO file_group (name, icon, match_rules, create_time) VALUES (?, ?, ?, ?)',
-      body.name, body.icon || 'folder', body.matchRules || '', now())
+    const r = (await run('INSERT INTO file_group (name, icon, match_rules, create_time) VALUES (?, ?, ?, ?)',
+      body.name, body.icon || 'folder', body.matchRules || '', now()))
     ok(res, { id: Number(r.lastInsertRowid) }, '分组已创建', 201)
   } catch (e) { next(e) }
 })
 
 /** PUT /file-groups/:id */
-fileGroupRouter.put('/:id', requirePermission('system:file'), (req, res, next) => {
+fileGroupRouter.put('/:id', requirePermission('system:file'), async (req, res, next) => {
   try {
     const id = Number(req.params.id)
-    if (!get('SELECT id FROM file_group WHERE id = ?', id)) throw notFound('分组不存在')
+    if (!(await get('SELECT id FROM file_group WHERE id = ?', id))) throw notFound('分组不存在')
     const body = z.object({ name: z.string().min(1).max(20).optional(), icon: z.string().max(30).optional(), matchRules: z.string().max(100).optional() }).parse(req.body)
-    const cur = get<Record<string, unknown>>('SELECT * FROM file_group WHERE id = ?', id)!
-    run('UPDATE file_group SET name = ?, icon = ?, match_rules = ? WHERE id = ?',
+    const cur = ((await get<Record<string, unknown>>('SELECT * FROM file_group WHERE id = ?', id)))!
+    await run('UPDATE file_group SET name = ?, icon = ?, match_rules = ? WHERE id = ?',
       body.name ?? cur.name, body.icon ?? cur.icon, body.matchRules ?? cur.matchRules, id)
     ok(res, null, '已更新')
   } catch (e) { next(e) }
 })
 
 /** DELETE /file-groups/:id（组内文件置为未分组） */
-fileGroupRouter.delete('/:id', requirePermission('system:file'), (req, res, next) => {
+fileGroupRouter.delete('/:id', requirePermission('system:file'), async (req, res, next) => {
   try {
     const id = Number(req.params.id)
-    if (!get('SELECT id FROM file_group WHERE id = ?', id)) throw notFound('分组不存在')
-    run('UPDATE file_asset SET group_id = NULL WHERE group_id = ?', id)
-    run('DELETE FROM file_group WHERE id = ?', id)
+    if (!(await get('SELECT id FROM file_group WHERE id = ?', id))) throw notFound('分组不存在')
+    await run('UPDATE file_asset SET group_id = NULL WHERE group_id = ?', id)
+    await run('DELETE FROM file_group WHERE id = ?', id)
     ok(res, null, '分组已删除')
   } catch (e) { next(e) }
 })

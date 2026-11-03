@@ -13,35 +13,35 @@ const router = Router()
 router.use(requireAuth, requireRole('super_admin'))
 
 /** GET /admins?page=&pageSize=&keyword= */
-router.get('/', (req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
     const { page, pageSize } = parsePagination(req.query)
     const keyword = str(req.query.keyword)
     const where = keyword ? `WHERE username LIKE ? OR name LIKE ?` : ''
     const like = `%${keyword}%`
     const params: (string | number)[] = keyword ? [like, like] : []
-    const data = paginate(
+    const data = (await paginate(
       `SELECT a.id, a.username, a.name, a.role, a.avatar, a.status, a.created_at AS createdAt,
               COALESCE(r.name, a.role) AS roleName, r.is_builtin AS isBuiltin
        FROM admin_user a LEFT JOIN admin_role r ON r.code = a.role ${where} ORDER BY a.id DESC`,
       `SELECT COUNT(*) AS c FROM admin_user a ${where}`,
       params, page, pageSize,
-    )
+    ))
     ok(res, data)
   } catch (e) { next(e) }
 })
 
 /** GET /admins/:id */
-router.get('/:id', (req, res, next) => {
+router.get('/:id', async (req, res, next) => {
   try {
-    const admin = get('SELECT id, username, name, role, avatar, status, created_at AS createdAt FROM admin_user WHERE id = ?', Number(req.params.id))
+    const admin = (await get('SELECT id, username, name, role, avatar, status, created_at AS createdAt FROM admin_user WHERE id = ?', Number(req.params.id)))
     if (!admin) throw notFound('管理员不存在')
     ok(res, admin)
   } catch (e) { next(e) }
 })
 
 /** POST /admins 新增管理员 */
-router.post('/', (req, res, next) => {
+router.post('/', async (req, res, next) => {
   try {
     const body = z.object({
       username: z.string().min(2).max(30),
@@ -49,23 +49,23 @@ router.post('/', (req, res, next) => {
       name: z.string().max(30).optional(),
       role: z.string().min(1).max(40).optional(),
     }).parse(req.body)
-    if (get('SELECT id FROM admin_user WHERE username = ?', body.username)) throw conflict('账号已存在')
+    if ((await get('SELECT id FROM admin_user WHERE username = ?', body.username))) throw conflict('账号已存在')
     const role = body.role || 'ops'
-    if (role !== 'super_admin' && !get('SELECT id FROM admin_role WHERE code = ?', role)) throw badRequest('角色不存在')
-    const res2 = run(
+    if (role !== 'super_admin' && !(await get('SELECT id FROM admin_role WHERE code = ?', role))) throw badRequest('角色不存在')
+    const res2 = (await run(
       'INSERT INTO admin_user (username, password_hash, name, role, status, created_at, updated_at) VALUES (?, ?, ?, ?, 1, ?, ?)',
       body.username, bcrypt.hashSync(body.password, config.bcryptRounds), body.name || body.username, role, now(), now(),
-    )
-    logOperation(String(req.auth?.username || ''), '管理员管理', '新增', `新增管理员「${body.name || body.username}」`, String(req.ip || ''))
+    ))
+    await logOperation(String(req.auth?.username || ''), '管理员管理', '新增', `新增管理员「${body.name || body.username}」`, String(req.ip || ''))
     ok(res, { id: Number(res2.lastInsertRowid) }, '管理员已创建', 201)
   } catch (e) { next(e) }
 })
 
 /** PUT /admins/:id 编辑（密码可选） */
-router.put('/:id', (req, res, next) => {
+router.put('/:id', async (req, res, next) => {
   try {
     const id = Number(req.params.id)
-    const admin = get('SELECT * FROM admin_user WHERE id = ?', id)
+    const admin = (await get('SELECT * FROM admin_user WHERE id = ?', id))
     if (!admin) throw notFound('管理员不存在')
     if (admin.role === 'super_admin' && req.auth!.role !== 'super_admin') throw badRequest('仅超级管理员可编辑超级管理员')
     const body = z.object({
@@ -75,42 +75,42 @@ router.put('/:id', (req, res, next) => {
     }).parse(req.body)
     const name = body.name ?? admin.name
     const role = body.role ?? admin.role
-    if (role !== 'super_admin' && !get('SELECT id FROM admin_role WHERE code = ?', role)) throw badRequest('角色不存在')
+    if (role !== 'super_admin' && !(await get('SELECT id FROM admin_role WHERE code = ?', role))) throw badRequest('角色不存在')
     if (admin.role === 'super_admin' && role !== 'super_admin') {
-      const superAdminCount = get<{ c: number }>("SELECT COUNT(*) AS c FROM admin_user WHERE role = 'super_admin'")!.c
+      const superAdminCount = ((await get<{ c: number }>("SELECT COUNT(*) AS c FROM admin_user WHERE role = 'super_admin'")))!.c
       if (superAdminCount <= 1) throw badRequest('系统至少需保留一个超级管理员，不能将其降级')
     }
     const passwordHash = body.password ? bcrypt.hashSync(body.password, config.bcryptRounds) : admin.passwordHash
-    run('UPDATE admin_user SET name = ?, role = ?, password_hash = ?, updated_at = ? WHERE id = ?', name, role, passwordHash, now(), id)
-    logOperation(String(req.auth?.username || ''), '管理员管理', '编辑', `编辑管理员「${name}」`, String(req.ip || ''))
+    await run('UPDATE admin_user SET name = ?, role = ?, password_hash = ?, updated_at = ? WHERE id = ?', name, role, passwordHash, now(), id)
+    await logOperation(String(req.auth?.username || ''), '管理员管理', '编辑', `编辑管理员「${name}」`, String(req.ip || ''))
     ok(res, null, '已更新')
   } catch (e) { next(e) }
 })
 
 /** PATCH /admins/:id/status 启停 */
-router.patch('/:id/status', (req, res, next) => {
+router.patch('/:id/status', async (req, res, next) => {
   try {
     const id = Number(req.params.id)
-    const admin = get('SELECT * FROM admin_user WHERE id = ?', id)
+    const admin = (await get('SELECT * FROM admin_user WHERE id = ?', id))
     if (!admin) throw notFound('管理员不存在')
     if (admin.role === 'super_admin') throw badRequest('超级管理员不可禁用')
     const status = z.object({ status: z.number().int().min(0).max(1) }).parse(req.body).status
-    run('UPDATE admin_user SET status = ?, updated_at = ? WHERE id = ?', status, now(), id)
-    logOperation(String(req.auth?.username || ''), '管理员管理', status ? '启用' : '禁用', `${status ? '启用' : '禁用'}管理员「${String(admin.name)}」`, String(req.ip || ''))
+    await run('UPDATE admin_user SET status = ?, updated_at = ? WHERE id = ?', status, now(), id)
+    await logOperation(String(req.auth?.username || ''), '管理员管理', status ? '启用' : '禁用', `${status ? '启用' : '禁用'}管理员「${String(admin.name)}」`, String(req.ip || ''))
     ok(res, null, status ? '已启用' : '已禁用')
   } catch (e) { next(e) }
 })
 
 /** DELETE /admins/:id */
-router.delete('/:id', (req, res, next) => {
+router.delete('/:id', async (req, res, next) => {
   try {
     const id = Number(req.params.id)
-    const admin = get('SELECT * FROM admin_user WHERE id = ?', id)
+    const admin = (await get('SELECT * FROM admin_user WHERE id = ?', id))
     if (!admin) throw notFound('管理员不存在')
     if (admin.role === 'super_admin') throw badRequest('超级管理员不可删除')
     if (id === req.auth!.uid) throw badRequest('不能删除当前登录账号')
-    run('DELETE FROM admin_user WHERE id = ?', id)
-    logOperation(String(req.auth?.username || ''), '管理员管理', '删除', `删除管理员「${String(admin.name)}」（账号 ${String(admin.username)}）`, String(req.ip || ''))
+    await run('DELETE FROM admin_user WHERE id = ?', id)
+    await logOperation(String(req.auth?.username || ''), '管理员管理', '删除', `删除管理员「${String(admin.name)}」（账号 ${String(admin.username)}）`, String(req.ip || ''))
     ok(res, null, '已删除')
   } catch (e) { next(e) }
 })

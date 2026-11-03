@@ -30,7 +30,7 @@ const MEMBER_SELECT = `
 `
 
 /** GET /members?page=&pageSize=&keyword=&level=&status= */
-router.get('/', requirePermission('member:view'), (req, res, next) => {
+router.get('/', requirePermission('member:view'), async (req, res, next) => {
   try {
     const { page, pageSize } = parsePagination(req.query)
     const keyword = str(req.query.keyword)
@@ -48,31 +48,31 @@ router.get('/', requirePermission('member:view'), (req, res, next) => {
     if (status !== null) { conds.push('m.status = ?'); params.push(status) }
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : ''
 
-    const data = paginate(
+    const data = (await paginate(
       `${MEMBER_SELECT} ${where} ORDER BY m.id DESC`,
       `SELECT COUNT(*) AS c FROM member m ${where}`,
       params, page, pageSize,
-    )
+    ))
     ok(res, data)
   } catch (e) { next(e) }
 })
 
 /** GET /members/:id 详情（含统计：订单数/消费/佣金/钱包） */
-router.get('/:id', requirePermission('member:view'), (req, res, next) => {
+router.get('/:id', requirePermission('member:view'), async (req, res, next) => {
   try {
     const id = Number(req.params.id)
-    const member = get(MEMBER_SELECT + ' WHERE m.id = ?', id)
+    const member = (await get(MEMBER_SELECT + ' WHERE m.id = ?', id))
     if (!member) throw notFound('会员不存在')
-    const orderStat = get(
+    const orderStat = (await get(
       `SELECT COUNT(*) AS orderCount, COALESCE(SUM(pay_amount),0) AS totalSpend FROM "order" WHERE member_id = ? AND status IN (1,2,3)`, id,
-    )
-    const commissionStat = get(
+    ))
+    const commissionStat = (await get(
       `SELECT COUNT(*) AS commissionCount, COALESCE(SUM(amount),0) AS totalCommission FROM commission WHERE member_id = ? AND status IN (0,1,2)`, id,
-    )
-    const directCount = get('SELECT COUNT(*) AS c FROM member WHERE inviter_id = ?', id)
-    const teamCount = get('SELECT COUNT(*) AS c FROM member WHERE inviter_id = ? OR second_inviter_id = ? OR third_inviter_id = ?', id, id, id)
-    const recentOrders = all('SELECT id, order_no AS orderNo, order_type AS orderType, pay_amount AS payAmount, status, create_time AS createTime FROM "order" WHERE member_id = ? ORDER BY id DESC LIMIT 5', id)
-    const recentCommissions = all('SELECT id, amount, distribution_level AS distributionLevel, status, create_time AS createTime FROM commission WHERE member_id = ? ORDER BY id DESC LIMIT 5', id)
+    ))
+    const directCount = (await get('SELECT COUNT(*) AS c FROM member WHERE inviter_id = ?', id))
+    const teamCount = (await get('SELECT COUNT(*) AS c FROM member WHERE inviter_id = ? OR second_inviter_id = ? OR third_inviter_id = ?', id, id, id))
+    const recentOrders = (await all('SELECT id, order_no AS orderNo, order_type AS orderType, pay_amount AS payAmount, status, create_time AS createTime FROM "order" WHERE member_id = ? ORDER BY id DESC LIMIT 5', id))
+    const recentCommissions = (await all('SELECT id, amount, distribution_level AS distributionLevel, status, create_time AS createTime FROM commission WHERE member_id = ? ORDER BY id DESC LIMIT 5', id))
     ok(res, {
       ...member,
       stats: { ...orderStat, ...commissionStat, directCount: directCount?.c ?? 0, teamCount: teamCount?.c ?? 0 },
@@ -83,30 +83,30 @@ router.get('/:id', requirePermission('member:view'), (req, res, next) => {
 })
 
 /** GET /members/:id/wallet 钱包 */
-router.get('/:id/wallet', requirePermission('member:view'), (req, res, next) => {
+router.get('/:id/wallet', requirePermission('member:view'), async (req, res, next) => {
   try {
     const id = Number(req.params.id)
-    const wallet = get('SELECT id, member_id AS memberId, balance, frozen, total_income AS totalIncome, total_withdraw AS totalWithdraw FROM wallet WHERE member_id = ?', id)
+    const wallet = (await get('SELECT id, member_id AS memberId, balance, frozen, total_income AS totalIncome, total_withdraw AS totalWithdraw FROM wallet WHERE member_id = ?', id))
     if (!wallet) throw notFound('钱包不存在')
     ok(res, wallet)
   } catch (e) { next(e) }
 })
 
 /** PATCH /members/:id/status 会员启停（1 正常 / 2 冻结） */
-router.patch('/:id/status', requirePermission('member:edit'), (req, res, next) => {
+router.patch('/:id/status', requirePermission('member:edit'), async (req, res, next) => {
   try {
     const id = Number(req.params.id)
-    const target = get<{ nickname: string }>('SELECT nickname FROM member WHERE id = ?', id)
+    const target = (await get<{ nickname: string }>('SELECT nickname FROM member WHERE id = ?', id))
     if (!target) throw notFound('会员不存在')
     const status = z.object({ status: z.number().int().min(1).max(2) }).parse(req.body).status
-    run('UPDATE member SET status = ? WHERE id = ?', status, id)
-    logOperation(String(req.auth?.username || ''), '会员管理', status === 2 ? '冻结' : '解冻', `${status === 2 ? '冻结' : '解冻'}会员「${target.nickname}」`, String(req.ip || ''))
+    await run('UPDATE member SET status = ? WHERE id = ?', status, id)
+    await logOperation(String(req.auth?.username || ''), '会员管理', status === 2 ? '冻结' : '解冻', `${status === 2 ? '冻结' : '解冻'}会员「${target.nickname}」`, String(req.ip || ''))
     ok(res, null, status === 2 ? '会员已冻结' : '会员已解冻')
   } catch (e) { next(e) }
 })
 
 /** POST /members 自定义创建会员（后台录入，代理商等级联动发放当月领货额度） */
-router.post('/', requirePermission('member:edit'), (req, res, next) => {
+router.post('/', requirePermission('member:edit'), async (req, res, next) => {
   try {
     const body = z.object({
       nickname: z.string().min(1).max(20),
@@ -116,74 +116,74 @@ router.post('/', requirePermission('member:edit'), (req, res, next) => {
       // 登录密码（6-50 位，选填；留空则随机生成，随创建结果一次性返回，不再回落到固定默认密码）
       password: z.string().min(6).max(50).optional(),
     }).parse(req.body)
-    if (get('SELECT id FROM member WHERE phone = ?', body.phone)) throw conflict('该手机号已存在')
-    if (body.level > 0 && !get('SELECT id FROM level_config WHERE level = ? AND status = 1', body.level)) throw badRequest('等级不存在或已停用，请先在等级权益配置中创建/启用')
+    if ((await get('SELECT id FROM member WHERE phone = ?', body.phone))) throw conflict('该手机号已存在')
+    if (body.level > 0 && !(await get('SELECT id FROM level_config WHERE level = ? AND status = 1', body.level))) throw badRequest('等级不存在或已停用，请先在等级权益配置中创建/启用')
 
     const inviteCode = `SH${body.phone.slice(-4)}${Math.floor(Math.random() * 900 + 100)}`
     const generatedPassword = body.password ? null : crypto.randomBytes(6).toString('base64url')
     const passwordHash = bcrypt.hashSync(body.password || generatedPassword!, config.bcryptRounds)
-    const r = run(
+    const r = (await run(
       `INSERT INTO member (phone, password_hash, nickname, avatar, level, invite_code, status, real_name, register_time, become_agent_time)
        VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
       body.phone, passwordHash, body.nickname, `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(body.nickname)}`,
       body.level, inviteCode, body.realName || '', now(), body.level > 0 ? now() : null,
-    )
+    ))
     const id = Number(r.lastInsertRowid)
-    run('INSERT OR IGNORE INTO wallet (member_id, balance, frozen, total_income, total_withdraw) VALUES (?, 0, 0, 0, 0)', id)
+    await run('INSERT OR IGNORE INTO wallet (member_id, balance, frozen, total_income, total_withdraw) VALUES (?, 0, 0, 0, 0)', id)
 
     // 等级联动：代理商等级自动发放当月领货额度
     if (body.level > 0) {
-      const lv = get<{ monthlyCredit: number }>('SELECT monthly_credit AS monthlyCredit FROM level_config WHERE level = ?', body.level)
+      const lv = (await get<{ monthlyCredit: number }>('SELECT monthly_credit AS monthlyCredit FROM level_config WHERE level = ?', body.level))
       const credit = Number(lv?.monthlyCredit ?? 0)
       if (credit > 0) {
-        const rec = run(
+        const rec = (await run(
           'INSERT INTO credit_record (member_id, month, credit_amount, used_amount, remain_amount, status, remark, create_time) VALUES (?, ?, ?, 0, ?, 0, ?, ?)',
           id, monthOf(), credit, credit, '后台创建会员自动发放', now(),
-        )
-        run('INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, operator_id, create_time) VALUES (?, ?, ?, ?, 1, ?, ?, ?)',
+        ))
+        await run('INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, operator_id, create_time) VALUES (?, ?, ?, ?, 1, ?, ?, ?)',
           Number(rec.lastInsertRowid), id, credit, credit, '后台创建会员自动发放', req.auth!.uid, now())
       }
     }
-    const created = get<Record<string, unknown>>('SELECT id, phone, nickname, level, invite_code AS inviteCode FROM member WHERE id = ?', id)
-    logOperation(String(req.auth?.username || ''), '会员管理', '新增', `后台创建会员「${body.nickname}」（等级 ${body.level}）`, String(req.ip || ''))
+    const created = (await get<Record<string, unknown>>('SELECT id, phone, nickname, level, invite_code AS inviteCode FROM member WHERE id = ?', id))
+    await logOperation(String(req.auth?.username || ''), '会员管理', '新增', `后台创建会员「${body.nickname}」（等级 ${body.level}）`, String(req.ip || ''))
     ok(res, { ...created, generatedPassword }, generatedPassword ? `会员创建成功，初始密码：${generatedPassword}` : '会员创建成功', 201)
   } catch (e) { next(e) }
 })
 
 /** GET /members/:id/orders 订单记录 */
-router.get('/:id/orders', requirePermission('member:view'), (req, res, next) => {
+router.get('/:id/orders', requirePermission('member:view'), async (req, res, next) => {
   try {
     const { page, pageSize } = parsePagination(req.query)
     const id = Number(req.params.id)
-    const data = paginate(
+    const data = (await paginate(
       'SELECT id, order_no AS orderNo, order_type AS orderType, pay_amount AS payAmount, status, create_time AS createTime FROM "order" WHERE member_id = ? ORDER BY id DESC',
       'SELECT COUNT(*) AS c FROM "order" WHERE member_id = ?', [id], page, pageSize,
-    )
+    ))
     ok(res, data)
   } catch (e) { next(e) }
 })
 
 /** GET /members/:id/commissions 佣金记录 */
-router.get('/:id/commissions', requirePermission('member:view'), (req, res, next) => {
+router.get('/:id/commissions', requirePermission('member:view'), async (req, res, next) => {
   try {
     const { page, pageSize } = parsePagination(req.query)
     const id = Number(req.params.id)
-    const data = paginate(
+    const data = (await paginate(
       `SELECT c.id, c.amount, c.rate, c.distribution_level AS distributionLevel, c.package_level AS packageLevel,
               c.status, c.create_time AS createTime, s.nickname AS sourceName
        FROM commission c LEFT JOIN member s ON s.id = c.source_member_id
        WHERE c.member_id = ? ORDER BY c.id DESC`,
       'SELECT COUNT(*) AS c FROM commission WHERE member_id = ?', [id], page, pageSize,
-    )
+    ))
     ok(res, data)
   } catch (e) { next(e) }
 })
 
 /** GET /members/:id/credits 领货额度 */
-router.get('/:id/credits', requirePermission('member:view'), (req, res, next) => {
+router.get('/:id/credits', requirePermission('member:view'), async (req, res, next) => {
   try {
     const id = Number(req.params.id)
-    const list = all('SELECT id, member_id AS memberId, month, credit_amount AS creditAmount, used_amount AS usedAmount, remain_amount AS remainAmount, status, remark FROM credit_record WHERE member_id = ? ORDER BY month DESC', id)
+    const list = (await all('SELECT id, member_id AS memberId, month, credit_amount AS creditAmount, used_amount AS usedAmount, remain_amount AS remainAmount, status, remark FROM credit_record WHERE member_id = ? ORDER BY month DESC', id))
     ok(res, list)
   } catch (e) { next(e) }
 })

@@ -22,29 +22,29 @@ const loginLimiter = rateLimit({
 })
 
 /** POST /auth/login 管理员登录 */
-router.post('/login', loginLimiter, (req, res, next) => {
+router.post('/login', loginLimiter, async (req, res, next) => {
   try {
     const body = z.object({ username: z.string().min(1), password: z.string().min(1) }).parse(req.body)
     const ip = String(req.socket.remoteAddress || '').slice(0, 50)
     const device = String(req.headers['user-agent'] || '').slice(0, 120)
-    const admin = get<{ id: number; username: string; passwordHash: string; name: string; role: string; avatar: string; status: number }>(
+    const admin = (await get<{ id: number; username: string; passwordHash: string; name: string; role: string; avatar: string; status: number }>(
       'SELECT id, username, password_hash AS passwordHash, name, role, avatar, status FROM admin_user WHERE username = ?',
       body.username,
-    )
+    ))
     // 账号不存在时也执行一次等量耗时的哈希比较，避免通过响应耗时枚举用户名
     const passwordOk = bcrypt.compareSync(body.password, admin?.passwordHash || DUMMY_HASH)
     if (!admin || !passwordOk) {
-      logLogin(body.username, false, ip, device)
+      await logLogin(body.username, false, ip, device)
       throw unauthorized('账号或密码错误')
     }
     if (admin.status !== 1) {
-      logLogin(body.username, false, ip, device)
+      await logLogin(body.username, false, ip, device)
       throw forbidden('账号已被禁用')
     }
-    logLogin(body.username, true, ip, device)
+    await logLogin(body.username, true, ip, device)
     const token = signToken({ uid: admin.id, username: admin.username, role: admin.role as never })
     // 附带角色名称与权限码
-    const role = get('SELECT name, permissions FROM admin_role WHERE code = ?', admin.role) as { name: string; permissions: string } | undefined
+    const role = (await get('SELECT name, permissions FROM admin_role WHERE code = ?', admin.role)) as { name: string; permissions: string } | undefined
     const roleName = role?.name || admin.role
     const permissions = admin.role === 'super_admin'
       ? null
@@ -58,14 +58,14 @@ router.post('/login', loginLimiter, (req, res, next) => {
 })
 
 /** GET /auth/me 当前登录管理员信息 */
-router.get('/me', requireAuth, (req, res, next) => {
+router.get('/me', requireAuth, async (req, res, next) => {
   try {
-    const admin = get(
+    const admin = (await get(
       'SELECT id, username, name, role, avatar, status FROM admin_user WHERE id = ?',
       req.auth!.uid,
-    )
+    ))
     if (!admin) throw unauthorized()
-    const role = get('SELECT name, permissions FROM admin_role WHERE code = ?', admin.role) as { name: string; permissions: string } | undefined
+    const role = (await get('SELECT name, permissions FROM admin_role WHERE code = ?', admin.role)) as { name: string; permissions: string } | undefined
     const roleName = role?.name || admin.role
     const permissions = admin.role === 'super_admin'
       ? null

@@ -63,24 +63,24 @@ export function verifyMemberToken(token: string): MemberAuthPayload | null {
  * 必须登录。token 只用来证明"是谁"，角色/启停状态每次都从数据库重新读取，
  * 不信任签发时写入 JWT 里的 role 快照——否则封禁/降权一个已登录管理员要等 token 过期（最长 7 天）才生效。
  */
-export function requireAuth(req: Request, _res: Response, next: NextFunction) {
+export async function requireAuth(req: Request, _res: Response, next: NextFunction) {
   const header = req.headers.authorization || ''
   const token = header.startsWith('Bearer ') ? header.slice(7) : ''
   const payload = token ? verifyToken(token) : null
   if (!payload) return next(unauthorized())
-  const admin = get<{ role: string; status: number }>('SELECT role, status FROM admin_user WHERE id = ?', payload.uid)
+  const admin = (await get<{ role: string; status: number }>('SELECT role, status FROM admin_user WHERE id = ?', payload.uid))
   if (!admin || admin.status !== 1) return next(unauthorized('账号已被禁用或不存在'))
   req.auth = { ...payload, role: admin.role }
   next()
 }
 
 /** 会员端必须登录（Bearer 会员 token）。同样每次回查冻结状态，避免已签发 token 在被冻结后仍可继续操作资金 */
-export function requireMember(req: Request, _res: Response, next: NextFunction) {
+export async function requireMember(req: Request, _res: Response, next: NextFunction) {
   const header = req.headers.authorization || ''
   const token = header.startsWith('Bearer ') ? header.slice(7) : ''
   const payload = token ? verifyMemberToken(token) : null
   if (!payload) return next(unauthorized('请先登录'))
-  const member = get<{ status: number }>('SELECT status FROM member WHERE id = ?', payload.mid)
+  const member = (await get<{ status: number }>('SELECT status FROM member WHERE id = ?', payload.mid))
   if (!member || member.status === 2) return next(forbidden('账号已被冻结'))
   req.member = payload
   next()
@@ -97,11 +97,11 @@ export function requireRole(...roles: string[]) {
 
 /** 必须拥有指定权限码（在 requireAuth 之后使用；super_admin 恒通过） */
 export function requirePermission(code: string) {
-  return (req: Request, _res: Response, next: NextFunction) => {
+  return async (req: Request, _res: Response, next: NextFunction) => {
     if (!req.auth) return next(unauthorized())
     if (req.auth.role === 'super_admin') return next()
     // 从角色表加载权限；角色被禁用时视为零权限
-    const role = get('SELECT permissions FROM admin_role WHERE code = ? AND status = 1', req.auth.role) as { permissions: string } | undefined
+    const role = (await get('SELECT permissions FROM admin_role WHERE code = ? AND status = 1', req.auth.role)) as { permissions: string } | undefined
     const perms = role ? JSON.parse(role.permissions || '[]') as string[] : []
     if (perms.includes(code)) return next()
     next(forbidden(`无权限执行该操作（${code}）`))
@@ -110,10 +110,10 @@ export function requirePermission(code: string) {
 
 /** 满足任一权限即可（super_admin 恒通过） */
 export function requireAnyPermission(...codes: string[]) {
-  return (req: Request, _res: Response, next: NextFunction) => {
+  return async (req: Request, _res: Response, next: NextFunction) => {
     if (!req.auth) return next(unauthorized())
     if (req.auth.role === 'super_admin') return next()
-    const role = get('SELECT permissions FROM admin_role WHERE code = ? AND status = 1', req.auth.role) as { permissions: string } | undefined
+    const role = (await get('SELECT permissions FROM admin_role WHERE code = ? AND status = 1', req.auth.role)) as { permissions: string } | undefined
     const perms = role ? JSON.parse(role.permissions || '[]') as string[] : []
     if (codes.some(code => perms.includes(code))) return next()
     next(forbidden(`无权限执行该操作（${codes.join('/')}）`))

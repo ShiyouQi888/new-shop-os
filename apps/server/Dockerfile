@@ -21,7 +21,7 @@ RUN npm install --omit=dev
 COPY --from=build /app/apps/server/dist ./dist
 COPY apps/server/docker-entrypoint.sh ./docker-entrypoint.sh
 
-RUN mkdir -p /data /uploads && chmod +x ./docker-entrypoint.sh
+RUN mkdir -p /uploads && chmod +x ./docker-entrypoint.sh
 
 EXPOSE 3000
 CMD ["./docker-entrypoint.sh"]

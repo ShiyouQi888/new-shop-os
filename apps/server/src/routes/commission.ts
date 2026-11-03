@@ -10,9 +10,9 @@ const router = Router()
 router.use(requireAuth)
 
 /** GET /commissions?page=&pageSize=&status=&keyword= */
-router.get('/', requirePermission('commission:view'), (req, res, next) => {
+router.get('/', requirePermission('commission:view'), async (req, res, next) => {
   try {
-    settleDueCommissions()
+    await settleDueCommissions()
     const { page, pageSize } = parsePagination(req.query)
     const status = req.query.status === undefined || req.query.status === '' ? null : int(req.query.status)
     const distributionLevel = req.query.distributionLevel === undefined || req.query.distributionLevel === '' ? null : int(req.query.distributionLevel)
@@ -25,7 +25,7 @@ router.get('/', requirePermission('commission:view'), (req, res, next) => {
     if (keyword) { conds.push('(m.nickname LIKE ? OR s.nickname LIKE ? OR c.member_id = ? OR c.source_member_id = ?)'); params.push(`%${keyword}%`, `%${keyword}%`, int(keyword, -1), int(keyword, -1)) }
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : ''
 
-    const data = paginate(
+    const data = (await paginate(
       `SELECT c.id, c.member_id AS memberId, c.source_member_id AS sourceMemberId, c.order_id AS orderId,
               'CM' || c.id AS commissionNo, c.order_id AS sourceOrderId, o.pay_amount AS orderAmount,
               c.package_level AS packageLevel, c.distribution_level AS distributionLevel, c.rate, c.amount,
@@ -41,17 +41,17 @@ router.get('/', requirePermission('commission:view'), (req, res, next) => {
        LEFT JOIN member m ON m.id = c.member_id
        LEFT JOIN member s ON s.id = c.source_member_id ${where}`,
       params, page, pageSize,
-    )
+    ))
     ok(res, data)
   } catch (e) { next(e) }
 })
 
 /** GET /commissions/:id */
-router.get('/:id', requirePermission('commission:view'), (req, res, next) => {
+router.get('/:id', requirePermission('commission:view'), async (req, res, next) => {
   try {
-    settleDueCommissions()
+    await settleDueCommissions()
     const id = Number(req.params.id)
-    const row = get(
+    const row = (await get(
       `SELECT c.*, 'CM' || c.id AS commissionNo, c.order_id AS sourceOrderId, o.pay_amount AS orderAmount,
               c.settlement_due_time AS settlementDueTime, c.settle_time AS settleTime,
               m.nickname, s.nickname AS sourceName
@@ -60,7 +60,7 @@ router.get('/:id', requirePermission('commission:view'), (req, res, next) => {
        LEFT JOIN member m ON m.id = c.member_id LEFT JOIN member s ON s.id = c.source_member_id
        WHERE c.id = ?`,
       id,
-    )
+    ))
     if (!row) throw notFound('佣金记录不存在')
     ok(res, row)
   } catch (e) { next(e) }

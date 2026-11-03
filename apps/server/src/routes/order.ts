@@ -28,7 +28,7 @@ const ORDER_SELECT = `
 `
 
 /** GET /orders?page=&pageSize=&status=&type=&keyword= */
-router.get('/', requirePermission('order:view'), (req, res, next) => {
+router.get('/', requirePermission('order:view'), async (req, res, next) => {
   try {
     const { page, pageSize } = parsePagination(req.query)
     const status = req.query.status === undefined || req.query.status === '' ? null : int(req.query.status)
@@ -44,31 +44,31 @@ router.get('/', requirePermission('order:view'), (req, res, next) => {
       params.push(`%${keyword}%`, `%${keyword}%`, int(keyword, -1), `%${keyword}%`)
     }
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : ''
-    const data = paginate(
+    const data = (await paginate(
       `${ORDER_SELECT} ${where} ORDER BY o.id DESC`,
       `SELECT COUNT(*) AS c FROM "order" o ${where}`,
       params, page, pageSize,
-    )
+    ))
     ok(res, data)
   } catch (e) { next(e) }
 })
 
 /** GET /orders/:id 详情（含明细） */
-router.get('/:id', requirePermission('order:view'), (req, res, next) => {
+router.get('/:id', requirePermission('order:view'), async (req, res, next) => {
   try {
     const id = Number(req.params.id)
-    const order = get(ORDER_SELECT + ' WHERE o.id = ?', id)
+    const order = (await get(ORDER_SELECT + ' WHERE o.id = ?', id))
     if (!order) throw notFound('订单不存在')
-    const items = all('SELECT id, sku_id AS skuId, sku_name AS skuName, spec_info AS specInfo, image, quantity, original_price AS originalPrice, unit_price AS unitPrice, total_price AS totalPrice, member_level AS memberLevel FROM order_item WHERE order_id = ?', id)
+    const items = (await all('SELECT id, sku_id AS skuId, sku_name AS skuName, spec_info AS specInfo, image, quantity, original_price AS originalPrice, unit_price AS unitPrice, total_price AS totalPrice, member_level AS memberLevel FROM order_item WHERE order_id = ?', id))
     ok(res, { ...order, items })
   } catch (e) { next(e) }
 })
 
 /** PATCH /orders/:id/status 更新订单状态（发货/完成/取消） */
-router.patch('/:id/status', requirePermission('order:ship'), (req, res, next) => {
+router.patch('/:id/status', requirePermission('order:ship'), async (req, res, next) => {
   try {
     const id = Number(req.params.id)
-    const order = get<Record<string, unknown>>('SELECT * FROM "order" WHERE id = ?', id)
+    const order = (await get<Record<string, unknown>>('SELECT * FROM "order" WHERE id = ?', id))
     if (!order) throw notFound('订单不存在')
     const body = z.object({
       // 仅发货(2)/完成(3)/取消(4) 三种合法转移；不允许打回待支付(1)，该状态只应由支付流程本身写入
@@ -80,7 +80,7 @@ router.patch('/:id/status', requirePermission('order:ship'), (req, res, next) =>
     if (body.status === 2 && (!body.logisticsCompany || !body.logisticsNo)) throw badRequest('发货必须填写物流公司和物流单号')
     if (body.status === 3 && Number(order.status) !== 2) throw badRequest('仅待收货订单可完成')
     if (body.status === 4 && Number(order.status) !== 0) throw badRequest('已付款订单不可直接取消，请发起退款申请')
-    transaction(() => {
+    await transaction(async () => {
       const ts = now()
       const sets: string[] = ['status = ?']
       const params: (string | number)[] = [body.status]
@@ -90,12 +90,12 @@ router.patch('/:id/status', requirePermission('order:ship'), (req, res, next) =>
       if (body.status === 3) { sets.push('finish_time = ?'); params.push(ts) }
       if (body.status === 4) { sets.push('cancel_time = ?'); params.push(ts) }
       params.push(id, Number(order.status))
-      const updated = run(`UPDATE "order" SET ${sets.join(', ')} WHERE id = ? AND status = ?`, ...params)
+      const updated = (await run(`UPDATE "order" SET ${sets.join(', ')} WHERE id = ? AND status = ?`, ...params))
       if (Number(updated.changes) !== 1) throw badRequest('订单状态已变化，请刷新后重试')
-      if (body.status === 3) scheduleOrderCommissions(id)
-      if (body.status === 4) restoreOrderStock(id)
+      if (body.status === 3) await scheduleOrderCommissions(id)
+      if (body.status === 4) await restoreOrderStock(id)
       const action = body.status === 2 ? '发货' : body.status === 3 ? '确认完成' : '取消未支付订单'
-      logOperation(String(req.auth?.username || ''), '订单管理', action,
+      await logOperation(String(req.auth?.username || ''), '订单管理', action,
         `订单 ${String(order.orderNo)}：${action}`, String(req.ip || ''))
     })
     ok(res, null, '订单状态已更新')
@@ -103,7 +103,7 @@ router.patch('/:id/status', requirePermission('order:ship'), (req, res, next) =>
 })
 
 /** PATCH /orders/ship 批量发货（body: { ids, company, no }） */
-router.patch('/ship', requirePermission('order:ship'), (req, res, next) => {
+router.patch('/ship', requirePermission('order:ship'), async (req, res, next) => {
   try {
     const body = z.object({
       ids: z.array(z.number().int()).min(1),
@@ -111,49 +111,49 @@ router.patch('/ship', requirePermission('order:ship'), (req, res, next) => {
       no: z.string().min(1).max(50),
     }).parse(req.body)
     if (body.ids.length > 100) throw badRequest('单次最多批量发货 100 笔')
-    const shipped = transaction(() => {
+    const shipped = (await transaction(async () => {
       const ts = now()
       let count = 0
       for (const id of new Set(body.ids)) {
-        const r = run('UPDATE "order" SET status = 2, logistics_company = ?, logistics_no = ?, ship_time = ? WHERE id = ? AND status = 1',
-          body.company.trim(), body.no.trim(), ts, id)
+        const r = (await run('UPDATE "order" SET status = 2, logistics_company = ?, logistics_no = ?, ship_time = ? WHERE id = ? AND status = 1',
+          body.company.trim(), body.no.trim(), ts, id))
         count += Number(r.changes)
       }
-      logOperation(String(req.auth?.username || ''), '订单管理', '批量发货',
+      await logOperation(String(req.auth?.username || ''), '订单管理', '批量发货',
         `批量发货 ${count}/${body.ids.length} 单（${body.company} ${body.no}）`, String(req.ip || ''))
       return count
-    })
+    }))
     ok(res, null, `已发货 ${shipped}/${body.ids.length} 单`)
   } catch (e) { next(e) }
 })
 
 /** POST /orders/:id/refund-audit 退款审核（body: { pass, remark }） */
-router.post('/:id/refund-audit', requirePermission('order:refund'), (req, res, next) => {
+router.post('/:id/refund-audit', requirePermission('order:refund'), async (req, res, next) => {
   try {
     const id = Number(req.params.id)
-    const order = get<Record<string, unknown>>('SELECT * FROM "order" WHERE id = ?', id)
+    const order = (await get<Record<string, unknown>>('SELECT * FROM "order" WHERE id = ?', id))
     if (!order) throw notFound('订单不存在')
     if (Number(order.status) !== 5 || !order.payTime) throw badRequest('仅已支付且退款申请中的订单可审核')
     if (Number(order.orderType) !== 1) throw badRequest('该订单涉及会员权益或领货额度变更，不能走普通零售整单退款流程')
     const body = z.object({ pass: z.boolean(), remark: z.string().max(200).optional() }).parse(req.body)
     if (!body.pass && !body.remark) throw badRequest('驳回时必须填写原因')
-    if (body.pass && getPaymentMode() !== 'mock') {
+    if (body.pass && (await getPaymentMode()) !== 'mock') {
       throw badRequest('当前真实支付退款接口尚未接通；请完成网关退款能力后再启用线上退款审核')
     }
-    transaction(() => {
+    await transaction(async () => {
       const ts = now()
       const nextStatus = body.pass ? 6 : 1
-      const updated = run(
+      const updated = (await run(
         'UPDATE "order" SET status = ?, refund_audit_remark = ?, refund_audit_time = ? WHERE id = ? AND status = 5',
         nextStatus, body.remark || '', ts, id,
-      )
+      ))
       if (Number(updated.changes) !== 1) throw badRequest('退款申请状态已变化，请刷新后重试')
       if (body.pass) {
-        rollbackOrderCommissions(id, '订单退款')
-        restoreOrderStock(id)
-        recordFinanceFlow(5, -Number(order.payAmount), String(order.orderNo), '订单退款支出（模拟支付）')
+        await rollbackOrderCommissions(id, '订单退款')
+        await restoreOrderStock(id)
+        await recordFinanceFlow(5, -Number(order.payAmount), String(order.orderNo), '订单退款支出（模拟支付）')
       }
-      logOperation(String(req.auth?.username || ''), '订单售后', body.pass ? '退款通过' : '退款驳回',
+      await logOperation(String(req.auth?.username || ''), '订单售后', body.pass ? '退款通过' : '退款驳回',
         `订单 ${String(order.orderNo)}，申请原因：${String(order.refundReason || '未填写')}；审核意见：${body.remark || (body.pass ? '审核通过' : '')}`,
         String(req.ip || ''))
     })

@@ -11,6 +11,7 @@ Flutter client for the Shop OS customer storefront. It provides one responsive U
 - Address entry and checkout use the bundled nationwide province/city/county dataset (34 province-level entries, 369 cities, and 3,479 counties/districts), adapted from the existing `@vant/area-data` dependency
 - Product detail supports both add-to-cart and direct checkout; direct purchases do not alter an existing cart line
 - Flutter Web uses path URLs so shared `/r/:inviteCode` links open the invite registration screen
+- The in-app brand logo loads from the admin-managed public site configuration at startup and when the app returns to the foreground; the bundled logo is used when the API or image is unavailable. The installed launcher icon remains part of the app package.
 
 ## Requirements and setup
 

@@ -9,11 +9,11 @@ import { requireAnyPermission, requireAuth, requirePermission } from '../middlew
 const router = Router()
 router.use(requireAuth)
 
-function assertConfigAccess(req: Request, group: string, write = false) {
+async function assertConfigAccess(req: Request, group: string, write = false) {
   if (req.auth?.role === 'super_admin') return
-  const permissions = get<{ permissions: string }>(
+  const permissions = ((await get<{ permissions: string }>(
     'SELECT permissions FROM admin_role WHERE code = ? AND status = 1', req.auth?.role,
-  )?.permissions
+  )))?.permissions
   let granted: string[] = []
   try { granted = JSON.parse(permissions || '[]') as string[] } catch { granted = [] }
   const rules: Record<string, string[]> = {
@@ -33,25 +33,25 @@ function assertConfigAccess(req: Request, group: string, write = false) {
 
 // ===== 等级权益配置 =====
 /** GET /config/levels */
-router.get('/levels', requireAnyPermission('benefit:config', 'member:view', 'gift:edit'), (_req, res, next) => {
+router.get('/levels', requireAnyPermission('benefit:config', 'member:view', 'gift:edit'), async (_req, res, next) => {
   try {
-    const list = all(`
+    const list = (await all(`
       SELECT id, level, level_name AS levelName, level_sort AS levelSort, entry_amount AS entryAmount,
              shop_discount AS shopDiscount, monthly_credit AS monthlyCredit, credit_months AS creditMonths,
              resell_fee_rate AS resellFeeRate, consumption_credit_rate AS consumptionCreditRate,
              consumption_credit_months AS consumptionCreditMonths, consumption_resellable AS consumptionResellable,
              status, update_time AS updateTime
       FROM level_config ORDER BY level_sort
-    `)
+    `))
     ok(res, list)
   } catch (e) { next(e) }
 })
 
 /** PUT /config/levels/:id 编辑等级 */
-router.put('/levels/:id', requirePermission('benefit:config'), (req, res, next) => {
+router.put('/levels/:id', requirePermission('benefit:config'), async (req, res, next) => {
   try {
     const id = Number(req.params.id)
-    if (!get('SELECT id FROM level_config WHERE id = ?', id)) throw notFound('等级配置不存在')
+    if (!(await get('SELECT id FROM level_config WHERE id = ?', id))) throw notFound('等级配置不存在')
     const body = z.object({
       levelName: z.string().min(1).max(20).optional(),
       levelSort: z.number().int().optional(),
@@ -65,8 +65,8 @@ router.put('/levels/:id', requirePermission('benefit:config'), (req, res, next) 
       consumptionResellable: z.number().min(0).max(1).optional(),
       status: z.number().min(0).max(1).optional(),
     }).parse(req.body)
-    const cur = get<Record<string, unknown>>('SELECT * FROM level_config WHERE id = ?', id)!
-    run(
+    const cur = ((await get<Record<string, unknown>>('SELECT * FROM level_config WHERE id = ?', id)))!
+    await run(
       `UPDATE level_config SET level_name = ?, level_sort = ?, entry_amount = ?, shop_discount = ?, monthly_credit = ?,
         credit_months = ?, resell_fee_rate = ?, consumption_credit_rate = ?, consumption_credit_months = ?,
         consumption_resellable = ?, status = ?, update_time = ? WHERE id = ?`,
@@ -81,7 +81,7 @@ router.put('/levels/:id', requirePermission('benefit:config'), (req, res, next) 
 })
 
 /** POST /config/levels 新增等级 */
-router.post('/levels', requirePermission('benefit:config'), (req, res, next) => {
+router.post('/levels', requirePermission('benefit:config'), async (req, res, next) => {
   try {
     const body = z.object({
       levelName: z.string().min(1).max(20),
@@ -95,79 +95,79 @@ router.post('/levels', requirePermission('benefit:config'), (req, res, next) => 
       consumptionCreditMonths: z.number().int().min(0).optional(),
       consumptionResellable: z.number().min(0).max(1).optional(),
     }).parse(req.body)
-    const nextLevel = get<{ m: number }>('SELECT COALESCE(MAX(level),0) + 1 AS m FROM level_config')!.m
-    if (get('SELECT id FROM level_config WHERE level = ?', nextLevel)) throw conflict('等级档位冲突')
-    const r = run(
+    const nextLevel = ((await get<{ m: number }>('SELECT COALESCE(MAX(level),0) + 1 AS m FROM level_config')))!.m
+    if ((await get('SELECT id FROM level_config WHERE level = ?', nextLevel))) throw conflict('等级档位冲突')
+    const r = (await run(
       `INSERT INTO level_config (level, level_name, level_sort, entry_amount, shop_discount, monthly_credit, credit_months,
         resell_fee_rate, consumption_credit_rate, consumption_credit_months, consumption_resellable, status, update_time)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
       nextLevel, body.levelName, body.levelSort, body.entryAmount, body.shopDiscount, body.monthlyCredit,
       body.creditMonths, body.resellFeeRate, body.consumptionCreditRate ?? 0, body.consumptionCreditMonths ?? 0,
       body.consumptionResellable ?? 0, now(),
-    )
+    ))
     ok(res, { id: Number(r.lastInsertRowid), level: nextLevel }, '等级已创建', 201)
   } catch (e) { next(e) }
 })
 
 /** DELETE /config/levels/:id 删除等级 */
-router.delete('/levels/:id', requirePermission('benefit:config'), (req, res, next) => {
+router.delete('/levels/:id', requirePermission('benefit:config'), async (req, res, next) => {
   try {
     const id = Number(req.params.id)
-    const lv = get<Record<string, unknown>>('SELECT * FROM level_config WHERE id = ?', id)
+    const lv = (await get<Record<string, unknown>>('SELECT * FROM level_config WHERE id = ?', id))
     if (!lv) throw notFound('等级配置不存在')
-    const count = get<{ c: number }>('SELECT COUNT(*) AS c FROM level_config')!.c
+    const count = ((await get<{ c: number }>('SELECT COUNT(*) AS c FROM level_config')))!.c
     if (count <= 1) throw conflict('至少保留一个等级')
-    run('DELETE FROM level_config WHERE id = ?', id)
+    await run('DELETE FROM level_config WHERE id = ?', id)
     ok(res, null, '等级已删除')
   } catch (e) { next(e) }
 })
 
 // ===== 分销佣金规则 =====
 /** GET /config/commission-rules */
-router.get('/commission-rules', requireAnyPermission('commission:config', 'commission:view'), (_req, res, next) => {
+router.get('/commission-rules', requireAnyPermission('commission:config', 'commission:view'), async (_req, res, next) => {
   try {
-    const list = all(`
+    const list = (await all(`
       SELECT id, package_level AS packageLevel, distribution_level AS distributionLevel, rate, status, update_time AS updateTime
       FROM commission_rule ORDER BY package_level, distribution_level
-    `)
+    `))
     ok(res, list)
   } catch (e) { next(e) }
 })
 
 /** PUT /config/commission-rules/:id 编辑佣金规则 */
-router.put('/commission-rules/:id', requirePermission('commission:config'), (req, res, next) => {
+router.put('/commission-rules/:id', requirePermission('commission:config'), async (req, res, next) => {
   try {
     const id = Number(req.params.id)
-    if (!get('SELECT id FROM commission_rule WHERE id = ?', id)) throw notFound('规则不存在')
+    if (!(await get('SELECT id FROM commission_rule WHERE id = ?', id))) throw notFound('规则不存在')
     const body = z.object({ rate: z.number().min(0).max(100), status: z.number().min(0).max(1).optional() }).parse(req.body)
-    const cur = get<Record<string, unknown>>('SELECT * FROM commission_rule WHERE id = ?', id)!
-    run('UPDATE commission_rule SET rate = ?, status = ?, update_time = ? WHERE id = ?', body.rate, body.status ?? cur.status, now(), id)
+    const cur = ((await get<Record<string, unknown>>('SELECT * FROM commission_rule WHERE id = ?', id)))!
+    await run('UPDATE commission_rule SET rate = ?, status = ?, update_time = ? WHERE id = ?', body.rate, body.status ?? cur.status, now(), id)
     ok(res, null, '已更新')
   } catch (e) { next(e) }
 })
 
 // ===== 系统配置 =====
 /** GET /config/system?group= */
-router.get('/system', (req, res, next) => {
+router.get('/system', async (req, res, next) => {
   try {
     const group = typeof req.query.group === 'string' ? req.query.group : ''
-    assertConfigAccess(req, group)
+    await assertConfigAccess(req, group)
     const list = group
-      ? all('SELECT id, config_key AS configKey, config_value AS configValue, config_group AS configGroup, description, update_operator AS updateOperator, update_time AS updateTime FROM system_config WHERE config_group = ? ORDER BY id', group)
-      : all('SELECT id, config_key AS configKey, config_value AS configValue, config_group AS configGroup, description, update_operator AS updateOperator, update_time AS updateTime FROM system_config ORDER BY config_group, id')
+      ? (await all('SELECT id, config_key AS configKey, config_value AS configValue, config_group AS configGroup, description, update_operator AS updateOperator, update_time AS updateTime FROM system_config WHERE config_group = ? ORDER BY id', group))
+      : (await all('SELECT id, config_key AS configKey, config_value AS configValue, config_group AS configGroup, description, update_operator AS updateOperator, update_time AS updateTime FROM system_config ORDER BY config_group, id'))
     ok(res, list)
   } catch (e) { next(e) }
 })
 
 /** PUT /config/system/:id */
-router.put('/system/:id', (req, res, next) => {
+router.put('/system/:id', async (req, res, next) => {
   try {
     const id = Number(req.params.id)
-    const existing = get<{ configKey: string; configGroup: string; configValue: string; description: string }>(
+    const existing = (await get<{ configKey: string; configGroup: string; configValue: string; description: string }>(
       'SELECT config_key AS configKey, config_group AS configGroup, config_value AS configValue, description FROM system_config WHERE id = ?', id,
-    )
+    ))
     if (!existing) throw notFound('配置项不存在')
-    assertConfigAccess(req, existing.configGroup, true)
+    await assertConfigAccess(req, existing.configGroup, true)
     const body = z.object({
       configValue: z.string(),
       configGroup: z.string().optional(),
@@ -180,7 +180,7 @@ router.put('/system/:id', (req, res, next) => {
     if (existing.configKey === 'payment.mode' && body.configValue === 'real') {
       throw badRequest('真实支付网关尚未开发完成（缺少回调通知接口），暂不支持切换，请保持模拟支付模式')
     }
-    run('UPDATE system_config SET config_value = ?, config_group = ?, description = ?, update_operator = ?, update_time = ? WHERE id = ?',
+    await run('UPDATE system_config SET config_value = ?, config_group = ?, description = ?, update_operator = ?, update_time = ? WHERE id = ?',
       body.configValue, existing.configGroup, body.description ?? existing.description, req.auth!.username, now(), id)
     ok(res, null, '已更新')
   } catch (e) { next(e) }
@@ -188,25 +188,25 @@ router.put('/system/:id', (req, res, next) => {
 
 // ===== 月度领货商品池（按等级配置） =====
 /** GET /config/credit-pool 全部等级的商品池（含商品名称/图片，供后台按等级分组展示） */
-router.get('/credit-pool', requirePermission('benefit:config'), (_req, res, next) => {
+router.get('/credit-pool', requirePermission('benefit:config'), async (_req, res, next) => {
   try {
-    const list = all(
+    const list = (await all(
       `SELECT c.level, c.spu_id AS spuId, p.name, p.main_image AS mainImage
        FROM credit_pool_item c JOIN product_spu p ON p.id = c.spu_id
        ORDER BY c.level, c.sort, c.id`,
-    )
+    ))
     ok(res, list)
   } catch (e) { next(e) }
 })
 
 /** PUT /config/credit-pool/:level 整体替换某等级的商品池（body: { spuIds: number[] }） */
-router.put('/credit-pool/:level', requirePermission('benefit:config'), (req, res, next) => {
+router.put('/credit-pool/:level', requirePermission('benefit:config'), async (req, res, next) => {
   try {
     const level = Number(req.params.level)
     const body = z.object({ spuIds: z.array(z.number().int()) }).parse(req.body)
-    run('DELETE FROM credit_pool_item WHERE level = ?', level)
-    body.spuIds.forEach((spuId, idx) => {
-      run('INSERT OR IGNORE INTO credit_pool_item (level, spu_id, sort, create_time) VALUES (?, ?, ?, ?)', level, spuId, idx, now())
+    await run('DELETE FROM credit_pool_item WHERE level = ?', level)
+    body.spuIds.forEach(async (spuId, idx) => {
+      await run('INSERT OR IGNORE INTO credit_pool_item (level, spu_id, sort, create_time) VALUES (?, ?, ?, ?)', level, spuId, idx, now())
     })
     ok(res, null, '商品池已更新')
   } catch (e) { next(e) }
@@ -214,25 +214,25 @@ router.put('/credit-pool/:level', requirePermission('benefit:config'), (req, res
 
 // ===== 转卖自动匹配商品池（按等级配置） =====
 /** GET /config/resell-pool 全部等级的转卖商品池（含商品名称/图片，供后台按等级分组展示） */
-router.get('/resell-pool', requirePermission('benefit:config'), (_req, res, next) => {
+router.get('/resell-pool', requirePermission('benefit:config'), async (_req, res, next) => {
   try {
-    const list = all(
+    const list = (await all(
       `SELECT r.level, r.spu_id AS spuId, p.name, p.main_image AS mainImage
        FROM resell_pool_item r JOIN product_spu p ON p.id = r.spu_id
        ORDER BY r.level, r.sort, r.id`,
-    )
+    ))
     ok(res, list)
   } catch (e) { next(e) }
 })
 
 /** PUT /config/resell-pool/:level 整体替换某等级的转卖商品池（body: { spuIds: number[] }） */
-router.put('/resell-pool/:level', requirePermission('benefit:config'), (req, res, next) => {
+router.put('/resell-pool/:level', requirePermission('benefit:config'), async (req, res, next) => {
   try {
     const level = Number(req.params.level)
     const body = z.object({ spuIds: z.array(z.number().int()) }).parse(req.body)
-    run('DELETE FROM resell_pool_item WHERE level = ?', level)
-    body.spuIds.forEach((spuId, idx) => {
-      run('INSERT OR IGNORE INTO resell_pool_item (level, spu_id, sort, create_time) VALUES (?, ?, ?, ?)', level, spuId, idx, now())
+    await run('DELETE FROM resell_pool_item WHERE level = ?', level)
+    body.spuIds.forEach(async (spuId, idx) => {
+      await run('INSERT OR IGNORE INTO resell_pool_item (level, spu_id, sort, create_time) VALUES (?, ?, ?, ?)', level, spuId, idx, now())
     })
     ok(res, null, '转卖商品池已更新')
   } catch (e) { next(e) }

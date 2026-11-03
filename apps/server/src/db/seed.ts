@@ -1,16 +1,16 @@
 // ===== 种子数据（幂等：已存在则跳过） =====
 import crypto from 'node:crypto'
 import bcrypt from 'bcryptjs'
-import { db, run, get } from './index.js'
+import { get, initializeDatabase, run } from './index.js'
 import { config } from '../config.js'
 import { now, genNo } from '../utils/index.js'
 
-function seeded(key: string): boolean {
-  return !!get<{ c: number }>('SELECT COUNT(*) AS c FROM system_config WHERE config_key = ?', key)?.c
+async function seeded(key: string): Promise<boolean> {
+  return !!((await get<{ c: number }>('SELECT COUNT(*) AS c FROM system_config WHERE config_key = ?', key)))?.c
 }
 
-function markSeed(key: string) {
-  run(
+async function markSeed(key: string) {
+  await run(
     'INSERT OR IGNORE INTO system_config (config_key, config_value, config_group, description, update_time) VALUES (?, ?, ?, ?, ?)',
     key, '1', 'seed', '种子数据标记', now(),
   )
@@ -20,7 +20,7 @@ function markSeed(key: string) {
  * 新增系统配置项的补丁列表：即使已完成初次播种（seed.done），也在每次启动时补齐，
  * 避免存量数据库缺失新增配置键（同一份列表在新库初始化时同样生效，无需重复维护）。
  */
-function patchConfigDefaults() {
+async function patchConfigDefaults() {
   const patches: [string, string, string, string][] = [
     ['site.logo', '', 'basic', '站点Logo（登录页/侧边栏展示，留空使用默认）'],
     ['site.icon', '', 'basic', '站点图标/Favicon（留空使用默认）'],
@@ -33,24 +33,24 @@ function patchConfigDefaults() {
     ['resell.auto_match_enabled', '0', 'resell', '转卖自动匹配总开关：1 开启后，商城/入会礼包订单命中转卖商品池即自动匹配最早的待匹配转卖单'],
   ]
   for (const c of patches) {
-    run('INSERT OR IGNORE INTO system_config (config_key, config_value, config_group, description, update_time) VALUES (?, ?, ?, ?, ?)', c[0], c[1], c[2], c[3], now())
+    await run('INSERT OR IGNORE INTO system_config (config_key, config_value, config_group, description, update_time) VALUES (?, ?, ?, ?, ?)', c[0], c[1], c[2], c[3], now())
   }
 }
 
 /** 一次性修正历史种子数据的错误：早期种子把 9 个普通零售商品也错误标记为 is_gift_package=1，
  *  导致商城详情页把它们的"立即购买"全部导向入会流程。只修正非入会专区分类下被误标的商品，
  *  不影响管理员后续手动设置的真实礼包商品。 */
-function fixSeedGiftPackageFlag() {
-  if (seeded('migration.fix_seed_gift_package_flag')) return
-  run("UPDATE product_spu SET is_gift_package = 0 WHERE is_gift_package = 1 AND category_id != 5 AND id IN (1,2,3,4,5,6,7,8,9)")
-  markSeed('migration.fix_seed_gift_package_flag')
+async function fixSeedGiftPackageFlag() {
+  if ((await seeded('migration.fix_seed_gift_package_flag'))) return
+  await run("UPDATE product_spu SET is_gift_package = 0 WHERE is_gift_package = 1 AND category_id != 5 AND id IN (1,2,3,4,5,6,7,8,9)")
+  await markSeed('migration.fix_seed_gift_package_flag')
 }
 
 export async function seed() {
-  patchConfigDefaults()
-  fixSeedGiftPackageFlag()
+  await patchConfigDefaults()
+  await fixSeedGiftPackageFlag()
 
-  if (seeded('seed.done')) {
+  if ((await seeded('seed.done'))) {
     console.log('[seed] 已存在种子数据，跳过')
     return
   }
@@ -68,7 +68,7 @@ export async function seed() {
   console.log('[seed] 首次初始化管理员账号，初始密码如下（仅显示一次，请妥善保存并尽快登录修改）：')
   for (const a of admins) {
     const initialPassword = crypto.randomBytes(6).toString('base64url')
-    run(
+    await run(
       'INSERT OR IGNORE INTO admin_user (username, password_hash, name, role, avatar) VALUES (?, ?, ?, ?, ?)',
       a.username, hash(initialPassword), a.name, a.role, '',
     )
@@ -86,24 +86,24 @@ export async function seed() {
   for (let i = 0; i < members.length; i++) {
     const [nickname, level, inviterIdx] = members[i]
     const username = `m${i + 1}`
-    const existing = get<{ id: number }>('SELECT id FROM member WHERE username = ?', username)
+    const existing = (await get<{ id: number }>('SELECT id FROM member WHERE username = ?', username))
     if (existing) {
       memberIds.push(existing.id)
       continue
     }
     const inviterId = inviterIdx ? memberIds[inviterIdx - 1] : null
-    const inv = inviterId ? get<{ inviterId: number | null; secondInviterId: number | null }>('SELECT inviter_id AS inviterId, second_inviter_id AS secondInviterId FROM member WHERE id = ?', inviterId) : null
+    const inv = inviterId ? (await get<{ inviterId: number | null; secondInviterId: number | null }>('SELECT inviter_id AS inviterId, second_inviter_id AS secondInviterId FROM member WHERE id = ?', inviterId)) : null
     const second = inv?.inviterId ?? null
     const third = inv ? (inv.secondInviterId ?? null) : null
-    const res = run(
+    const res = (await run(
       `INSERT INTO member (username, password_hash, nickname, avatar, phone, level, inviter_id, second_inviter_id, third_inviter_id, invite_code, status)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       username, hash('123456'), nickname, `https://api.dicebear.com/7.x/avataaars/svg?seed=${nickname}`,
       `138${String(10000000 + i * 137)}`, level, inviterId, second, third, `SH${String(1000 + i)}`,
-    )
+    ))
     const mid = Number(res.lastInsertRowid)
     memberIds.push(mid)
-    run(
+    await run(
       'INSERT OR IGNORE INTO wallet (member_id, balance, frozen, total_income, total_withdraw) VALUES (?, ?, ?, ?, ?)',
       mid, 2000 + level * 3000, 200, 8000 + level * 12000, 1000 + level * 3000,
     )
@@ -117,7 +117,7 @@ export async function seed() {
     [11, '面部护理', 1, '', 1, 0], [12, '彩妆', 1, '', 2, 0], [21, '营养补充', 2, '', 1, 0],
   ]
   for (const c of cats) {
-    run(
+    await run(
       'INSERT OR IGNORE INTO category (id, name, parent_id, icon, sort, is_gift_zone, status) VALUES (?, ?, ?, ?, ?, ?, 1)',
       c[0], c[1], c[2], c[3], c[4], c[5],
     )
@@ -142,7 +142,7 @@ export async function seed() {
     [10, '银卡礼包', 5800, 5800], [11, '金卡礼包', 9800, 9800], [12, '铂金礼包', 19800, 19800],
   ]
   for (const s of spus) {
-    run(
+    await run(
       'INSERT OR IGNORE INTO product_spu (id, name, category_id, main_image, images, description, is_gift_package, is_monthly_product, exclude_discount, status, sort, create_time) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 1, ?, ?)',
       s[0], s[1], s[2], `https://picsum.photos/seed/s${s[0]}/400`, JSON.stringify([`https://picsum.photos/seed/s${s[0]}a/400`]),
       `${s[1]} 描述`, s[3], s[4], now(),
@@ -150,7 +150,7 @@ export async function seed() {
   }
   let skuId = 1
   for (const [spuId, skuName, price, orig] of skuDefs) {
-    run(
+    await run(
       'INSERT OR IGNORE INTO product_sku (id, spu_id, sku_name, spec_info, price, market_price, cost_price, original_price, stock, sales, image, status) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 1)',
       skuId, spuId, skuName, JSON.stringify({ spec: skuName }), price, orig, orig, 500 + spuId * 37, 12 + spuId * 7,
       `https://picsum.photos/seed/sk${skuId}/300`,
@@ -164,7 +164,7 @@ export async function seed() {
     [3, '铂金入会礼包', 12, 19800, 3], [4, '钻石入会礼包', 12, 39800, 4],
   ]
   for (const p of pkgs) {
-    run('INSERT OR IGNORE INTO gift_package (id, name, spu_id, price, level, status, create_time) VALUES (?, ?, ?, ?, ?, 1, ?)', p[0], p[1], p[2], p[3], p[4], now())
+    await run('INSERT OR IGNORE INTO gift_package (id, name, spu_id, price, level, status, create_time) VALUES (?, ?, ?, ?, ?, 1, ?)', p[0], p[1], p[2], p[3], p[4], now())
   }
   const pkgItems: [number, number, string, number, number][] = [
     [1, 1, '烟酰胺焕亮精华液 30ml', 2, 199],
@@ -177,7 +177,7 @@ export async function seed() {
     [4, 6, '胶原蛋白肽粉 30条装', 4, 268],
   ]
   for (const it of pkgItems) {
-    run('INSERT OR IGNORE INTO gift_package_item (package_id, sku_id, sku_name, quantity, unit_price) VALUES (?, ?, ?, ?, ?)', it[0], it[1], it[2], it[3], it[4])
+    await run('INSERT OR IGNORE INTO gift_package_item (package_id, sku_id, sku_name, quantity, unit_price) VALUES (?, ?, ?, ?, ?)', it[0], it[1], it[2], it[3], it[4])
   }
 
   // ===== 订单 =====
@@ -194,17 +194,17 @@ export async function seed() {
   const orderIds: number[] = []
   for (const o of orders) {
     const [pfx, memberId, memberName, type, total, discount, pay, status, recv] = o
-    const res = run(
+    const res = (await run(
       `INSERT INTO "order" (order_no, member_id, member_name, order_type, total_amount, discount_amount, shipping_fee, pay_amount, status, receiver_name, receiver_phone, receiver_address, create_time)
        VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)`,
       genNo(pfx), memberId, memberName, type, total, discount, pay, status, recv, `1380000${memberId}`, '示例收货地址 1 号',
       new Date(Date.now() - (status === 4 ? 3 : 1) * 86400000).toISOString().slice(0, 19).replace('T', ' '),
-    )
+    ))
     const oid = Number(res.lastInsertRowid)
     orderIds.push(oid)
     const skuId2 = 1 + (oid % 12)
-    const sku = get<{ skuName: string; price: number; originalPrice: number }>('SELECT sku_name AS skuName, price, original_price AS originalPrice FROM product_sku WHERE id = ?', skuId2)!
-    run(
+    const sku = ((await get<{ skuName: string; price: number; originalPrice: number }>('SELECT sku_name AS skuName, price, original_price AS originalPrice FROM product_sku WHERE id = ?', skuId2)))!
+    await run(
       'INSERT INTO order_item (order_id, sku_id, sku_name, spec_info, image, quantity, original_price, unit_price, total_price, member_level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       oid, skuId2, sku.skuName, '{}', '', 1, sku.originalPrice, type === 2 ? total : sku.price, type === 2 ? total : sku.price, 0,
     )
@@ -217,13 +217,13 @@ export async function seed() {
   ]
   const fgIds: number[] = []
   for (const g of fgroups) {
-    const r = run('INSERT OR IGNORE INTO file_group (name, icon, match_rules, create_time) VALUES (?, ?, ?, ?)', g[0], g[1], g[2], now())
+    const r = (await run('INSERT OR IGNORE INTO file_group (name, icon, match_rules, create_time) VALUES (?, ?, ?, ?)', g[0], g[1], g[2], now()))
     if (r.changes) fgIds.push(Number(r.lastInsertRowid))
   }
   const fg1 = fgIds[0] ?? 1
   for (let i = 1; i <= 8; i++) {
     const isVideo = i % 5 === 0
-    run(
+    await run(
       'INSERT OR IGNORE INTO file_asset (name, url, thumb_url, size, mime_type, ext, type, width, height, group_id, create_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       `示例${isVideo ? '视频' : '图片'}${i}.${isVideo ? 'mp4' : 'jpg'}`, `https://picsum.photos/seed/f${i}/600`,
       isVideo ? '' : `https://picsum.photos/seed/f${i}/200`, 1024 * (30 + i * 13), isVideo ? 'video/mp4' : 'image/jpeg',
@@ -237,12 +237,12 @@ export async function seed() {
     const lv = members[i][1]
     const credit = lv >= 4 ? 3980 : lv === 3 ? 1980 : lv === 2 ? 980 : lv === 1 ? 580 : 0
     if (!credit) continue
-    const res = run(
+    const res = (await run(
       'INSERT OR IGNORE INTO credit_record (member_id, month, credit_amount, used_amount, remain_amount, status, create_time) VALUES (?, ?, ?, ?, ?, 0, ?)',
       mid, '2026-08', credit, credit * 0.4, credit * 0.6, now(),
-    )
+    ))
     const rid = Number(res.lastInsertRowid)
-    run('INSERT OR IGNORE INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, create_time) VALUES (?, ?, ?, ?, 1, ?, ?)', rid, mid, credit, credit, '月度额度发放', now())
+    await run('INSERT OR IGNORE INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, create_time) VALUES (?, ?, ?, ?, 1, ?, ?)', rid, mid, credit, credit, '月度额度发放', now())
   }
 
   // ===== 佣金 =====
@@ -255,7 +255,7 @@ export async function seed() {
     [memberIds[5], memberIds[6], orderIds[4], 1, 2, 3, 2.67],
   ]
   for (const c of comms) {
-    run(
+    await run(
       'INSERT OR IGNORE INTO commission (member_id, source_member_id, order_id, package_level, distribution_level, rate, amount, status, create_time, update_time) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)',
       c[0], c[1], c[2], c[3], c[4], c[5], c[6], now(), now(),
     )
@@ -268,7 +268,7 @@ export async function seed() {
     [memberIds[2], '王总', 2000, 20, 1980, 2],
   ]
   for (const w of wds) {
-    run(
+    await run(
       `INSERT OR IGNORE INTO withdraw (withdraw_no, member_id, member_name, amount, fee, actual_amount, bank_name, bank_card, status, create_time)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       genNo('TX'), w[0], w[1], w[2], w[3], w[4], '招商银行', `6225 **** **** ${1000 + w[0]}`, w[5],
@@ -282,7 +282,7 @@ export async function seed() {
     [1, 19800, '订单收入', orderIds[2]], [4, -2970, '提现打款', 0], [3, -3564, '佣金支出', orderIds[2]],
   ]
   for (const f of flows) {
-    run('INSERT OR IGNORE INTO finance_flow (flow_no, type, amount, balance, related_no, remark, create_time) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    await run('INSERT OR IGNORE INTO finance_flow (flow_no, type, amount, balance, related_no, remark, create_time) VALUES (?, ?, ?, ?, ?, ?, ?)',
       genNo('LS'), f[0], f[1], 0, f[3] ? String(f[3]) : '', f[2], now())
   }
 
@@ -292,7 +292,7 @@ export async function seed() {
     [3, '铂金代理商', 3, 19800, 70, 1980, 12, 18], [4, '钻石代理商', 4, 39800, 60, 3980, 12, 15],
   ]
   for (const l of levels) {
-    run('INSERT OR IGNORE INTO level_config (level, level_name, level_sort, entry_amount, shop_discount, monthly_credit, credit_months, resell_fee_rate, status, update_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)',
+    await run('INSERT OR IGNORE INTO level_config (level, level_name, level_sort, entry_amount, shop_discount, monthly_credit, credit_months, resell_fee_rate, status, update_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)',
       l[0], l[1], l[2], l[3], l[4], l[5], l[6], l[7], now())
   }
 
@@ -304,7 +304,7 @@ export async function seed() {
     [4, 1, 20], [4, 2, 7], [4, 3, 3],
   ]
   for (const r of rules) {
-    run('INSERT OR IGNORE INTO commission_rule (package_level, distribution_level, rate, status, update_time) VALUES (?, ?, ?, 1, ?)', r[0], r[1], r[2], now())
+    await run('INSERT OR IGNORE INTO commission_rule (package_level, distribution_level, rate, status, update_time) VALUES (?, ?, ?, 1, ?)', r[0], r[1], r[2], now())
   }
 
   // ===== 系统配置 =====
@@ -342,7 +342,7 @@ export async function seed() {
     ['payment.alipay.notify_url', '', 'payment', '支付宝回调地址'],
   ]
   for (const c of syscfg) {
-    run('INSERT OR IGNORE INTO system_config (config_key, config_value, config_group, description, update_time) VALUES (?, ?, ?, ?, ?)', c[0], c[1], c[2], c[3], now())
+    await run('INSERT OR IGNORE INTO system_config (config_key, config_value, config_group, description, update_time) VALUES (?, ?, ?, ?, ?)', c[0], c[1], c[2], c[3], now())
   }
 
   // ===== 帮助文档 =====
@@ -357,14 +357,14 @@ export async function seed() {
     ['佣金自动结算到账', 'promote', '好友确认收货后 7 天，对应层级的分享佣金自动结算进入你的可提现余额，可在佣金明细中查看并申请提现。', 8],
   ]
   for (const h of helps) {
-    run('INSERT OR IGNORE INTO help_article (title, category, content, sort, status, create_time, update_time) VALUES (?, ?, ?, ?, 1, ?, ?)', h[0], h[1], h[2], h[3], now(), now())
+    await run('INSERT OR IGNORE INTO help_article (title, category, content, sort, status, create_time, update_time) VALUES (?, ?, ?, ?, 1, ?, ?)', h[0], h[1], h[2], h[3], now(), now())
   }
 
-  markSeed('seed.done')
+  await markSeed('seed.done')
   console.log('[seed] 种子数据初始化完成')
 }
 
 // 支持直接运行：pnpm seed
 if (process.argv[1] && process.argv[1].endsWith('seed.ts')) {
-  seed().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1) })
+  initializeDatabase().then(seed).then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1) })
 }

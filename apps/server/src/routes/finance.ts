@@ -9,55 +9,55 @@ const router = Router()
 router.use(requireAuth, requirePermission('finance:view'))
 
 /** GET /finance/overview 资金总览 */
-router.get('/overview', (_req, res, next) => {
+router.get('/overview', async (_req, res, next) => {
   try {
     // 统计累计支付总额时包含已退款单，再单独减去退款；退款中订单仍属于已收款，同时计入待退款风险。
     const paidOrderWhere = 'status IN (1,2,3,5,6)'
-    const orderIncome = get<{ v: number }>(`SELECT COALESCE(SUM(pay_amount),0) AS v FROM "order" WHERE ${paidOrderWhere}`)!.v
-    const orderCount = get<{ v: number }>(`SELECT COUNT(*) AS v FROM "order" WHERE ${paidOrderWhere}`)!.v
-    const memberOrderIncome = get<{ v: number }>(`SELECT COALESCE(SUM(pay_amount),0) AS v FROM "order" WHERE ${paidOrderWhere} AND order_type = 1`)!.v
-    const memberOrderCount = get<{ v: number }>(`SELECT COUNT(*) AS v FROM "order" WHERE ${paidOrderWhere} AND order_type = 1`)!.v
-    const giftOrderIncome = get<{ v: number }>(`SELECT COALESCE(SUM(pay_amount),0) AS v FROM "order" WHERE ${paidOrderWhere} AND order_type = 2`)!.v
-    const giftOrderCount = get<{ v: number }>(`SELECT COUNT(*) AS v FROM "order" WHERE ${paidOrderWhere} AND order_type = 2`)!.v
-    const pendingShipAmount = get<{ v: number }>('SELECT COALESCE(SUM(pay_amount),0) AS v FROM "order" WHERE status = 1')!.v
-    const pendingShipCount = get<{ v: number }>('SELECT COUNT(*) AS v FROM "order" WHERE status = 1')!.v
-    const inTransitAmount = get<{ v: number }>('SELECT COALESCE(SUM(pay_amount),0) AS v FROM "order" WHERE status = 2')!.v
-    const inTransitCount = get<{ v: number }>('SELECT COUNT(*) AS v FROM "order" WHERE status = 2')!.v
+    const orderIncome = ((await get<{ v: number }>(`SELECT COALESCE(SUM(pay_amount),0) AS v FROM "order" WHERE ${paidOrderWhere}`)))!.v
+    const orderCount = ((await get<{ v: number }>(`SELECT COUNT(*) AS v FROM "order" WHERE ${paidOrderWhere}`)))!.v
+    const memberOrderIncome = ((await get<{ v: number }>(`SELECT COALESCE(SUM(pay_amount),0) AS v FROM "order" WHERE ${paidOrderWhere} AND order_type = 1`)))!.v
+    const memberOrderCount = ((await get<{ v: number }>(`SELECT COUNT(*) AS v FROM "order" WHERE ${paidOrderWhere} AND order_type = 1`)))!.v
+    const giftOrderIncome = ((await get<{ v: number }>(`SELECT COALESCE(SUM(pay_amount),0) AS v FROM "order" WHERE ${paidOrderWhere} AND order_type = 2`)))!.v
+    const giftOrderCount = ((await get<{ v: number }>(`SELECT COUNT(*) AS v FROM "order" WHERE ${paidOrderWhere} AND order_type = 2`)))!.v
+    const pendingShipAmount = ((await get<{ v: number }>('SELECT COALESCE(SUM(pay_amount),0) AS v FROM "order" WHERE status = 1')))!.v
+    const pendingShipCount = ((await get<{ v: number }>('SELECT COUNT(*) AS v FROM "order" WHERE status = 1')))!.v
+    const inTransitAmount = ((await get<{ v: number }>('SELECT COALESCE(SUM(pay_amount),0) AS v FROM "order" WHERE status = 2')))!.v
+    const inTransitCount = ((await get<{ v: number }>('SELECT COUNT(*) AS v FROM "order" WHERE status = 2')))!.v
 
-    const serviceFee = get<{ v: number }>('SELECT COALESCE(SUM(service_fee),0) AS v FROM resell_order WHERE status = 3')!.v
-    const pendingServiceFee = get<{ v: number }>('SELECT COALESCE(SUM(service_fee),0) AS v FROM resell_order WHERE status IN (0,1,2)')!.v
-    const resellPayout = get<{ v: number }>('SELECT COALESCE(SUM(settle_amount),0) AS v FROM resell_order WHERE status = 3')!.v
-    const resellPendingPayout = get<{ v: number }>('SELECT COALESCE(SUM(settle_amount),0) AS v FROM resell_order WHERE status IN (0,1,2)')!.v
-    const resellActiveCount = get<{ v: number }>('SELECT COUNT(*) AS v FROM resell_order WHERE status IN (0,1,2)')!.v
-    const resellCompletedCount = get<{ v: number }>('SELECT COUNT(*) AS v FROM resell_order WHERE status = 3')!.v
+    const serviceFee = ((await get<{ v: number }>('SELECT COALESCE(SUM(service_fee),0) AS v FROM resell_order WHERE status = 3')))!.v
+    const pendingServiceFee = ((await get<{ v: number }>('SELECT COALESCE(SUM(service_fee),0) AS v FROM resell_order WHERE status IN (0,1,2)')))!.v
+    const resellPayout = ((await get<{ v: number }>('SELECT COALESCE(SUM(settle_amount),0) AS v FROM resell_order WHERE status = 3')))!.v
+    const resellPendingPayout = ((await get<{ v: number }>('SELECT COALESCE(SUM(settle_amount),0) AS v FROM resell_order WHERE status IN (0,1,2)')))!.v
+    const resellActiveCount = ((await get<{ v: number }>('SELECT COUNT(*) AS v FROM resell_order WHERE status IN (0,1,2)')))!.v
+    const resellCompletedCount = ((await get<{ v: number }>('SELECT COUNT(*) AS v FROM resell_order WHERE status = 3')))!.v
 
-    const commissionOut = get<{ v: number }>('SELECT COALESCE(SUM(amount),0) AS v FROM commission WHERE status IN (0,1,2)')!.v
-    const commissionPending = get<{ v: number }>('SELECT COALESCE(SUM(amount),0) AS v FROM commission WHERE status = 0')!.v
-    const commissionAvailable = get<{ v: number }>('SELECT COALESCE(SUM(amount),0) AS v FROM commission WHERE status = 1')!.v
-    const commissionPaid = get<{ v: number }>('SELECT COALESCE(SUM(amount),0) AS v FROM commission WHERE status = 2')!.v
-    const withdrawOut = get<{ v: number }>('SELECT COALESCE(SUM(actual_amount),0) AS v FROM withdraw WHERE status = 2')!.v
-    const pendingWithdraw = get<{ v: number }>('SELECT COALESCE(SUM(actual_amount),0) AS v FROM withdraw WHERE status IN (0,1)')!.v
-    const refundOut = get<{ v: number }>('SELECT COALESCE(SUM(pay_amount),0) AS v FROM "order" WHERE status = 6')!.v
-    const refundPending = get<{ v: number }>('SELECT COALESCE(SUM(pay_amount),0) AS v FROM "order" WHERE status = 5')!.v
+    const commissionOut = ((await get<{ v: number }>('SELECT COALESCE(SUM(amount),0) AS v FROM commission WHERE status IN (0,1,2)')))!.v
+    const commissionPending = ((await get<{ v: number }>('SELECT COALESCE(SUM(amount),0) AS v FROM commission WHERE status = 0')))!.v
+    const commissionAvailable = ((await get<{ v: number }>('SELECT COALESCE(SUM(amount),0) AS v FROM commission WHERE status = 1')))!.v
+    const commissionPaid = ((await get<{ v: number }>('SELECT COALESCE(SUM(amount),0) AS v FROM commission WHERE status = 2')))!.v
+    const withdrawOut = ((await get<{ v: number }>('SELECT COALESCE(SUM(actual_amount),0) AS v FROM withdraw WHERE status = 2')))!.v
+    const pendingWithdraw = ((await get<{ v: number }>('SELECT COALESCE(SUM(actual_amount),0) AS v FROM withdraw WHERE status IN (0,1)')))!.v
+    const refundOut = ((await get<{ v: number }>('SELECT COALESCE(SUM(pay_amount),0) AS v FROM "order" WHERE status = 6')))!.v
+    const refundPending = ((await get<{ v: number }>('SELECT COALESCE(SUM(pay_amount),0) AS v FROM "order" WHERE status = 5')))!.v
     // 会员钱包才是"会员可提现/已冻结"的权威账本；佣金表状态只是钱包变动的成因之一（还有人工调整等），不能互相替代
-    const walletBalance = get<{ v: number }>('SELECT COALESCE(SUM(balance),0) AS v FROM wallet')!.v
-    const walletFrozen = get<{ v: number }>('SELECT COALESCE(SUM(frozen),0) AS v FROM wallet')!.v
+    const walletBalance = ((await get<{ v: number }>('SELECT COALESCE(SUM(balance),0) AS v FROM wallet')))!.v
+    const walletFrozen = ((await get<{ v: number }>('SELECT COALESCE(SUM(frozen),0) AS v FROM wallet')))!.v
 
     // 月度领货额度负债：未使用部分按是否可转卖拆成两类
     //  - 可转卖部分：会员随时可发起转卖换成现金，按当前转卖服务费率折算为预计兑付现金
     //  - 仅可领取部分：不会变成现金支出，但会消耗库存/商品成本，计入履约风险而非资金风险
-    const creditRows = get<{ resellable: number; redeemableOnly: number }>(
+    const creditRows = ((await get<{ resellable: number; redeemableOnly: number }>(
       `SELECT COALESCE(SUM(resellable_amount),0) AS resellable,
               COALESCE(SUM(remain_amount - resellable_amount),0) AS redeemableOnly
        FROM credit_record WHERE remain_amount > 0 AND status IN (0,1)`,
-    )!
-    const resellFeeRate = Number(get<{ v: string }>("SELECT config_value AS v FROM system_config WHERE config_key = 'resell.service_fee_rate'")?.v ?? 20)
-    const shippingFee = Number(get<{ v: string }>("SELECT config_value AS v FROM system_config WHERE config_key = 'resell.shipping_fee'")?.v ?? 10)
+    )))!
+    const resellFeeRate = Number(((await get<{ v: string }>("SELECT config_value AS v FROM system_config WHERE config_key = 'resell.service_fee_rate'")))?.v ?? 20)
+    const shippingFee = Number(((await get<{ v: string }>("SELECT config_value AS v FROM system_config WHERE config_key = 'resell.shipping_fee'")))?.v ?? 10)
     const creditResellableFace = creditRows.resellable
     // 按每笔额度分别估算（每笔转卖各自扣一次快递费），避免只按总额度算比例而低估履约现金支出。
-    const resellableCredits = all<{ value: number }>(
+    const resellableCredits = (await all<{ value: number }>(
       'SELECT resellable_amount AS value FROM credit_record WHERE resellable_amount > 0 AND status IN (0,1)',
-    )
+    ))
     const creditResellableEstimated = money(resellableCredits.reduce((sum, row) => {
       const fee = money(Number(row.value) * resellFeeRate / 100)
       return sum + Math.max(0, money(Number(row.value) - fee - shippingFee))
@@ -96,14 +96,14 @@ router.get('/overview', (_req, res, next) => {
 })
 
 /** GET /finance/flows?page=&pageSize= 资金流水 */
-router.get('/flows', (req, res, next) => {
+router.get('/flows', async (req, res, next) => {
   try {
     const { page, pageSize } = parsePagination(req.query)
-    const data = paginate(
+    const data = (await paginate(
       'SELECT id, flow_no AS flowNo, type, amount, balance, related_no AS relatedNo, remark, create_time AS createTime FROM finance_flow ORDER BY id DESC',
       'SELECT COUNT(*) AS c FROM finance_flow',
       [], page, pageSize,
-    )
+    ))
     ok(res, data)
   } catch (e) { next(e) }
 })

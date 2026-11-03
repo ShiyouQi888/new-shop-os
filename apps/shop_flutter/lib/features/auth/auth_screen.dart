@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/api_client.dart';
 import '../../core/app_controller.dart';
 import '../../ui/shop_theme.dart';
+import '../../ui/widgets.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({
@@ -446,12 +447,11 @@ class _AuthWelcomeCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Image.asset(
-                'assets/branding/logo-dark.png',
+              const BrandLogo(
+                assetPath: 'assets/branding/logo-dark.png',
                 width: 152,
                 height: 54,
                 alignment: Alignment.centerLeft,
-                fit: BoxFit.contain,
               ),
               const SizedBox(height: 14),
               Container(

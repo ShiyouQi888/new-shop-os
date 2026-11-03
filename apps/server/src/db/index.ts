@@ -1,347 +1,358 @@
-// ===== 数据库连接与初始化 =====
-import { DatabaseSync } from 'node:sqlite'
-import fs from 'node:fs'
-import path from 'node:path'
+// PostgreSQL connection, schema bootstrap, and shared async query helpers.
+import { AsyncLocalStorage } from 'node:async_hooks'
+import { Pool, types, type PoolClient, type QueryResult } from 'pg'
 import { config } from '../config.js'
-import { SCHEMA_SQL } from './schema.js'
 import { BUILTIN_ROLES } from '../permissions.js'
+import { SCHEMA_SQL } from './schema.js'
 
-fs.mkdirSync(path.dirname(config.dbFile), { recursive: true })
+// PostgreSQL NUMERIC is returned as text by node-postgres by default. The app
+// uses JS arithmetic and rounds money at business boundaries, so normalize it.
+types.setTypeParser(1700, (value) => Number(value))
+types.setTypeParser(20, (value) => Number(value))
 
-export const db = new DatabaseSync(config.dbFile)
+const pool = new Pool({
+  ...(config.databaseUrl
+    ? { connectionString: config.databaseUrl }
+    : {
+        host: config.pgHost,
+        port: config.pgPort,
+        database: config.pgDatabase,
+        user: config.pgUser,
+        password: config.pgPassword,
+      }),
+  max: config.pgPoolMax,
+  idleTimeoutMillis: 30_000,
+  connectionTimeoutMillis: 10_000,
+  ...(config.pgSslMode === 'disable'
+    ? { ssl: false }
+    : config.pgSslMode
+      ? { ssl: { rejectUnauthorized: true } }
+      : {}),
+})
 
-// 开启外键约束；journal 用 DELETE 而非 WAL —— WAL 的 -wal/-shm 文件多次被系统进程（杀毒扫描）
-// 锁成 readonly 导致写库失败；单机演示场景 DELETE 模式写直接锁主库，避免该问题
-db.exec('PRAGMA journal_mode = DELETE;')
-db.exec('PRAGMA foreign_keys = ON;')
-db.exec(SCHEMA_SQL)
-
-// ===== 轻量迁移：按需补充列（幂等）；返回本次是否新增，供依赖该列的一次性回填判断 =====
-function ensureColumn(table: string, column: string, ddl: string): boolean {
-  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]
-  if (!cols.some(c => c.name === column)) {
-    db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`)
-    console.log(`[db] 迁移：${table} 增加列 ${column}`)
-    return true
-  }
-  return false
-}
-ensureColumn('member', 'real_name', "real_name TEXT NOT NULL DEFAULT ''")
-ensureColumn('member', 'register_time', "register_time TEXT NOT NULL DEFAULT ''")
-ensureColumn('member', 'become_agent_time', 'become_agent_time TEXT DEFAULT NULL')
-ensureColumn('member', 'level_expire_time', 'level_expire_time TEXT DEFAULT NULL')
-ensureColumn('help_article', 'scope', "scope TEXT NOT NULL DEFAULT 'help'")
-// 提现单：收款方式（0 银行卡 / 1 支付宝）与支付宝账号、持卡人（老库迁移补列）
-ensureColumn('withdraw', 'pay_type', 'pay_type INTEGER NOT NULL DEFAULT 0')
-ensureColumn('withdraw', 'alipay_name', "alipay_name TEXT NOT NULL DEFAULT ''")
-ensureColumn('withdraw', 'alipay_account', "alipay_account TEXT NOT NULL DEFAULT ''")
-ensureColumn('withdraw', 'bank_holder', "bank_holder TEXT NOT NULL DEFAULT ''")
-const addedSkuMarketPrice = ensureColumn('product_sku', 'market_price', 'market_price REAL NOT NULL DEFAULT 0')
-ensureColumn('product_sku', 'cost_price', 'cost_price REAL NOT NULL DEFAULT 0')
-if (addedSkuMarketPrice) {
-  // 旧版 original_price 保留为营销参考价；成本字段留空待后台核实，避免把旧值误认作真实成本。
-  db.exec('UPDATE product_sku SET market_price = original_price')
-}
-ensureColumn('commission', 'settlement_due_time', 'settlement_due_time TEXT DEFAULT NULL')
-ensureColumn('commission', 'settle_time', 'settle_time TEXT DEFAULT NULL')
-ensureColumn('"order"', 'refund_reason', "refund_reason TEXT NOT NULL DEFAULT ''")
-ensureColumn('"order"', 'refund_request_time', 'refund_request_time TEXT DEFAULT NULL')
-ensureColumn('"order"', 'refund_audit_remark', "refund_audit_remark TEXT NOT NULL DEFAULT ''")
-ensureColumn('"order"', 'refund_audit_time', 'refund_audit_time TEXT DEFAULT NULL')
-ensureColumn('resell_order', 'settle_time', 'settle_time TEXT DEFAULT NULL')
-ensureColumn('resell_order', 'credit_id', 'credit_id INTEGER REFERENCES credit_record(id)')
-ensureColumn('work_order', 'images', "images TEXT NOT NULL DEFAULT '[]'")
-ensureColumn('work_order', 'priority', 'priority INTEGER NOT NULL DEFAULT 1')
-ensureColumn('work_order', 'reply_content', "reply_content TEXT NOT NULL DEFAULT ''")
-ensureColumn('work_order', 'handler', "handler TEXT NOT NULL DEFAULT ''")
-ensureColumn('work_order', 'handle_time', 'handle_time TEXT DEFAULT NULL')
-ensureColumn('work_order', 'close_time', 'close_time TEXT DEFAULT NULL')
-// 推广海报：二维码在海报上的排版布局（百分比，老库迁移补列）
-ensureColumn('promote_poster', 'qr_x', 'qr_x REAL NOT NULL DEFAULT 38')
-ensureColumn('promote_poster', 'qr_y', 'qr_y REAL NOT NULL DEFAULT 72')
-ensureColumn('promote_poster', 'qr_size', 'qr_size REAL NOT NULL DEFAULT 24')
-// 消费返还额度：代理商等级的消费返还比例/有效月数/是否支持转卖、领货额度记录中可转卖部分
-ensureColumn('level_config', 'consumption_credit_rate', 'consumption_credit_rate REAL NOT NULL DEFAULT 0')
-ensureColumn('level_config', 'consumption_credit_months', 'consumption_credit_months INTEGER NOT NULL DEFAULT 0')
-ensureColumn('level_config', 'consumption_resellable', 'consumption_resellable INTEGER NOT NULL DEFAULT 0')
-if (ensureColumn('credit_record', 'resellable_amount', 'resellable_amount REAL NOT NULL DEFAULT 0')) {
-  // 历史领货额度均来自入会礼包发放，一次性回填为可转卖，避免老代理商突然失去转卖权
-  db.exec('UPDATE credit_record SET resellable_amount = remain_amount WHERE remain_amount > 0')
-  console.log('[db] 迁移：历史领货额度回填 resellable_amount（视为可转卖）')
-}
-// 消费返还额度发放记录需要关联订单号，用于防止同一订单被重复发放（支付双路径竞态等场景）
-ensureColumn('credit_flow', 'order_id', 'order_id INTEGER DEFAULT NULL')
-// 转卖单标记是否由系统自动匹配（区别于后台人工匹配），供后台列表展示
-ensureColumn('resell_order', 'auto_matched', 'auto_matched INTEGER NOT NULL DEFAULT 0')
-// 消费返还额度已独立成页，早期版本种下的两个 key 曾归在 credit 分组下，这里归位到 consumption_credit（幂等）
-db.exec(
-  "UPDATE system_config SET config_group = 'consumption_credit' " +
-  "WHERE config_key IN ('consumption_credit.enabled', 'consumption_credit.normal_rate') AND config_group != 'consumption_credit'",
-)
-// scope 索引需在列存在后创建（旧表迁移场景）
-db.exec('CREATE INDEX IF NOT EXISTS idx_help_scope ON help_article(scope, status)')
-
-// ===== 演示账号补充数据（每次启动幂等：为空才插入，13810000000） =====
-function ensureDemoData() {
-  const mid = (db.prepare('SELECT id FROM member WHERE phone = ?').get('13810000000') as { id: number } | undefined)?.id
-  if (!mid) return
-  const addrC = (db.prepare('SELECT COUNT(*) AS c FROM member_address WHERE member_id = ?').get(mid) as { c: number }).c
-  if (addrC === 0) {
-    db.prepare('INSERT INTO member_address (member_id, name, phone, province, city, district, detail, is_default) VALUES (?, ?, ?, ?, ?, ?, ?, 1)')
-      .run(mid, '张伟', '13810000000', '广东省', '深圳市', '南山区', '科技园路 1 号 8 栋 302')
-    db.prepare('INSERT INTO member_address (member_id, name, phone, province, city, district, detail, is_default) VALUES (?, ?, ?, ?, ?, ?, ?, 0)')
-      .run(mid, '张伟', '13810000000', '广东省', '深圳市', '福田区', '中心路 88 号 2 单元 1201')
-    console.log('[db] 补种：演示收货地址')
-  }
-  const notifC = (db.prepare('SELECT COUNT(*) AS c FROM member_notification WHERE member_id = ?').get(mid) as { c: number }).c
-  if (notifC === 0) {
-    db.prepare('INSERT INTO member_notification (member_id, type, title, content, is_read) VALUES (?, ?, ?, ?, 0)')
-      .run(mid, 'order', '订单已发货', '你的订单已交由顺丰速运配送，请注意查收。')
-    db.prepare('INSERT INTO member_notification (member_id, type, title, content, is_read) VALUES (?, ?, ?, ?, 0)')
-      .run(mid, 'commission', '佣金已结算', '本期分享佣金已完成结算，可在佣金明细中查看并申请提现。')
-    db.prepare('INSERT INTO member_notification (member_id, type, title, content, is_read) VALUES (?, ?, ?, ?, 0)')
-      .run(mid, 'credit', '领货额度提醒', '本月领货额度将在月底到期，请及时使用。')
-    db.prepare('INSERT INTO member_notification (member_id, type, title, content, is_read) VALUES (?, ?, ?, ?, 1)')
-      .run(mid, 'system', '欢迎加入', '欢迎成为会员，完善收货地址后可快速下单。')
-    console.log('[db] 补种：演示通知')
-  }
-  const favC = (db.prepare('SELECT COUNT(*) AS c FROM member_favorite WHERE member_id = ?').get(mid) as { c: number }).c
-  if (favC === 0) {
-    db.prepare('INSERT OR IGNORE INTO member_favorite (member_id, spu_id) VALUES (?, ?)').run(mid, 1)
-    db.prepare('INSERT OR IGNORE INTO member_favorite (member_id, spu_id) VALUES (?, ?)').run(mid, 3)
-    console.log('[db] 补种：演示收藏')
-  }
-  const browseC = (db.prepare('SELECT COUNT(*) AS c FROM member_browse WHERE member_id = ?').get(mid) as { c: number }).c
-  if (browseC === 0) {
-    db.prepare('INSERT INTO member_browse (member_id, spu_id) VALUES (?, ?)').run(mid, 1)
-    db.prepare('INSERT INTO member_browse (member_id, spu_id) VALUES (?, ?)').run(mid, 3)
-    db.prepare('INSERT INTO member_browse (member_id, spu_id) VALUES (?, ?)').run(mid, 5)
-    console.log('[db] 补种：演示浏览历史')
-  }
+interface TransactionContext {
+  client: PoolClient
+  depth: number
 }
 
-// ===== 补种：系统配置（老库升级时补齐缺失 key，幂等） =====
-function ensureSysConfig() {
-  const cfg: [string, string, string, string][] = [
-    ['credit.start_day', '1', 'credit', '月度领货额度发放日(每月几号)'],
-    ['credit.expire_policy', 'void', 'credit', '到期策略：void 作废 / rollover 结转'],
-    ['resell.service_fee_rate', '20', 'resell', '转卖服务费率(%)'],
-    ['resell.shipping_type', 'fixed', 'resell', '快递费规则：fixed 固定 / buyer 买家承担'],
-    ['resell.shipping_fee', '10', 'resell', '转卖固定快递费(元)'],
-    ['shipping.default_fee', '10', 'shipping', '普通商品默认运费(元)'],
-    ['shipping.free_threshold', '99', 'shipping', '普通商品满额包邮门槛(元)'],
-    ['resell.timeout_days', '30', 'resell', '转卖匹配超时天数'],
-    ['resell.timeout_policy', 'auto_refund', 'resell', '超时策略：auto_refund 自动退款 / auto_settle 兜底结算'],
-    ['distribution.enabled', '1', 'distribution', '分销总开关：1 开启 0 关闭'],
-    ['distribution.level_1', '1', 'distribution', '一级分销开关：1 开启 0 关闭'],
-    ['distribution.level_2', '1', 'distribution', '二级分销开关：1 开启 0 关闭'],
-    ['distribution.level_3', '1', 'distribution', '三级分销开关：1 开启 0 关闭'],
-    ['commission.settle_days', '7', 'distribution', '订单完成后佣金延迟结算天数'],
-    ['site.domain', 'http://localhost:5174', 'basic', '站点访问域名（用于生成推广链接/海报二维码）'],
-    ['payment.mode', 'mock', 'payment', '支付模式：mock 模拟 / real 真实网关'],
-    ['payment.mock_auto_success', '1', 'payment', '模拟支付是否自动成功：1 是 / 0 否'],
-    ['payment.wechat.enabled', '0', 'payment', '微信支付启用状态：1 启用 / 0 关闭'],
-    ['payment.wechat.app_id', '', 'payment', '微信支付 AppID'],
-    ['payment.wechat.mch_id', '', 'payment', '微信支付商户号'],
-    ['payment.wechat.api_v3_key', '', 'payment', '微信支付 APIv3 密钥'],
-    ['payment.wechat.cert_serial_no', '', 'payment', '微信支付证书序列号'],
-    ['payment.wechat.notify_url', '', 'payment', '微信支付回调地址'],
-    ['payment.alipay.enabled', '0', 'payment', '支付宝启用状态：1 启用 / 0 关闭'],
-    ['payment.alipay.app_id', '', 'payment', '支付宝 AppID'],
-    ['payment.alipay.merchant_private_key', '', 'payment', '支付宝应用私钥'],
-    ['payment.alipay.alipay_public_key', '', 'payment', '支付宝公钥'],
-    ['payment.alipay.gateway', 'https://openapi.alipay.com/gateway.do', 'payment', '支付宝网关地址'],
-    ['payment.alipay.notify_url', '', 'payment', '支付宝回调地址'],
-  ]
-  const ins = db.prepare('INSERT OR IGNORE INTO system_config (config_key, config_value, config_group, description, update_time) VALUES (?, ?, ?, ?, ?)')
-  for (const [k, v, g, d] of cfg) {
-    ins.run(k, v, g, d, new Date().toISOString().slice(0, 19).replace('T', ' '))
-  }
+const transactionContext = new AsyncLocalStorage<TransactionContext>()
+let savepointSequence = 0
+
+export interface RunResult {
+  changes: number
+  lastInsertRowid?: number
 }
 
-// ===== 补种：代理商入会时间（有等级但入会时间为空的会员，按创建时间填充） =====
-function ensureAgentTimes() {  const rows = db.prepare(
-    "SELECT id, created_at AS createdAt FROM member WHERE level > 0 AND (become_agent_time IS NULL OR become_agent_time = '')",
-  ).all() as { id: number; createdAt: string }[]
-  if (rows.length) {
-    for (const r of rows) {
-      const t = r.createdAt || new Date().toISOString().slice(0, 19).replace('T', ' ')
-      db.prepare('UPDATE member SET become_agent_time = ? WHERE id = ?').run(t, r.id)
+async function query<T extends Record<string, unknown> = Record<string, unknown>>(
+  sql: string,
+  params: unknown[],
+): Promise<QueryResult<T>> {
+  const context = transactionContext.getStore()
+  const executor = context?.client ?? pool
+  const values = toSqlParams(params)
+  const text = normalizeSql(sql)
+  return executor.query<T>(text, values)
+}
+
+function normalizeSql(sql: string): string {
+  let text = sql.trim().replace(/;\s*$/, '')
+  const ignoreConflict = /^INSERT\s+OR\s+IGNORE\s+INTO\b/i.test(text)
+  if (ignoreConflict) text = text.replace(/^INSERT\s+OR\s+IGNORE\s+INTO\b/i, 'INSERT INTO')
+  text = quoteCamelCaseAliases(text)
+
+  // Translate SQLite positional placeholders while leaving quoted text intact.
+  let index = 0
+  let output = ''
+  let quote: "'" | '"' | null = null
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i]
+    if (quote) {
+      output += ch
+      if (ch === quote) {
+        if (text[i + 1] === quote) output += text[++i]
+        else quote = null
+      } else if (ch === '\\' && quote === "'" && i + 1 < text.length) {
+        output += text[++i]
+      }
+      continue
     }
-    console.log(`[db] 补种：${rows.length} 位代理商入会时间`)
-  }
-  // 注册时间兜底（老数据 register_time 为空）
-  const emptyReg = db.prepare("SELECT id, created_at AS createdAt FROM member WHERE register_time = ''").all() as { id: number; createdAt: string }[]
-  if (emptyReg.length) {
-    for (const r of emptyReg) {
-      db.prepare('UPDATE member SET register_time = ? WHERE id = ?').run(r.createdAt || '', r.id)
-    }
-    console.log(`[db] 补种：${emptyReg.length} 位会员注册时间`)
-  }
-}
-// ===== 补种：内置角色（幂等，老库升级时补充） =====
-function ensureBuiltinRoles() {
-  for (const b of BUILTIN_ROLES) {
-    const exists = db.prepare('SELECT id FROM admin_role WHERE code = ?').get(b.code) as { id: number } | undefined
-    if (exists) {
-      db.prepare('UPDATE admin_role SET name = ?, description = ?, permissions = ? WHERE code = ?')
-        .run(b.name, b.description, JSON.stringify(b.permissions), b.code)
+    if (ch === "'" || ch === '"') {
+      quote = ch
+      output += ch
+    } else if (ch === '?') {
+      output += `$${++index}`
     } else {
-      db.prepare('INSERT INTO admin_role (code, name, description, permissions, is_builtin, status, create_time, update_time) VALUES (?, ?, ?, ?, 1, 1, ?, ?)')
-        .run(b.code, b.name, b.description, JSON.stringify(b.permissions),
-          new Date().toISOString().slice(0, 19).replace('T', ' '), new Date().toISOString().slice(0, 19).replace('T', ' '))
+      output += ch
     }
   }
-  console.log('[db] 补种：内置角色')
-}
 
-// ===== 补种：推广新手指南（幂等，老库升级时补充） =====
-function ensurePromoteGuide() {
-  const cnt = db.prepare("SELECT COUNT(*) AS c FROM help_article WHERE scope = 'help' AND category = 'promote'").get() as { c: number }
-  if (cnt.c === 0) {
-    const nowStr = new Date().toISOString().slice(0, 19).replace('T', ' ')
-    const guides: [string, string, number][] = [
-      ['分享你的专属推广链接', '在推广中心复制你的专属推广链接或保存海报，发送给好友。好友通过链接注册后，将自动成为你的下级会员。', 6],
-      ['好友注册并购买大礼包', '好友通过你的链接注册后，在入会专区选购任意等级的大礼包并完成支付，即可成为代理商并为你产生佣金。', 7],
-      ['佣金自动结算到账', '好友确认收货后 7 天，对应层级的分享佣金自动结算进入你的可提现余额，可在佣金明细中查看并申请提现。', 8],
-    ]
-    const ins = db.prepare('INSERT INTO help_article (scope, title, category, content, sort, status, create_time, update_time) VALUES (?, ?, ?, ?, ?, 1, ?, ?)')
-    for (const [t, c, s] of guides) {
-      ins.run('help', t, 'promote', c, s, nowStr, nowStr)
+  if (ignoreConflict && !/\bON\s+CONFLICT\b/i.test(output)) {
+    const returningAt = output.search(/\s+RETURNING\b/i)
+    if (returningAt >= 0) {
+      output = `${output.slice(0, returningAt)} ON CONFLICT DO NOTHING${output.slice(returningAt)}`
+    } else {
+      output += ' ON CONFLICT DO NOTHING'
     }
-    console.log('[db] 补种：推广新手指南')
+  }
+  return output
+}
+
+/** PostgreSQL folds unquoted aliases to lowercase; preserve the camelCase API aliases used by the old query layer. */
+function quoteCamelCaseAliases(sql: string): string {
+  let output = ''
+  let quote: "'" | '"' | null = null
+  for (let i = 0; i < sql.length;) {
+    const ch = sql[i]
+    if (quote) {
+      output += ch
+      if (ch === quote) {
+        if (sql[i + 1] === quote) output += sql[++i]
+        else quote = null
+      } else if (ch === '\\' && quote === "'" && i + 1 < sql.length) {
+        output += sql[++i]
+      }
+      i += 1
+      continue
+    }
+    if (ch === "'" || ch === '"') {
+      quote = ch
+      output += ch
+      i += 1
+      continue
+    }
+    const alias = sql.slice(i).match(/^AS\s+([A-Za-z_][A-Za-z0-9_]*)\b/i)
+    if (alias) {
+      const name = alias[1]
+      output += `AS ${/[A-Z]/.test(name.slice(1)) ? `"${name}"` : name}`
+      i += alias[0].length
+      continue
+    }
+    output += ch
+    i += 1
+  }
+  return output
+}
+
+function toSqlParams(params: unknown[]): unknown[] {
+  return params.map((value) => {
+    if (value === undefined) return null
+    if (typeof value === 'boolean') return value ? 1 : 0
+    return value
+  })
+}
+
+/** Initialize all tables and idempotent additions before the HTTP server listens. */
+export async function initializeDatabase(options: { seedDefaults?: boolean } = {}): Promise<void> {
+  const statements = SCHEMA_SQL.split(';').map((statement) => statement.trim()).filter(Boolean)
+  for (const statement of statements) await pool.query(statement)
+
+  const migrations: Array<[string, string]> = [
+    ['member', "real_name TEXT NOT NULL DEFAULT ''"],
+    ['member', "register_time TEXT NOT NULL DEFAULT ''"],
+    ['member', 'become_agent_time TEXT DEFAULT NULL'],
+    ['member', 'level_expire_time TEXT DEFAULT NULL'],
+    ['help_article', "scope TEXT NOT NULL DEFAULT 'help'"],
+    ['withdraw', 'pay_type INTEGER NOT NULL DEFAULT 0'],
+    ['withdraw', "alipay_name TEXT NOT NULL DEFAULT ''"],
+    ['withdraw', "alipay_account TEXT NOT NULL DEFAULT ''"],
+    ['withdraw', "bank_holder TEXT NOT NULL DEFAULT ''"],
+    ['product_sku', 'market_price NUMERIC(14,2) NOT NULL DEFAULT 0'],
+    ['product_sku', 'cost_price NUMERIC(14,2) NOT NULL DEFAULT 0'],
+    ['commission', 'settlement_due_time TEXT DEFAULT NULL'],
+    ['commission', 'settle_time TEXT DEFAULT NULL'],
+    ['"order"', "refund_reason TEXT NOT NULL DEFAULT ''"],
+    ['"order"', 'refund_request_time TEXT DEFAULT NULL'],
+    ['"order"', "refund_audit_remark TEXT NOT NULL DEFAULT ''"],
+    ['"order"', 'refund_audit_time TEXT DEFAULT NULL'],
+    ['resell_order', 'settle_time TEXT DEFAULT NULL'],
+    ['resell_order', 'credit_id INTEGER REFERENCES credit_record(id)'],
+    ['resell_order', 'auto_matched INTEGER NOT NULL DEFAULT 0'],
+    ['work_order', "images TEXT NOT NULL DEFAULT '[]'"],
+    ['work_order', 'priority INTEGER NOT NULL DEFAULT 1'],
+    ['work_order', "reply_content TEXT NOT NULL DEFAULT ''"],
+    ['work_order', "handler TEXT NOT NULL DEFAULT ''"],
+    ['work_order', 'handle_time TEXT DEFAULT NULL'],
+    ['work_order', 'close_time TEXT DEFAULT NULL'],
+    ['promote_poster', 'qr_x DOUBLE PRECISION NOT NULL DEFAULT 38'],
+    ['promote_poster', 'qr_y DOUBLE PRECISION NOT NULL DEFAULT 72'],
+    ['promote_poster', 'qr_size DOUBLE PRECISION NOT NULL DEFAULT 24'],
+    ['level_config', 'consumption_credit_rate NUMERIC(10,4) NOT NULL DEFAULT 0'],
+    ['level_config', 'consumption_credit_months INTEGER NOT NULL DEFAULT 0'],
+    ['level_config', 'consumption_resellable INTEGER NOT NULL DEFAULT 0'],
+    ['credit_record', 'resellable_amount NUMERIC(14,2) NOT NULL DEFAULT 0'],
+    ['credit_flow', 'order_id INTEGER DEFAULT NULL'],
+  ]
+
+  const existingMarketPrice = await pool.query(
+    `SELECT 1 FROM information_schema.columns
+     WHERE table_schema = current_schema() AND table_name = 'product_sku' AND column_name = 'market_price'`,
+  )
+  for (const [table, definition] of migrations) {
+    await pool.query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${definition}`)
+  }
+  if (existingMarketPrice.rowCount === 0) {
+    await pool.query('UPDATE product_sku SET market_price = original_price')
+  }
+  const stockType = await pool.query<{ udt_name: string }>(
+    `SELECT udt_name FROM information_schema.columns
+     WHERE table_schema = current_schema() AND table_name = 'product_sku' AND column_name = 'stock'`,
+  )
+  if (stockType.rows[0]?.udt_name === 'int4') {
+    await pool.query('ALTER TABLE product_sku ALTER COLUMN stock TYPE BIGINT')
+  }
+
+  await pool.query(
+    `UPDATE system_config SET config_group = 'consumption_credit'
+     WHERE config_key IN ('consumption_credit.enabled', 'consumption_credit.normal_rate')
+       AND config_group <> 'consumption_credit'`,
+  )
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_help_scope ON help_article(scope, status)')
+  if (options.seedDefaults !== false) {
+    await ensureBuiltinRoles()
+    await ensureDemoData()
+    await ensureAgentTimes()
   }
 }
 
-try {
-  ensureDemoData()
-  ensureSysConfig()
-  ensureAgentTimes()
-  ensureBuiltinRoles()
-  ensurePromoteGuide()
-} catch (e) {
-  console.warn('[db] 演示数据补种跳过：', (e as Error).message)
-}
-
-// ===== 迁移：resell_order.order_id 改为可空（商城端转卖可不关联具体订单） + 增加 sku_name =====
-function ensureResellOrderNullable() {
-  const cols = db.prepare('PRAGMA table_info(resell_order)').all() as { name: string; notnull: number }[]
-  const orderIdCol = cols.find(c => c.name === 'order_id')
-  if (orderIdCol && orderIdCol.notnull === 1) {
-    db.exec(`
-      ALTER TABLE resell_order RENAME TO resell_order_old;
-      CREATE TABLE resell_order (
-        id             INTEGER PRIMARY KEY AUTOINCREMENT,
-        resell_no      TEXT    NOT NULL UNIQUE,
-        member_id      INTEGER NOT NULL REFERENCES member(id),
-        member_name    TEXT    NOT NULL DEFAULT '',
-        credit_id      INTEGER REFERENCES credit_record(id),
-        order_id       INTEGER REFERENCES "order"(id),
-        order_no       TEXT    NOT NULL DEFAULT '',
-        sku_name       TEXT    NOT NULL DEFAULT '',
-        goods_value    REAL    NOT NULL DEFAULT 0,
-        service_fee    REAL    NOT NULL DEFAULT 0,
-        shipping_fee   REAL    NOT NULL DEFAULT 0,
-        settle_amount  REAL    NOT NULL DEFAULT 0,
-        status         INTEGER NOT NULL DEFAULT 0,
-        match_order_id INTEGER DEFAULT NULL,
-        match_time     TEXT    DEFAULT NULL,
-        settle_time    TEXT    DEFAULT NULL,
-        cancel_time    TEXT    DEFAULT NULL,
-        create_time    TEXT    NOT NULL DEFAULT (datetime('now', 'localtime'))
-      );
-      INSERT INTO resell_order (id, resell_no, member_id, member_name, credit_id, order_id, order_no, sku_name, goods_value, service_fee, shipping_fee, settle_amount, status, match_order_id, match_time, settle_time, cancel_time, create_time)
-        SELECT id, resell_no, member_id, member_name, NULL, order_id, order_no, '', goods_value, service_fee, shipping_fee, settle_amount, status, match_order_id, match_time, NULL, cancel_time, create_time FROM resell_order_old;
-      DROP TABLE resell_order_old;
-      CREATE INDEX IF NOT EXISTS idx_resell_member ON resell_order(member_id);
-      CREATE INDEX IF NOT EXISTS idx_resell_status ON resell_order(status);
-    `)
-    console.log('[db] 迁移：resell_order.order_id 改为可空并新增 sku_name')
-  } else {
-    ensureColumn('resell_order', 'sku_name', "sku_name TEXT NOT NULL DEFAULT ''")
-    ensureColumn('resell_order', 'settle_time', 'settle_time TEXT DEFAULT NULL')
-    ensureColumn('resell_order', 'credit_id', 'credit_id INTEGER REFERENCES credit_record(id)')
+async function ensureBuiltinRoles(): Promise<void> {
+  const ts = new Date().toISOString().slice(0, 19).replace('T', ' ')
+  for (const role of BUILTIN_ROLES) {
+    await run(
+      `INSERT INTO admin_role (code, name, description, permissions, is_builtin, status, create_time, update_time)
+       VALUES (?, ?, ?, ?, 1, 1, ?, ?)
+       ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description,
+         permissions = EXCLUDED.permissions, is_builtin = 1, update_time = EXCLUDED.update_time`,
+      role.code,
+      role.name,
+      role.description,
+      JSON.stringify(role.permissions),
+      ts,
+      ts,
+    )
   }
 }
-ensureResellOrderNullable()
 
-/** 统一查询：返回 camelCase 行数组 */
-export function all<T = Record<string, unknown>>(sql: string, ...params: unknown[]): T[] {
-  return rowsToCamel(db.prepare(sql).all(...toSqlParams(params))) as T[]
+async function ensureDemoData(): Promise<void> {
+  const member = await get<{ id: number }>('SELECT id FROM member WHERE phone = ?', '13810000000')
+  if (!member) return
+  const mid = member.id
+  const addressCount = await get<{ c: number }>('SELECT COUNT(*) AS c FROM member_address WHERE member_id = ?', mid)
+  if (Number(addressCount?.c) === 0) {
+    await run('INSERT INTO member_address (member_id, name, phone, province, city, district, detail, is_default) VALUES (?, ?, ?, ?, ?, ?, ?, 1)', mid, '张伟', '13810000000', '广东省', '深圳市', '南山区', '科技园路 1 号 8 栋 302')
+    await run('INSERT INTO member_address (member_id, name, phone, province, city, district, detail, is_default) VALUES (?, ?, ?, ?, ?, ?, ?, 0)', mid, '张伟', '13810000000', '广东省', '深圳市', '福田区', '中心路 88 号 2 单元 1201')
+  }
+  const notificationCount = await get<{ c: number }>('SELECT COUNT(*) AS c FROM member_notification WHERE member_id = ?', mid)
+  if (Number(notificationCount?.c) === 0) {
+    const notices = [
+      ['order', '订单已发货', '你的订单已交由顺丰速运配送，请注意查收。', 0],
+      ['commission', '佣金已结算', '本期分享佣金已完成结算，可在佣金明细中查看并申请提现。', 0],
+      ['credit', '领货额度提醒', '本月领货额度将在月底到期，请及时使用。', 0],
+      ['system', '欢迎加入', '欢迎成为会员，完善收货地址后可快速下单。', 1],
+    ] as const
+    for (const [type, title, content, isRead] of notices) {
+      await run('INSERT INTO member_notification (member_id, type, title, content, is_read) VALUES (?, ?, ?, ?, ?)', mid, type, title, content, isRead)
+    }
+  }
+  const favorites = await get<{ c: number }>('SELECT COUNT(*) AS c FROM member_favorite WHERE member_id = ?', mid)
+  if (Number(favorites?.c) === 0) {
+    await run('INSERT INTO member_favorite (member_id, spu_id) VALUES (?, ?) ON CONFLICT DO NOTHING', mid, 1)
+    await run('INSERT INTO member_favorite (member_id, spu_id) VALUES (?, ?) ON CONFLICT DO NOTHING', mid, 3)
+  }
+  const history = await get<{ c: number }>('SELECT COUNT(*) AS c FROM member_browse WHERE member_id = ?', mid)
+  if (Number(history?.c) === 0) {
+    for (const spuId of [1, 3, 5]) await run('INSERT INTO member_browse (member_id, spu_id) VALUES (?, ?)', mid, spuId)
+  }
 }
 
-/** 查询单行 */
-export function get<T = Record<string, unknown>>(sql: string, ...params: unknown[]): T | undefined {
-  return rowsToCamel([db.prepare(sql).get(...toSqlParams(params))]).at(0) as T | undefined
+async function ensureAgentTimes(): Promise<void> {
+  await run(`UPDATE member SET become_agent_time = COALESCE(NULLIF(created_at, ''), ?)
+    WHERE level > 0 AND (become_agent_time IS NULL OR become_agent_time = '')`, new Date().toISOString().slice(0, 19).replace('T', ' '))
+  await run(`UPDATE member SET register_time = COALESCE(NULLIF(created_at, ''), ?)
+    WHERE register_time = ''`, new Date().toISOString().slice(0, 19).replace('T', ' '))
 }
 
-/** 执行写操作 */
-export function run(sql: string, ...params: unknown[]) {
-  return db.prepare(sql).run(...toSqlParams(params))
+/** Query all matching rows. SQL placeholders use the existing `?` convention. */
+export async function all<T = Record<string, unknown>>(sql: string, ...params: unknown[]): Promise<T[]> {
+  const result = await query(sql, params)
+  return rowsToCamel(result.rows) as T[]
 }
 
-/**
- * 事务：多条写语句要么全部生效要么全部回滚。
- * 用于"先删子表再删主表"这类会撞外键约束、且第一条语句本身没有约束保护的多步写操作，
- * 避免约束失败时前面已提交的语句造成无法回滚的数据损坏。
- */
-let transactionDepth = 0
+/** Query one row. */
+export async function get<T = Record<string, unknown>>(sql: string, ...params: unknown[]): Promise<T | undefined> {
+  return (await all<T>(sql, ...params))[0]
+}
 
-export function transaction<T>(fn: () => T): T {
-  const depth = transactionDepth
-  const savepoint = `shop_os_tx_${depth}`
-  db.exec(depth === 0 ? 'BEGIN IMMEDIATE' : `SAVEPOINT ${savepoint}`)
-  transactionDepth += 1
+/** Execute a write and preserve the legacy `changes` / `lastInsertRowid` result shape. */
+export async function run(sql: string, ...params: unknown[]): Promise<RunResult> {
+  const isInsert = /^\s*INSERT\b/i.test(sql.replace(/^\s*INSERT\s+OR\s+IGNORE\s+INTO\b/i, 'INSERT INTO'))
+  const hasReturning = /\bRETURNING\b/i.test(sql)
+  const statement = isInsert && !hasReturning ? `${sql.trim().replace(/;\s*$/, '')} RETURNING id` : sql
+  const result = await query(statement, params)
+  const insertedId = isInsert ? result.rows[0]?.id : undefined
+  return {
+    changes: result.rowCount ?? 0,
+    ...(insertedId === undefined ? {} : { lastInsertRowid: Number(insertedId) }),
+  }
+}
+
+/** Run related financial/inventory changes in a PostgreSQL transaction. */
+export async function transaction<T>(fn: () => Promise<T> | T): Promise<T> {
+  const parent = transactionContext.getStore()
+  if (parent) {
+    const savepoint = `shop_os_sp_${++savepointSequence}`
+    await parent.client.query(`SAVEPOINT ${savepoint}`)
+    try {
+      const value = await transactionContext.run({ client: parent.client, depth: parent.depth + 1 }, fn)
+      await parent.client.query(`RELEASE SAVEPOINT ${savepoint}`)
+      return value
+    } catch (error) {
+      await parent.client.query(`ROLLBACK TO SAVEPOINT ${savepoint}`)
+      await parent.client.query(`RELEASE SAVEPOINT ${savepoint}`)
+      throw error
+    }
+  }
+
+  const client = await pool.connect()
   try {
-    const result = fn()
-    transactionDepth = depth
-    db.exec(depth === 0 ? 'COMMIT' : `RELEASE SAVEPOINT ${savepoint}`)
-    return result
-  } catch (e) {
-    transactionDepth = depth
-    if (depth === 0) db.exec('ROLLBACK')
-    else {
-      db.exec(`ROLLBACK TO SAVEPOINT ${savepoint}`)
-      db.exec(`RELEASE SAVEPOINT ${savepoint}`)
-    }
-    throw e
+    await client.query('BEGIN')
+    const value = await transactionContext.run({ client, depth: 0 }, fn)
+    await client.query('COMMIT')
+    return value
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
   }
 }
 
-/** 分页查询：自动拼 LIMIT/OFFSET，返回 { list, total, page, pageSize } */
-export function paginate<T = Record<string, unknown>>(
+/** Return a paginated query result. */
+export async function paginate<T = Record<string, unknown>>(
   baseSql: string,
   countSql: string,
   params: unknown[],
   page: number,
   pageSize: number,
-): { list: T[]; total: number; page: number; pageSize: number } {
-  const total = (db.prepare(countSql).get(...toSqlParams(params)) as { c: number }).c
-  const rows = db.prepare(`${baseSql} LIMIT ? OFFSET ?`).all(...toSqlParams(params), pageSize, (page - 1) * pageSize)
-  return { list: rowsToCamel(rows) as T[], total, page, pageSize }
+): Promise<{ list: T[]; total: number; page: number; pageSize: number }> {
+  const count = await get<{ c: number | string }>(countSql, ...params)
+  const list = await all<T>(`${baseSql} LIMIT ? OFFSET ?`, ...params, pageSize, (page - 1) * pageSize)
+  return { list, total: Number(count?.c ?? 0), page, pageSize }
 }
 
-/** undefined/boolean 等统一转为 SQLite 可接受类型 */
-function toSqlParams(params: unknown[]): (string | number | null | bigint | Uint8Array)[] {
-  return params.map((v) => {
-    if (v === undefined) return null
-    if (typeof v === 'boolean') return v ? 1 : 0
-    return v as string | number | null | bigint | Uint8Array
-  })
-}
-
-/** snake_case 行 → camelCase（递归转换 key） */
+/** snake_case row keys → camelCase; aliases that are already camelCase remain unchanged. */
 export function rowsToCamel(rows: unknown[]): Record<string, unknown>[] {
   if (!Array.isArray(rows)) return []
-  return rows.filter((r) => r !== null && r !== undefined).map((r) => {
-    const out: Record<string, unknown> = {}
-    for (const [k, v] of Object.entries(r as Record<string, unknown>)) {
-      out[snakeToCamel(k)] = v
-    }
-    return out
+  return rows.filter((row) => row !== null && row !== undefined).map((row) => {
+    const result: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(row as Record<string, unknown>)) result[snakeToCamel(key)] = value
+    return result
   })
 }
 
 export function snakeToCamel(key: string): string {
-  return key.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase())
+  return key.replace(/_([a-z0-9])/g, (_, character: string) => character.toUpperCase())
+}
+
+export async function closeDatabase(): Promise<void> {
+  await pool.end()
 }

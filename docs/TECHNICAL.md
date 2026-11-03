@@ -33,17 +33,17 @@
               │   routes/ · services/ │
               │   middlewares/ · db/  │
               └──────────┬────────────┘
-                         │  node:sqlite
+                         │  PostgreSQL（pg pool）
                          ▼
-              ┌──────────────────────┐
-              │  SQLite 单文件数据库    │  data/shop-os.db
-              └──────────────────────┘
+              ┌─────────────────────────┐
+              │ PostgreSQL 16 数据库     │  Compose volume
+              └─────────────────────────┘
 
 packages/shared —— 设计令牌 / TS 类型 / 工具函数，被 admin 与 shop 共同引用
 ```
 
 - **单体后端 + 双前端**：一个 Express 服务同时服务管理后台与会员商城两套接口（`/api/v1/*` 下分为后台管理接口与 `/api/v1/shop/*` 商城公开/会员接口两大类）。
-- **数据库**：使用 Node.js 22 内置的 `node:sqlite`（`DatabaseSync`），单文件、无需额外数据库进程，`journal_mode = DELETE`（而非 WAL，避免容器环境下杀毒/同步进程对 `-wal` 文件加锁导致写入失败）。
+- **数据库**：PostgreSQL 16，使用 `pg` 连接池与异步查询；金额列使用 `NUMERIC(14,2)`，比例列使用 `NUMERIC(10,4)`，支持通过连接串或 `PG*` 环境变量配置。
 - **鉴权**：管理员与会员是两套完全独立的 JWT 体系，互不通用（见 [2.2](#22-鉴权模型)）。
 - **权限**：管理员按角色 → 权限点两级模型（见 [2.3](#23-权限与角色)）。
 
@@ -51,7 +51,7 @@ packages/shared —— 设计令牌 / TS 类型 / 工具函数，被 admin 与 s
 
 | 包 | 关键依赖 |
 |----|---------|
-| `apps/server` | express ^4.19、jsonwebtoken ^9、bcryptjs ^2.4、multer ^1.4、zod ^3.23、typescript ^5.5、tsx（开发热重载） |
+| `apps/server` | express ^4.19、pg ^8、dotenv ^16、jsonwebtoken ^9、bcryptjs ^2.4、multer ^1.4、zod ^3.23、typescript ^5.5、tsx（开发热重载） |
 | `apps/admin` | vue ^3.4、element-plus ^2.7、echarts ^5.5、pinia ^2.1、vite ^5.2 |
 | `apps/shop` | vue ^3.4、vant ^4.9、pinia ^2.1、@capacitor/android ^8.5、vite ^5.2 |
 | `packages/shared` | 纯 TypeScript，无框架依赖，供 admin/shop 直接引用源码（非构建产物） |
@@ -116,29 +116,31 @@ packages/shared —— 设计令牌 / TS 类型 / 工具函数，被 admin 与 s
 
 ### 2.4 数据库访问约定
 
-- 表名 `snake_case` 复数；主键 `id INTEGER PRIMARY KEY AUTOINCREMENT`
-- 外键列以 `_id` 结尾；金额统一 `REAL`（元，两位小数，见 `utils/money()`）
+- 表名 `snake_case`；主键 `SERIAL`，外键列以 `_id` 结尾
+- 金额使用 `NUMERIC(14,2)`（元）；佣金/费率使用 `NUMERIC(10,4)`，业务计算在 `utils/money()` 中舍入
 - 时间统一 `TEXT`，格式 `YYYY-MM-DD HH:mm:ss`（本地时区，见 `utils/now()`）
 - 状态列 `status INTEGER`：多数表 `1` 启用/有效、`0` 停用/无效（个别表如订单、提现有更多状态值，见下表）
-- 查询层（`apps/server/src/db/index.ts`）统一做 **snake_case → camelCase** 转换：`all()` / `get()` 返回的字段名与前端 TS 类型保持一致，无需在路由层手写映射（路由里出现的 `AS xxxAs` 是 SQL 别名，直接决定了返回字段名）
+- 查询层（`apps/server/src/db/index.ts`）统一将 PostgreSQL 行字段的 `snake_case` 转为 `camelCase`，并保留 SQL 中显式写出的 camelCase 别名；`all()` / `get()` 返回字段与前端 TS 类型保持一致。
 - `paginate(baseSql, countSql, params, page, pageSize)` 统一分页，返回 `{ list, total, page, pageSize }`
 
 ### 2.5 数据库迁移策略
 
-本项目**没有传统迁移文件系统**，采用三层幂等策略，全部在 `apps/server/src/db/index.ts` 与 `db/seed.ts` 中：
+本项目目前**没有版本化迁移文件系统**，采用幂等建表与补列策略，在 `apps/server/src/db/index.ts` 中执行：
 
 1. **建表**：`schema.ts` 的 `CREATE TABLE IF NOT EXISTS` 在每次启动时执行，新增表可以直接加进去。
-2. **补列**：已上线表新增字段时，用 `ensureColumn(table, column, ddl)` 做 `ALTER TABLE ... ADD COLUMN`（幂等：先查 `PRAGMA table_info` 是否已存在）。
-3. **首次种子数据**：`seed()` 函数顶部有 `if (seeded('seed.done')) return` 的**一次性**守卫——`system_config` 表里存在 `seed.done` 这一行就直接跳过，不会重复插入管理员账号、演示商品等初始数据。
+2. **补列**：已上线表新增字段时，通过 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` 幂等补充。
+3. **首次种子数据**：`seed()` 函数有 `seed.done` 一次性守卫；配置补丁在守卫前执行，确保既有库也能补齐新增配置。
 
-   ⚠️ **常见坑**：新增的 `system_config` 配置项如果只加进 `seed()` 内部 `seeded('seed.done')` 判断之后的数组里，**旧数据库永远不会补上**（包括本地已跑过一次的开发库、以及生产环境已运行过的 Docker 数据卷）。正确做法是加进 `seed()` 函数最开头、`seed.done` 判断**之前**的 `patchConfigDefaults()` 之类的无条件幂等补丁函数（`INSERT OR IGNORE`），让它在每次进程启动时都执行一遍。当前 `site.logo` / `site.icon` 两个配置项就是用这种方式补的，可参考同样写法追加新配置项。
-4. **演示数据补种**：`ensureDemoData()` / `ensureSysConfig()` / `ensureAgentTimes()` / `ensureBuiltinRoles()` / `ensurePromoteGuide()` 在每次进程启动时执行，只在数据缺失时补齐，用于老库升级场景。
+   ⚠️ 新增系统配置要放入 `seed.done` 判断前执行的无条件幂等补丁，确保已初始化数据库也能补齐。
+4. **启动补齐**：`ensureDemoData()`、`ensureAgentTimes()` 与 `ensureBuiltinRoles()` 在数据库初始化时幂等执行，只在数据缺失时补齐。
+
+本机旧 SQLite 数据迁移使用独立命令 `pnpm --filter @shop-os/server migrate:sqlite`；迁移目标必须为空，命令会保留主键并重置 PostgreSQL 自增序列。
 
 ---
 
 ## 3. 数据库表结构
 
-数据库为单文件 SQLite（默认路径 `apps/server/data/shop-os.db`，可用 `DB_FILE` 环境变量覆盖）。以下按业务域分组列出全部 34 张表。
+运行数据库为 PostgreSQL；连接由 `DATABASE_URL` 或 `PGHOST`、`PGPORT`、`PGDATABASE`、`PGUSER`、`PGPASSWORD`、`PGSSLMODE` 配置。金额字段为 `NUMERIC(14,2)`。以下按业务域分组列出全部 38 张表。
 
 ### 3.1 管理员与权限
 
@@ -178,11 +180,11 @@ packages/shared —— 设计令牌 / TS 类型 / 工具函数，被 admin 与 s
 | level | INTEGER UNIQUE | 等级序号，0 由代码保留给"普通会员"，配置表中一般从 1 开始 |
 | level_name | TEXT | 等级名称，如"银卡代理商" |
 | level_sort | INTEGER | 展示排序 |
-| entry_amount | REAL | 入门金额（对应大礼包价格，仅展示用途，实际以礼包价格为准） |
+| entry_amount | NUMERIC(14,2) | 入门金额（对应大礼包价格，仅展示用途，实际以礼包价格为准） |
 | shop_discount | INTEGER | 商城折扣，100=不打折，90=9 折 |
-| monthly_credit | REAL | 每月领货额度 |
+| monthly_credit | NUMERIC(14,2) | 每月领货额度 |
 | credit_months | INTEGER | 领货持续月数（当前未做到期自动停发的调度，需配合 `member.level_expire_time` 后续扩展） |
-| resell_fee_rate | REAL | 转卖服务费率(%)（当前转卖服务费在下单时由前端计算传入，此字段为预留的等级维度费率位） |
+| resell_fee_rate | NUMERIC(10,4) | 转卖服务费率(%)（当前转卖服务费在下单时由前端计算传入，此字段为预留的等级维度费率位） |
 | status | INTEGER | 1 启用 / 0 停用 |
 
 **`member`** 会员 / 代理商（含三级推荐关系）
@@ -217,14 +219,14 @@ packages/shared —— 设计令牌 / TS 类型 / 工具函数，被 admin 与 s
 
 ### 3.4 订单
 
-**`order`**（SQL 中需加引号 `"order"`，为 SQLite 保留字冲突处理）
+**`order`**（SQL 中需加引号 `"order"`，避免与 SQL `ORDER BY` 关键字冲突）
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | order_no | TEXT UNIQUE | 业务单号，`genNo('SO')` 生成 |
 | member_id / member_name | | |
 | order_type | INTEGER | 1 零售 / 2 礼包 |
-| total_amount / discount_amount / shipping_fee / pay_amount | REAL | |
+| total_amount / discount_amount / shipping_fee / pay_amount | NUMERIC(14,2) | |
 | status | INTEGER | 0 待支付 / 1 待发货 / 2 待收货 / 3 已完成 / 4 已取消 / 6 已退款（退款审核通过后，见 `order.ts`） |
 | receiver_name / receiver_phone / receiver_address | | |
 | logistics_company / logistics_no | | |
@@ -245,7 +247,8 @@ packages/shared —— 设计令牌 / TS 类型 / 工具函数，被 admin 与 s
 | order_id | INTEGER | 触发佣金的礼包订单 |
 | package_level | INTEGER | 礼包对应等级 |
 | distribution_level | INTEGER | 1/2/3，收佣人相对下单人的分销层级 |
-| rate / amount | REAL | 费率(%) / 金额 |
+| rate | NUMERIC(10,4) | 费率(%) |
+| amount | NUMERIC(14,2) | 金额 |
 | status | INTEGER | 0 待结算 / 1 可提现 / 2 已提现（预留，当前提现走钱包汇总余额，不回写单条佣金）/ 3 已冻结（预留未使用）/ 4 已回滚 |
 | settlement_due_time | TEXT | 到期自动结算时间点，订单完成时按 `commission.settle_days` 天数计算写入 |
 | settle_time / rollback_reason | | |
@@ -682,7 +685,8 @@ POST /shop/payments/:no/simulate   模拟第三方回调成功
 
 | 容器 | 基础镜像 | 说明 |
 |------|---------|------|
-| `shop-os-server` | `node:22-slim`（多阶段构建） | `tsc` 编译后仅拷贝 `dist` + 生产依赖运行；入口脚本 `docker-entrypoint.sh` 按 `AUTO_SEED` 决定是否先跑一遍幂等种子，再启动服务 |
+| `shop-os-postgres` | `postgres:16-alpine` | 数据库服务，健康检查通过后后端才启动；数据保存在 `shop_os_postgres_data` |
+| `shop-os-server` | `node:22-slim`（多阶段构建） | `tsc` 编译后仅拷贝 `dist` + 生产依赖运行；应用启动时先建表，再按 `AUTO_SEED` 初始化种子 |
 | `shop-os-admin` | `node:22-slim` 构建 → `nginx:1.27-alpine` 运行 | Vite 构建产物 + `nginx.conf` 反代 `/api` `/uploads` 到 `server` 容器（容器间通过 Compose 网络的服务名 `server:3000` 通信） |
 | `shop-os-shop` | 同上 | 同上，反代逻辑相同 |
 
@@ -690,17 +694,29 @@ POST /shop/payments/:no/simulate   模拟第三方回调成功
 
 | Volume | 挂载路径 | 内容 |
 |--------|---------|------|
-| `shop_os_data` | `/data` | SQLite 数据库文件 |
+| `shop_os_postgres_data` | `/var/lib/postgresql/data` | PostgreSQL 数据库文件 |
 | `shop_os_uploads` | `/uploads` | 用户上传文件（商品图、海报、Logo 等），同时由 `server` 通过 Express `express.static` 与两个前端容器的 Nginx 反代双路径提供访问 |
 
 ### 6.3 启动依赖
 
-`docker-compose.yml` 中 `admin`/`shop` 均 `depends_on: server: condition: service_healthy`，`server` 的健康检查通过 `node -e "fetch('http://127.0.0.1:3000/api/v1/health')..."` 实现，`start_period: 180s` 容忍首次构建/依赖安装较慢的情况。
+Compose 启动顺序为 `postgres` 健康检查通过 → `server` 初始化数据库并通过健康检查 → `admin`/`shop` 启动。PostgreSQL 不映射到宿主机公网端口。
 
-### 6.4 前端构建期变量
+### 6.4 环境变量
+
+| 变量 | 用途 |
+|---|---|
+| `DATABASE_URL` | PostgreSQL 连接串，优先于 `PG*` 连接字段 |
+| `PGHOST` / `PGPORT` | 数据库地址与端口；Compose 默认 `postgres:5432` |
+| `PGDATABASE` / `PGUSER` / `PGPASSWORD` | 数据库名、账号、密码；Compose 初始化密码使用 `POSTGRES_PASSWORD` |
+| `PGPOOL_MAX` | 后端连接池上限，默认 10 |
+| `PGSSLMODE` | 数据库 TLS 模式；本地 Compose 默认为 `disable` |
+| `AUTO_SEED` | 是否在服务启动后执行幂等基础数据初始化 |
+| `JWT_SECRET` | 生产环境必填，必须使用随机密钥 |
+
+### 6.5 前端构建期变量
 
 `VITE_API_BASE_URL` 在**构建时**写入前端产物（Vite 环境变量），使用内置 Nginx 反代方案时保持默认值 `/api/v1` 即可（相对路径，天然适配任何域名）；如果前端与后端不通过同一 Nginx 反代（例如前端用 CDN、后端独立域名），需要在构建时改为绝对地址，如 `https://api.example.com/api/v1`。
 
-### 6.5 本地非容器开发时的多进程约定
+### 6.6 本地非容器开发时的多进程约定
 
 本地 `pnpm dev` 系列命令启动的是三个独立进程（server: 3000、admin: 5173、shop: 5174），彼此通过绝对 URL（`VITE_API_BASE_URL` 开发期默认值）直接请求，不经过 Nginx 反代；这与生产的容器化部署（相对路径 + Nginx 反代）是两套不同的网络拓扑，排查跨域/端口问题时注意区分场景。

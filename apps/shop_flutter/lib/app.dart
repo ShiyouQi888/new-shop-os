@@ -485,8 +485,10 @@ class _HomeScreenState extends State<HomeScreen> {
             pinned: true,
             titleSpacing: 20,
             title: Row(children: [
-              Image.asset('assets/branding/logo-dark.png',
-                  height: 35, fit: BoxFit.contain),
+              const BrandLogo(
+                assetPath: 'assets/branding/logo-dark.png',
+                height: 35,
+              ),
             ]),
             actions: [
               IconButton(

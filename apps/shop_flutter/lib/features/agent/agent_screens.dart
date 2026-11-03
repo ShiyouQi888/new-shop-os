@@ -1943,9 +1943,11 @@ class _PromotionScreenState extends State<PromotionScreen> {
                                                         mainAxisSize:
                                                             MainAxisSize.min,
                                                         children: [
-                                                      Image.asset(
-                                                          'assets/branding/logo-dark.png',
-                                                          height: 52),
+                                                      const BrandLogo(
+                                                        assetPath:
+                                                            'assets/branding/logo-dark.png',
+                                                        height: 52,
+                                                      ),
                                                       const SizedBox(
                                                           height: 12),
                                                       const Text(

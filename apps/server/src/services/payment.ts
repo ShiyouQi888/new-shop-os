@@ -46,15 +46,15 @@ const PAYMENT_KEYS: [string, string, string][] = [
   ['payment.alipay.notify_url', '', '支付宝回调地址'],
 ]
 
-export function ensurePaymentConfigs() {
+export async function ensurePaymentConfigs() {
   const stmt = 'INSERT OR IGNORE INTO system_config (config_key, config_value, config_group, description, update_time) VALUES (?, ?, ?, ?, ?)'
   for (const [key, value, desc] of PAYMENT_KEYS) {
-    run(stmt, key, value, 'payment', desc, now())
+    await run(stmt, key, value, 'payment', desc, now())
   }
 }
 
-function getPaymentConfig() {
-  const rows = all<SystemConfigRow>('SELECT config_key AS key, config_value AS value FROM system_config WHERE config_group = ?', 'payment')
+async function getPaymentConfig() {
+  const rows = (await all<SystemConfigRow>('SELECT config_key AS key, config_value AS value FROM system_config WHERE config_group = ?', 'payment'))
   const map = new Map(rows.map(row => [row.key, row.value]))
   const value = (key: string, fallback = '') => map.get(key) ?? fallback
   const mode: PaymentMode = value('payment.mode', 'mock') === 'real' ? 'real' : 'mock'
@@ -81,9 +81,9 @@ function getPaymentConfig() {
 }
 
 /** 当前支付模式；退款审核只能在已接通退款能力的通道上完成资金状态变更。 */
-export function getPaymentMode(): PaymentMode {
-  ensurePaymentConfigs()
-  return getPaymentConfig().mode
+export async function getPaymentMode(): Promise<PaymentMode> {
+  await ensurePaymentConfigs()
+  return (await getPaymentConfig()).mode
 }
 
 function createMockCredential(paymentNo: string, amount: number) {
@@ -95,8 +95,8 @@ function createMockCredential(paymentNo: string, amount: number) {
   }
 }
 
-function assertRealProviderReady(payType: PayType) {
-  const config = getPaymentConfig()
+async function assertRealProviderReady(payType: PayType) {
+  const config = (await getPaymentConfig())
   if (payType === 'wechat') {
     const missing = [
       ['AppID', config.wechat.appId],
@@ -121,8 +121,8 @@ function assertRealProviderReady(payType: PayType) {
   }
 }
 
-function createRealCredential(paymentNo: string, payType: PayType, amount: number) {
-  assertRealProviderReady(payType)
+async function createRealCredential(paymentNo: string, payType: PayType, amount: number) {
+  await assertRealProviderReady(payType)
   return {
     paymentNo,
     amount,
@@ -133,28 +133,28 @@ function createRealCredential(paymentNo: string, payType: PayType, amount: numbe
   }
 }
 
-export function createPayment(input: PaymentOrderInput): PaymentCreateResult {
-  ensurePaymentConfigs()
-  const config = getPaymentConfig()
-  const payment = transaction(() => {
-    const order = get<{ memberId: number; status: number; payAmount: number }>(
-      'SELECT member_id AS memberId, status, pay_amount AS payAmount FROM "order" WHERE id = ?', input.orderId,
-    )
+export async function createPayment(input: PaymentOrderInput): Promise<PaymentCreateResult> {
+  await ensurePaymentConfigs()
+  const config = (await getPaymentConfig())
+  const payment = (await transaction(async () => {
+    const order = (await get<{ memberId: number; status: number; payAmount: number }>(
+      'SELECT member_id AS memberId, status, pay_amount AS payAmount FROM "order" WHERE id = ? FOR UPDATE', input.orderId,
+    ))
     if (!order || Number(order.memberId) !== input.memberId) throw badRequest('订单不存在或无权操作')
     if (Number(order.status) !== 0) throw badRequest('仅待支付订单可创建支付单')
     if (money(Number(order.payAmount)) !== money(input.amount)) throw badRequest('支付金额与订单金额不一致')
-    const existing = get<Record<string, unknown>>('SELECT * FROM payment_order WHERE order_id = ? AND status = 0', input.orderId)
+    const existing = (await get<Record<string, unknown>>('SELECT * FROM payment_order WHERE order_id = ? AND status = 0', input.orderId))
     if (existing) return { paymentNo: String(existing.paymentNo), amount: Number(existing.amount), payType: String(existing.payType) as PayType }
     const paymentNo = genNo('PAY')
-    run(
+    await run(
       'INSERT INTO payment_order (payment_no, order_id, member_id, pay_type, amount, status, create_time) VALUES (?, ?, ?, ?, ?, 0, ?)',
       paymentNo, input.orderId, input.memberId, input.payType, input.amount, now(),
     )
     return { paymentNo, amount: input.amount, payType: input.payType }
-  })
+  }))
   const { paymentNo, amount, payType } = payment
   const mock = config.mode === 'mock'
-  const credential = mock ? createMockCredential(paymentNo, amount) : createRealCredential(paymentNo, payType, amount)
+  const credential = mock ? createMockCredential(paymentNo, amount) : (await createRealCredential(paymentNo, payType, amount))
   return {
     paymentNo,
     payType,
@@ -167,81 +167,81 @@ export function createPayment(input: PaymentOrderInput): PaymentCreateResult {
   }
 }
 
-export function completeMockPayment(paymentNo: string, memberId: number) {
-  ensurePaymentConfigs()
-  const config = getPaymentConfig()
+export async function completeMockPayment(paymentNo: string, memberId: number) {
+  await ensurePaymentConfigs()
+  const config = (await getPaymentConfig())
   if (config.mode !== 'mock') throw badRequest('当前不是模拟支付模式，不能使用模拟回调')
-  const pay = get<Record<string, unknown>>('SELECT * FROM payment_order WHERE payment_no = ?', paymentNo)
+  const pay = (await get<Record<string, unknown>>('SELECT * FROM payment_order WHERE payment_no = ?', paymentNo))
   if (!pay) throw badRequest('支付单不存在')
   if (Number(pay.memberId) !== memberId) throw badRequest('无权操作')
   if (Number(pay.status) !== 0) throw badRequest('支付单已处理')
-  const order = get<{ status: number; orderType: number; orderNo: string; payAmount: number }>(
+  const order = (await get<{ status: number; orderType: number; orderNo: string; payAmount: number }>(
     'SELECT status, order_type AS orderType, order_no AS orderNo, pay_amount AS payAmount FROM "order" WHERE id = ?',
     pay.orderId,
-  )
+  ))
   // 订单可能已经通过旧版 /orders/:id/pay 路径完成支付：这里必须再校验订单自身状态，
   // 否则一张滞留在 status=0 的支付单会被重复处理，导致收入与消费返还额度被二次记账
   if (!order || Number(order.status) !== 0) throw badRequest('订单已处理，无需重复支付')
-  transaction(() => {
+  await transaction(async () => {
     const paidAt = now()
-    const paymentUpdate = run(
+    const paymentUpdate = (await run(
       'UPDATE payment_order SET status = 1, trade_no = ?, pay_time = ? WHERE id = ? AND status = 0',
       `MOCK${Date.now()}${Math.floor(Math.random() * 9000 + 1000)}`, paidAt, pay.id,
-    )
+    ))
     if (Number(paymentUpdate.changes) !== 1) throw badRequest('支付单已处理')
-    const orderUpdate = run('UPDATE "order" SET status = 1, pay_time = ? WHERE id = ? AND status = 0', paidAt, pay.orderId)
+    const orderUpdate = (await run('UPDATE "order" SET status = 1, pay_time = ? WHERE id = ? AND status = 0', paidAt, pay.orderId))
     if (Number(orderUpdate.changes) !== 1) throw badRequest('订单已处理，无需重复支付')
 
     // 支付只代表资金到账，礼包和其他实物订单都必须进入待发货；确认收货后才开始佣金售后期。
-    recordFinanceFlow(1, Number(order.payAmount), order.orderNo, '订单支付收入')
-    createPendingCommissions(Number(pay.orderId))
-    grantConsumptionCredit(Number(pay.orderId))
-    tryAutoMatchResell(Number(pay.orderId))
-    if (Number(order.orderType) === 3) finalizeCreditRedeem(Number(pay.orderId))
-    if (Number(order.orderType) === 2) activateGiftPackage(Number(pay.orderId), memberId)
+    await recordFinanceFlow(1, Number(order.payAmount), order.orderNo, '订单支付收入')
+    await createPendingCommissions(Number(pay.orderId))
+    await grantConsumptionCredit(Number(pay.orderId))
+    await tryAutoMatchResell(Number(pay.orderId))
+    if (Number(order.orderType) === 3) await finalizeCreditRedeem(Number(pay.orderId))
+    if (Number(order.orderType) === 2) await activateGiftPackage(Number(pay.orderId), memberId)
   })
   return { orderId: Number(pay.orderId), autoSuccess: config.mockAutoSuccess }
 }
 
-export function activateGiftPackage(orderId: number, memberId: number) {
-  const order = get<{ memberId: number; status: number; orderType: number }>(
+export async function activateGiftPackage(orderId: number, memberId: number) {
+  const order = (await get<{ memberId: number; status: number; orderType: number }>(
     'SELECT member_id AS memberId, status, order_type AS orderType FROM "order" WHERE id = ?', orderId,
-  )
+  ))
   if (!order || Number(order.memberId) !== memberId || Number(order.orderType) !== 2 || Number(order.status) !== 1) return
-  const packageLevel = get<{ level: number }>('SELECT member_level AS level FROM order_item WHERE order_id = ? LIMIT 1', orderId)?.level
+  const packageLevel = ((await get<{ level: number }>('SELECT member_level AS level FROM order_item WHERE order_id = ? LIMIT 1', orderId)))?.level
   if (!packageLevel || Number(packageLevel) <= 0) return
-  const member = get<{ level: number }>('SELECT level FROM member WHERE id = ?', memberId)
+  const member = (await get<{ level: number }>('SELECT level FROM member WHERE id = ?', memberId))
   if (!member || Number(member.level) >= Number(packageLevel)) return
-  const level = get<{ monthlyCredit: number }>('SELECT monthly_credit AS monthlyCredit FROM level_config WHERE level = ? AND status = 1', packageLevel)
+  const level = (await get<{ monthlyCredit: number }>('SELECT monthly_credit AS monthlyCredit FROM level_config WHERE level = ? AND status = 1', packageLevel))
   if (!level) throw badRequest('礼包对应的会员等级已停用，无法开通权益')
-  const changed = run('UPDATE member SET level = ?, become_agent_time = ? WHERE id = ? AND level < ?',
-    packageLevel, now(), memberId, packageLevel)
+  const changed = (await run('UPDATE member SET level = ?, become_agent_time = ? WHERE id = ? AND level < ?',
+    packageLevel, now(), memberId, packageLevel))
   if (Number(changed.changes) !== 1) throw badRequest('会员等级已发生变化，请刷新后查看')
   const credit = Number(level.monthlyCredit ?? 0)
   if (credit <= 0) return
   const ts = now()
   const month = monthOf()
-  const existing = get<{ id: number; usedAmount: number; remainAmount: number; resellableAmount: number }>(
+  const existing = (await get<{ id: number; usedAmount: number; remainAmount: number; resellableAmount: number }>(
     'SELECT id, used_amount AS usedAmount, remain_amount AS remainAmount, resellable_amount AS resellableAmount FROM credit_record WHERE member_id = ? AND month = ?',
     memberId, month,
-  )
+  ))
   let recordId: number
   let remain: number
   if (existing) {
     remain = money(Number(existing.remainAmount) + credit)
     const resellable = money(Number(existing.resellableAmount ?? 0) + credit)
-    run('UPDATE credit_record SET credit_amount = credit_amount + ?, remain_amount = ?, resellable_amount = ?, status = ?, update_time = ? WHERE id = ?',
+    await run('UPDATE credit_record SET credit_amount = credit_amount + ?, remain_amount = ?, resellable_amount = ?, status = ?, update_time = ? WHERE id = ?',
       credit, remain, resellable, Number(existing.usedAmount) > 0 ? 1 : 0, ts, existing.id)
     recordId = existing.id
   } else {
-    const inserted = run(
+    const inserted = (await run(
       `INSERT INTO credit_record (member_id, month, credit_amount, used_amount, remain_amount, resellable_amount, status, remark, create_time)
        VALUES (?, ?, ?, 0, ?, ?, 0, ?, ?)`,
       memberId, month, credit, credit, credit, '入会礼包支付后自动发放', ts,
-    )
+    ))
     recordId = Number(inserted.lastInsertRowid)
     remain = credit
   }
-  run('INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, order_id, create_time) VALUES (?, ?, ?, ?, 1, ?, ?, ?)',
+  await run('INSERT INTO credit_flow (record_id, member_id, change_amount, balance, type, reason, order_id, create_time) VALUES (?, ?, ?, ?, 1, ?, ?, ?)',
     recordId, memberId, credit, remain, '入会礼包支付后自动发放', orderId, ts)
 }
