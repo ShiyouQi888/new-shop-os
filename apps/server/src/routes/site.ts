@@ -10,6 +10,7 @@ const DEFAULT_SHOP_THEME = 'orange'
 /** GET /site/config */
 router.get('/config', async (_req, res, next) => {
   try {
+    res.setHeader('Cache-Control', 'no-store')
     const rows = (await all<{ key: string; value: string }>(
       "SELECT config_key AS key, config_value AS value FROM system_config WHERE config_key IN ('site.name', 'site.logo', 'site.icon', 'site.app_icon', 'site.theme')",
     ))

@@ -11,7 +11,7 @@
       <section class="brand-stage">
         <div class="brand-lockup">
           <img class="brand-logo" :src="siteBranding.logo || '/logo.png'" alt="橙选" />
-          <div class="brand-subtitle">邀请制会员准入</div>
+          <div class="brand-subtitle">{{ siteBranding.name || '邀请制会员准入' }}</div>
         </div>
 
         <div class="stage-copy">

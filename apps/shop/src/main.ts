@@ -4,12 +4,11 @@ import App from './App.vue'
 import router from './router'
 import 'vant/lib/index.css'
 import './styles/index.scss'
-import { ensureSiteBranding, siteBranding } from './utils/site'
+import { ensureSiteBranding, refreshSiteBranding } from './utils/site'
 
-ensureSiteBranding().then(() => {
-  if (!siteBranding.icon) return
-  const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
-  if (link) link.href = siteBranding.icon
+void ensureSiteBranding()
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') void refreshSiteBranding()
 })
 
 const app = createApp(App)

@@ -1,7 +1,10 @@
 <template>
   <div class="home-page page-shell">
     <header class="app-header">
-      <img :src="siteBranding.logo || '/logo.png'" alt="橙选商城" class="app-logo" />
+      <div class="brand-lockup">
+        <img :src="siteBranding.logo || '/logo.png'" :alt="siteBranding.name || '商城品牌'" class="app-logo" />
+        <span class="brand-name">{{ siteBranding.name || '橙选商城' }}</span>
+      </div>
       <div class="header-actions">
         <button type="button" aria-label="消息通知" @click="router.push('/mine/notifications')"><van-icon name="bell" /></button>
         <button type="button" aria-label="个人中心" @click="router.push('/mine')"><van-icon name="user-o" /></button>
@@ -123,11 +126,27 @@ onMounted(async () => {
   border-bottom: 1px solid var(--border-color);
   backdrop-filter: blur(16px);
 }
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
 .app-logo {
-  width: 118px;
+  width: 72px;
   height: 34px;
+  flex: 0 0 auto;
   object-fit: contain;
   object-position: left center;
+}
+.brand-name {
+  max-width: 145px;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .header-actions {
   display: flex;

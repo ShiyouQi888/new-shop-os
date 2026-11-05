@@ -8,6 +8,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'api_client.dart';
 import 'models.dart';
 import 'session_store.dart';
+import 'site_identity_stub.dart'
+    if (dart.library.html) 'site_identity_web.dart' as site_identity;
 
 const _launcherIconChannel = MethodChannel('com.chengxuan.shop/launcher_icon');
 const _launcherIconVariants = {'orange', 'cream', 'night'};
@@ -32,6 +34,8 @@ class AppController extends ChangeNotifier with WidgetsBindingObserver {
   int cartCount = 0;
   String brandLogoUrl = '';
   int brandLogoRevision = 0;
+  String brandName = '橙选商城';
+  String brandIconUrl = '';
   String appIcon = 'orange';
   bool _refreshingBranding = false;
   bool _disposed = false;
@@ -84,12 +88,20 @@ class AppController extends ChangeNotifier with WidgetsBindingObserver {
     _refreshingBranding = true;
     try {
       final config = asJsonMap(await api.get('/site/config'));
+      brandName = '${config['name'] ?? ''}'.trim();
+      if (brandName.isEmpty) brandName = '橙选商城';
       brandLogoUrl = '${config['logo'] ?? ''}'.trim();
+      brandIconUrl = '${config['icon'] ?? ''}'.trim();
       brandLogoRevision++;
       final requestedIcon = '${config['appIcon'] ?? 'orange'}'.trim();
       appIcon = _launcherIconVariants.contains(requestedIcon)
           ? requestedIcon
           : 'orange';
+      site_identity.applySiteIdentity(
+        name: brandName,
+        iconUrl: brandIconUrl,
+        revision: brandLogoRevision,
+      );
       if (!_disposed) notifyListeners();
       await _syncLauncherIcon(appIcon);
     } on Exception {

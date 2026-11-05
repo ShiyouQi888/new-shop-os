@@ -1,5 +1,5 @@
 /**
- * 站点品牌配置缓存（Logo/图标/主题）：全局单例，避免多个组件重复请求
+ * 站点品牌配置缓存（名称/Logo/图标/主题）：全局单例，避免多个组件重复请求
  * 未配置时使用内置默认资源（/logo.png、/icon.png）与默认主题
  */
 import { reactive } from 'vue'
@@ -24,6 +24,29 @@ export const currentTheme = reactive({
   onPrimary: defaultTheme.onPrimary,
   dark: !!defaultTheme.dark,
 })
+
+const applySiteIdentity = () => {
+  const name = siteBranding.name.trim() || '橙选商城'
+  document.title = name
+
+  let iconLink = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
+  if (!iconLink) {
+    iconLink = document.createElement('link')
+    iconLink.rel = 'icon'
+    document.head.append(iconLink)
+  }
+  const iconUrl = new URL(siteBranding.icon || '/icon.png', window.location.href)
+  if (siteBranding.icon) iconUrl.searchParams.set('_brand_revision', String(Date.now()))
+  iconLink.href = iconUrl.toString()
+
+  let applicationName = document.querySelector<HTMLMetaElement>('meta[name="application-name"]')
+  if (!applicationName) {
+    applicationName = document.createElement('meta')
+    applicationName.name = 'application-name'
+    document.head.append(applicationName)
+  }
+  applicationName.content = name
+}
 
 const hexToRgbTriple = (hex: string): string => {
   const m = hex.replace('#', '')
@@ -64,7 +87,7 @@ export function applyTheme(themeId: string) {
 
 let pending: Promise<void> | null = null
 
-/** 加载站点品牌配置（幂等，重复调用复用同一次请求） */
+/** 加载站点品牌配置；并发调用复用请求，后续调用会重新读取后台配置 */
 export const ensureSiteBranding = (): Promise<void> => {
   if (!pending) {
     pending = api.getSiteConfig()
@@ -74,8 +97,12 @@ export const ensureSiteBranding = (): Promise<void> => {
         siteBranding.name = data.name || ''
         siteBranding.theme = data.theme || DEFAULT_SHOP_THEME
         applyTheme(siteBranding.theme)
+        applySiteIdentity()
       })
       .catch(() => { /* 加载失败时保持默认资源与默认主题 */ })
+      .finally(() => { pending = null })
   }
   return pending
 }
+
+export const refreshSiteBranding = ensureSiteBranding

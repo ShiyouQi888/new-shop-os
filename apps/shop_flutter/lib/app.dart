@@ -21,8 +21,12 @@ class ShopOsApp extends StatelessWidget {
   const ShopOsApp({super.key});
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-        title: '橙选商城',
+  Widget build(BuildContext context) {
+    final brandName = context.select<AppController, String>(
+      (controller) => controller.brandName,
+    );
+    return MaterialApp(
+        title: brandName.isEmpty ? '橙选商城' : brandName,
         debugShowCheckedModeBanner: false,
         theme: ShopTheme.light,
         locale: const Locale('zh', 'CN'),
@@ -57,6 +61,7 @@ class ShopOsApp extends StatelessWidget {
           ];
         },
       );
+  }
 }
 
 Route<dynamic>? _generateShopRoute(RouteSettings settings) {
@@ -487,7 +492,18 @@ class _HomeScreenState extends State<HomeScreen> {
             title: Row(children: [
               const BrandLogo(
                 assetPath: 'assets/branding/logo-dark.png',
-                height: 35,
+                height: 30,
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  controller.brandName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
               ),
             ]),
             actions: [
